@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { IText } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
 import { ImagePanel } from './ImagePanel';
+import { BarcodeModal } from './BarcodeModal';
 
 export function LeftPanel() {
   const {
@@ -15,6 +16,7 @@ export function LeftPanel() {
   } = useProjectStore();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
 
   const handleGoogleFontLoad = async (fontId: string) => {
     const fontConfig = fontConfigs.find(f => f.id === fontId);
@@ -98,18 +100,27 @@ export function LeftPanel() {
 
         <ImagePanel canvas={(window as any).__fabricCanvas} />
 
-        <div className="card opacity-50 cursor-not-allowed">
+        <button
+          onClick={() => setShowBarcodeModal(true)}
+          className="w-full card card-hover cursor-pointer"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
               <span className="text-xl">▮▮▮</span>
             </div>
-            <div>
+            <div className="text-left">
               <div className="text-sm font-medium text-gray-700">Штрих-код</div>
-              <div className="text-xs text-gray-400">Добавить штрих-код</div>
+              <div className="text-xs text-gray-400">EAN-13, ITF-14 (вектор)</div>
             </div>
           </div>
-        </div>
+        </button>
       </div>
+
+      {/* Barcode Modal */}
+      <BarcodeModal
+        isOpen={showBarcodeModal}
+        onClose={() => setShowBarcodeModal(false)}
+      />
 
       {/* Fonts section */}
       <div className="p-4 flex-1">

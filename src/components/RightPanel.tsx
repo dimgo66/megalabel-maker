@@ -2,6 +2,7 @@ import { useProjectStore } from '../store/useProjectStore';
 import { TextPanel } from './TextPanel';
 import { ImagePropertiesPanel } from './ImagePropertiesPanel';
 import { ImageCropPanel } from './ImageCropPanel';
+import { BarcodePropertiesPanel } from './BarcodePropertiesPanel';
 import { LayersPanel } from './LayersPanel';
 
 export function RightPanel() {
@@ -30,6 +31,9 @@ export function RightPanel() {
 
       {/* Image crop panel - shown when image object is selected */}
       <ImageCropPanel />
+
+      {/* Barcode properties - shown when barcode object is selected */}
+      <BarcodePropertiesPanel />
 
       {/* Layers panel */}
       <LayersPanel canvas={(window as any).__fabricCanvas} />

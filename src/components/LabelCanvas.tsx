@@ -79,7 +79,24 @@ export function LabelCanvas() {
       if (!fabricCanvasRef.current) return;
       const json = canvas.toJSON();
       // Убираем safeArea из сериализации
-      const objects = json.objects?.filter((obj: any) => obj.name !== 'safeArea');
+      let objects = json.objects?.filter((obj: any) => obj.name !== 'safeArea');
+      
+      // Добавляем кастомные свойства штрихкода в JSON
+      if (objects) {
+        objects = objects.map((obj: any) => {
+          if (obj.barcodeFormat) {
+            return {
+              ...obj,
+              barcodeFormat: obj.barcodeFormat,
+              barcodeValue: obj.barcodeValue,
+              barcodeBars: obj.barcodeBars,
+              barcodeSVG: obj.barcodeSVG,
+            };
+          }
+          return obj;
+        });
+      }
+      
       json.objects = objects;
       setCanvasJSON(json);
     };
