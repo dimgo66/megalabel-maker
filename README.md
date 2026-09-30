@@ -1,6 +1,6 @@
 # 🏷️ Megalabel Pro - Label Maker
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=YOUR_REPO_URL)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/dimgo66/megalabel-maker)
 
 Профессиональное веб-приложение для создания и печати этикеток на листах A4 с поддержкой векторных штрих-кодов и PDF экспорта.
 
