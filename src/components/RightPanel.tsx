@@ -1,6 +1,7 @@
 import { useProjectStore } from '../store/useProjectStore';
 import { TextPanel } from './TextPanel';
 import { ImagePropertiesPanel } from './ImagePropertiesPanel';
+import { ImageCropPanel } from './ImageCropPanel';
 import { LayersPanel } from './LayersPanel';
 
 export function RightPanel() {
@@ -26,6 +27,9 @@ export function RightPanel() {
 
       {/* Image properties - shown when image object is selected */}
       <ImagePropertiesPanel />
+
+      {/* Image crop panel - shown when image object is selected */}
+      <ImageCropPanel />
 
       {/* Layers panel */}
       <LayersPanel canvas={(window as any).__fabricCanvas} />

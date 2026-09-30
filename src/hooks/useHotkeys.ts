@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 interface HotkeyHandlers {
   onSave?: () => void;
   onLoad?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
 }
 
 export function useHotkeys(handlers: HotkeyHandlers) {
@@ -18,6 +20,18 @@ export function useHotkeys(handlers: HotkeyHandlers) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
         e.preventDefault();
         handlers.onLoad?.();
+      }
+      
+      // Ctrl+Z or Cmd+Z - Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handlers.onUndo?.();
+      }
+      
+      // Ctrl+Y or Cmd+Shift+Z or Ctrl+Shift+Z - Redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handlers.onRedo?.();
       }
     };
 

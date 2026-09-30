@@ -92,9 +92,13 @@ function App() {
     input.click();
   };
 
+  const { undo, redo } = useProjectStore();
+
   useHotkeys({
     onSave: handleSave,
     onLoad: handleLoad,
+    onUndo: undo,
+    onRedo: redo,
   });
 
   return (

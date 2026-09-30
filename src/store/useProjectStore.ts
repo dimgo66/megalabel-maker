@@ -32,6 +32,10 @@ interface ProjectState {
   // Editor canvas reference
   editorCanvas: fabric.Canvas | null;
   
+  // Undo/Redo history
+  history: object[];
+  historyIndex: number;
+  
   // Actions
   setSelectedFormat: (format: LabelFormat) => void;
   setCanvasJSON: (json: object) => void;
@@ -44,6 +48,12 @@ interface ProjectState {
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
   setSelectedObject: (obj: any) => void;
   setEditorCanvas: (canvas: fabric.Canvas | null) => void;
+  
+  // Undo/Redo actions
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
   
   // Font actions
   setGoogleFontLoaded: (fontId: string) => void;
@@ -80,6 +90,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   // Editor canvas reference
   editorCanvas: null,
   
+  // Undo/Redo history
+  history: [],
+  historyIndex: -1,
+  
   // Actions
   setSelectedFormat: (format: LabelFormat) => {
     const design = get().labelDesign;
@@ -99,6 +113,18 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   setCanvasJSON: (json: object) => {
     const design = get().labelDesign;
+    const { history, historyIndex } = get();
+    
+    // Добавляем новое состояние в историю
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(json);
+    
+    // Ограничиваем историю 50 состояниями
+    const maxHistory = 50;
+    if (newHistory.length > maxHistory) {
+      newHistory.shift();
+    }
+    
     set({
       labelDesign: {
         ...design,
@@ -108,6 +134,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           updatedAt: new Date().toISOString(),
         },
       },
+      history: newHistory,
+      historyIndex: newHistory.length - 1,
       isDirty: true,
     });
   },
@@ -219,5 +247,54 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   setEditorCanvas: (canvas: fabric.Canvas | null) => {
     set({ editorCanvas: canvas });
+  },
+  
+  // Undo/Redo methods
+  undo: () => {
+    const { history, historyIndex, editorCanvas } = get();
+    if (historyIndex <= 0 || !editorCanvas) return;
+    
+    const newIndex = historyIndex - 1;
+    const prevState = history[newIndex];
+    
+    editorCanvas.loadFromJSON(prevState as any, () => {
+      editorCanvas.renderAll();
+      set({ 
+        historyIndex: newIndex,
+        labelDesign: {
+          ...get().labelDesign,
+          canvasJSON: prevState,
+        },
+      });
+    });
+  },
+  
+  redo: () => {
+    const { history, historyIndex, editorCanvas } = get();
+    if (historyIndex >= history.length - 1 || !editorCanvas) return;
+    
+    const newIndex = historyIndex + 1;
+    const nextState = history[newIndex];
+    
+    editorCanvas.loadFromJSON(nextState as any, () => {
+      editorCanvas.renderAll();
+      set({ 
+        historyIndex: newIndex,
+        labelDesign: {
+          ...get().labelDesign,
+          canvasJSON: nextState,
+        },
+      });
+    });
+  },
+  
+  canUndo: () => {
+    const { historyIndex } = get();
+    return historyIndex > 0;
+  },
+  
+  canRedo: () => {
+    const { history, historyIndex } = get();
+    return historyIndex < history.length - 1;
   },
 }));

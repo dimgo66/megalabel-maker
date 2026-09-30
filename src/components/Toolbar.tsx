@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { LABEL_FORMATS } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
+import { UndoRedoButtons } from './UndoRedoButtons';
 import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
 import { LabelFormat } from '../types';
 
@@ -87,6 +88,9 @@ export function Toolbar() {
         selectedFormat={selectedFormat}
         onSelect={handleFormatSelect}
       />
+
+      {/* Undo/Redo buttons */}
+      <UndoRedoButtons />
 
       {/* Divider */}
       <div className="h-8 w-px bg-gray-200" />
