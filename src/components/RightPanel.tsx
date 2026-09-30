@@ -1,4 +1,5 @@
 import { useProjectStore } from '../store/useProjectStore';
+import { TextPanel } from './TextPanel';
 
 export function RightPanel() {
   const {
@@ -17,6 +18,9 @@ export function RightPanel() {
       <div className="h-12 border-b border-gray-200 flex items-center px-4 shrink-0">
         <span className="text-sm font-semibold text-gray-900">Свойства</span>
       </div>
+
+      {/* Text properties - shown when text object is selected */}
+      <TextPanel />
 
       {/* Format section */}
       <div className="p-4 border-b border-gray-200">

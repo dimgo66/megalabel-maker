@@ -2,17 +2,14 @@ import { Toolbar } from './components/Toolbar';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
 import { SheetPreview } from './components/SheetPreview';
+import { LabelCanvas } from './components/LabelCanvas';
 import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
 import { LABEL_FORMATS } from './config/labelFormats';
-import { mmToPx } from './utils/layoutCalculator';
 
 function App() {
   const {
-    selectedFormat,
-    sheetSettings,
-    editorZoom,
     markSaved,
     loadProject,
   } = useProjectStore();
@@ -71,95 +68,7 @@ function App() {
 
         {/* Center - Canvas */}
         <main className="flex-1 flex flex-col overflow-hidden bg-gray-100">
-          {/* Canvas header */}
-          <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
-            <span className="text-sm font-semibold text-gray-900">Редактор этикетки</span>
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                {selectedFormat.width_mm}×{selectedFormat.height_mm} мм
-              </span>
-              {selectedFormat.shape === 'circle' && (
-                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
-                  ⚪ Круг
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Canvas area */}
-          <div className="flex-1 flex items-center justify-center overflow-auto p-8">
-            <div
-              className="bg-white shadow-xl border border-gray-300 flex items-center justify-center relative rounded-lg overflow-hidden"
-              style={{
-                width: `${mmToPx(selectedFormat.width_mm) * editorZoom}px`,
-                height: `${mmToPx(selectedFormat.height_mm) * editorZoom}px`,
-              }}
-            >
-              {/* Безопасные поля - визуализация */}
-              {sheetSettings.safetyMargin_mm > 0 && (
-                <>
-                  {/* Верхняя безопасная зона */}
-                  <div
-                    className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none"
-                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Нижняя безопасная зона */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none"
-                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Левая безопасная зона */}
-                  <div
-                    className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none"
-                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Правая безопасная зона */}
-                  <div
-                    className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none"
-                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Пунктирная рамка безопасной зоны */}
-                  <div
-                    className="absolute border-2 border-dashed border-red-400/60 pointer-events-none"
-                    style={{
-                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                    }}
-                  />
-                  {/* Подпись размера безопасного поля */}
-                  <div
-                    className="absolute text-xs text-red-500/80 font-medium pointer-events-none"
-                    style={{
-                      top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 6}px`,
-                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 4}px`,
-                    }}
-                  >
-                    ↕ {sheetSettings.safetyMargin_mm} мм
-                  </div>
-                </>
-              )}
-
-              {selectedFormat.shape === 'circle' ? (
-                <div className="absolute inset-4 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center z-10">
-                  <div className="text-center text-gray-400">
-                    <div className="text-4xl mb-2">⭕</div>
-                    <p className="text-sm font-medium">Круглая этикетка</p>
-                    <p className="text-xs mt-1">⌀{selectedFormat.width_mm} мм</p>
-                    <p className="text-xs text-gray-300 mt-3">Canvas-редактор (Fabric.js)</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-gray-400 z-10">
-                  <div className="text-4xl mb-2">🏷️</div>
-                  <p className="text-sm font-medium">Область редактирования</p>
-                  <p className="text-xs mt-1">{selectedFormat.width_mm}×{selectedFormat.height_mm} мм</p>
-                  <p className="text-xs text-gray-300 mt-3">Canvas-редактор (Fabric.js)</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <LabelCanvas />
         </main>
 
         {/* Right panel */}

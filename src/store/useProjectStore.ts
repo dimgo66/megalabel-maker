@@ -22,6 +22,9 @@ interface ProjectState {
   // Loaded fonts
   loadedFonts: string[];
   
+  // Selected object (any to avoid fabric type issues)
+  selectedObject: any;
+  
   // Actions
   setSelectedFormat: (format: LabelFormat) => void;
   setCanvasJSON: (json: object) => void;
@@ -33,6 +36,7 @@ interface ProjectState {
   setPreviewZoom: (zoom: number) => void;
   addLoadedFont: (fontName: string) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
+  setSelectedObject: (obj: any) => void;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -53,6 +57,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   // Loaded fonts
   loadedFonts: [],
+  
+  // Selected object
+  selectedObject: null,
   
   // Actions
   setSelectedFormat: (format: LabelFormat) => {
@@ -126,7 +133,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   
   setEditorZoom: (zoom: number) => {
-    set({ editorZoom: Math.max(0.5, Math.min(5.0, zoom)) });
+    set({ editorZoom: Math.max(0.5, Math.min(10.0, zoom)) });
   },
   
   setPreviewZoom: (zoom: number) => {
@@ -159,5 +166,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       projectName: design.metadata.name,
       isDirty: false,
     });
+  },
+  
+  setSelectedObject: (obj: any) => {
+    set({ selectedObject: obj });
   },
 }));
