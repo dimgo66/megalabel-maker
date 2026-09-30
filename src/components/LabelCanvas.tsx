@@ -91,6 +91,8 @@ export function LabelCanvas() {
               barcodeValue: obj.barcodeValue,
               barcodeBars: obj.barcodeBars,
               barcodeSVG: obj.barcodeSVG,
+              barcodeTextYFrac: obj.barcodeTextYFrac,
+              barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
             };
           }
           return obj;

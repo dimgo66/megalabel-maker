@@ -186,3 +186,154 @@ export function addCheckDigit(code: string, format: BarcodeFormat): string {
   
   return cleanCode;
 }
+
+/**
+ * Удаление текста из SVG и извлечение информации о позиции текста
+ */
+export function stripTextFromSVG(svgString: string): {
+  svgNoText: string;
+  textYFrac: number;
+  fontSizeFrac: number;
+} {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+  
+  if (!svg) {
+    console.error('stripTextFromSVG: SVG не найден');
+    return {
+      svgNoText: svgString,
+      textYFrac: 0.95,
+      fontSizeFrac: 0.16,
+    };
+  }
+  
+  // Получаем размеры SVG
+  const vb = svg.viewBox?.baseVal;
+  const totalH = vb?.height || parseFloat(svg.getAttribute('height') || '0');
+  
+  // Находим все text элементы
+  const textElements = Array.from(doc.querySelectorAll('text'));
+  
+  let textYFrac = 0.95;
+  let fontSizeFrac = 0.16;
+  
+  if (textElements.length > 0) {
+    const firstText = textElements[0];
+    const y = parseFloat(firstText.getAttribute('y') || '0');
+    const fontSize = parseFloat(firstText.getAttribute('font-size') || '16');
+    
+    textYFrac = y / totalH;
+    fontSizeFrac = fontSize / totalH;
+  }
+  
+  // Удаляем все text элементы
+  textElements.forEach(text => text.remove());
+  
+  // Получаем SVG без текста
+  const svgNoText = svg.outerHTML;
+  
+  return { svgNoText, textYFrac, fontSizeFrac };
+}
+
+/**
+ * Интерфейс для позиции цифры
+ */
+export interface DigitPosition {
+  char: string;
+  xFrac: number;
+}
+
+/**
+ * Расчёт позиций цифр для EAN-13
+ * Геометрия EAN-13: 95 модулей
+ * - Первая цифра слева вне штрихов
+ * - 6 цифр под левой половиной
+ * - 6 цифр под правой половиной
+ */
+export function computeEAN13DigitPositions(
+  bars: NormalizedBar[],
+  code: string
+): DigitPosition[] {
+  if (bars.length === 0 || code.length !== 13) {
+    return [];
+  }
+  
+  // Находим границы штрихов
+  const minX = Math.min(...bars.map(b => b.x));
+  const maxX = Math.max(...bars.map(b => b.x + b.width));
+  
+  // Ширина одного модуля (95 модулей в EAN-13)
+  const module = (maxX - minX) / 95;
+  
+  const positions: DigitPosition[] = [];
+  
+  // Первая цифра (индекс 0) - слева вне штрихов
+  positions.push({
+    char: code[0],
+    xFrac: minX - 3.5 * module,
+  });
+  
+  // Цифры 2-7 (индексы 1-6) - под левой половиной
+  for (let i = 0; i < 6; i++) {
+    positions.push({
+      char: code[i + 1],
+      xFrac: minX + (6.5 + 7 * i) * module,
+    });
+  }
+  
+  // Цифры 8-13 (индексы 7-12) - под правой половиной
+  for (let j = 0; j < 6; j++) {
+    positions.push({
+      char: code[j + 7],
+      xFrac: minX + (53.5 + 7 * j) * module,
+    });
+  }
+  
+  return positions;
+}
+
+/**
+ * Расчёт позиций цифр для ITF-14
+ * Все 14 цифр равномерно распределены по ширине
+ */
+export function computeITF14DigitPositions(
+  bars: NormalizedBar[],
+  code: string
+): DigitPosition[] {
+  if (bars.length === 0 || code.length !== 14) {
+    return [];
+  }
+  
+  // Находим границы штрихов
+  const minX = Math.min(...bars.map(b => b.x));
+  const maxX = Math.max(...bars.map(b => b.x + b.width));
+  
+  const positions: DigitPosition[] = [];
+  
+  // Все 14 цифр равномерно распределены
+  for (let k = 0; k < 14; k++) {
+    positions.push({
+      char: code[k],
+      xFrac: minX + (k + 0.5) * (maxX - minX) / 14,
+    });
+  }
+  
+  return positions;
+}
+
+/**
+ * Диспетчер для расчёта позиций цифр
+ */
+export function computeDigitPositions(
+  bars: NormalizedBar[],
+  format: BarcodeFormat,
+  code: string
+): DigitPosition[] {
+  if (format === 'ean13') {
+    return computeEAN13DigitPositions(bars, code);
+  } else if (format === 'itf14') {
+    return computeITF14DigitPositions(bars, code);
+  }
+  return [];
+}

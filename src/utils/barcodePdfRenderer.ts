@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { NormalizedBar } from './barcodeGenerator';
+import { NormalizedBar, computeDigitPositions, BarcodeFormat } from './barcodeGenerator';
 
 /**
  * Отрисовка векторного штрихкода в PDF
@@ -10,6 +10,10 @@ import { NormalizedBar } from './barcodeGenerator';
  * @param y_mm - позиция Y на листе в мм
  * @param w_mm - ширина штрихкода в мм
  * @param h_mm - высота штрихкода в мм
+ * @param format - формат штрихкода
+ * @param value - значение штрихкода
+ * @param textYFrac - доля Y для текста (0..1)
+ * @param fontSizeFrac - доля размера шрифта (0..1)
  */
 export function drawBarcodeVectorPDF(
   doc: jsPDF,
@@ -17,7 +21,11 @@ export function drawBarcodeVectorPDF(
   x_mm: number,
   y_mm: number,
   w_mm: number,
-  h_mm: number
+  h_mm: number,
+  format?: BarcodeFormat,
+  value?: string,
+  textYFrac: number = 0.95,
+  fontSizeFrac: number = 0.16
 ): void {
   // Устанавливаем чёрный цвет для штрихов
   doc.setFillColor(0, 0, 0);
@@ -36,6 +44,25 @@ export function drawBarcodeVectorPDF(
     
     doc.rect(barX, barY, barW, barH, 'F');
   }
+  
+  // Отрисовываем цифры поцифренно, если есть данные
+  if (format && value && bars.length > 0) {
+    const positions = computeDigitPositions(bars, format, value);
+    
+    // Конвертируем мм в pt (1 мм = 2.83465 pt)
+    const fontPt = fontSizeFrac * h_mm * 2.83465;
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(fontPt);
+    doc.setTextColor(0, 0, 0);
+    
+    for (const p of positions) {
+      const charX = x_mm + p.xFrac * w_mm;
+      const charY = y_mm + (textYFrac - fontSizeFrac * 0.35) * h_mm;
+      
+      doc.text(p.char, charX, charY, { align: 'center', baseline: 'middle' });
+    }
+  }
 }
 
 /**
@@ -53,10 +80,12 @@ export function hasBarcodeData(obj: any): boolean {
  * Извлечение данных штрихкода из объекта
  */
 export function extractBarcodeData(obj: any): {
-  format: string;
+  format: BarcodeFormat;
   value: string;
   bars: NormalizedBar[];
   svg?: string;
+  textYFrac?: number;
+  fontSizeFrac?: number;
 } | null {
   if (!hasBarcodeData(obj)) {
     return null;
@@ -67,5 +96,7 @@ export function extractBarcodeData(obj: any): {
     value: obj.barcodeValue,
     bars: obj.barcodeBars,
     svg: obj.barcodeSVG,
+    textYFrac: obj.barcodeTextYFrac,
+    fontSizeFrac: obj.barcodeFontSizeFrac,
   };
 }

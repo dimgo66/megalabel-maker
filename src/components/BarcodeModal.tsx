@@ -5,6 +5,8 @@ import {
   loadBarcodeIntoFabric,
   validateBarcode,
   addCheckDigit,
+  stripTextFromSVG,
+  computeDigitPositions,
   BarcodeFormat,
 } from '../utils/barcodeGenerator';
 import * as fabric from 'fabric';
@@ -80,18 +82,50 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     try {
       console.log('handleAdd: начинаем добавление штрихкода');
       
-      // Парсим штрихи для будущего использования в PDF
-      const bars = parseBarcodeBars(svgPreview);
+      // Удаляем текст из SVG и получаем информацию о позиции текста
+      const { svgNoText, textYFrac, fontSizeFrac } = stripTextFromSVG(svgPreview);
+      console.log('handleAdd: текст удалён из SVG', { textYFrac, fontSizeFrac });
+      
+      // Парсим штрихи из SVG без текста
+      const bars = parseBarcodeBars(svgNoText);
       console.log(`handleAdd: распарсено ${bars.length} штрихов`);
       
-      // Загружаем SVG в Fabric как векторную группу
-      const group = await loadBarcodeIntoFabric(svgPreview);
+      // Загружаем SVG без текста в Fabric как векторную группу
+      const barsGroup = await loadBarcodeIntoFabric(svgNoText);
+      
+      // Рассчитываем позиции цифр
+      const positions = computeDigitPositions(bars, format, fullCode);
+      console.log(`handleAdd: рассчитано ${positions.length} позиций цифр`);
+      
+      // Создаём цифры как отдельные fabric.Text объекты
+      const groupWidth = barsGroup.width || 1;
+      const groupHeight = barsGroup.height || 1;
+      
+      const digitObjects = positions.map(p => new fabric.Text(p.char, {
+        fontFamily: 'Arial',
+        fontSize: fontSizeFrac * groupHeight,
+        fill: '#000000',
+        originX: 'center',
+        originY: 'center',
+        left: p.xFrac * groupWidth,
+        top: (textYFrac - fontSizeFrac * 0.35) * groupHeight,
+        selectable: false,
+        evented: false,
+      }));
+      
+      // Объединяем штрихи и цифры в одну группу
+      const group = new fabric.Group([barsGroup, ...digitObjects], {
+        originX: 'left',
+        originY: 'top',
+      });
       
       // Устанавливаем кастомные свойства
       (group as any).barcodeFormat = format;
       (group as any).barcodeValue = fullCode;
       (group as any).barcodeBars = bars;
-      (group as any).barcodeSVG = svgPreview;
+      (group as any).barcodeSVG = svgNoText;
+      (group as any).barcodeTextYFrac = textYFrac;
+      (group as any).barcodeFontSizeFrac = fontSizeFrac;
       (group as any).name = 'Штрих-код';
       
       // Если редактируем существующий объект, заменяем его
@@ -157,6 +191,8 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
               barcodeValue: obj.barcodeValue,
               barcodeBars: obj.barcodeBars,
               barcodeSVG: obj.barcodeSVG,
+              barcodeTextYFrac: obj.barcodeTextYFrac,
+              barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
             };
           }
           return obj;

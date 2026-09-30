@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { BarcodeModal } from './BarcodeModal';
+import {
+  generateBarcodeSVG,
+  parseBarcodeBars,
+  loadBarcodeIntoFabric,
+  stripTextFromSVG,
+  computeDigitPositions,
+  BarcodeFormat,
+} from '../utils/barcodeGenerator';
 
 export function BarcodePropertiesPanel() {
   const { selectedObject, editorCanvas } = useProjectStore();
@@ -49,6 +57,114 @@ export function BarcodePropertiesPanel() {
     if (!selectedObject || !editorCanvas) return;
     editorCanvas.remove(selectedObject);
     editorCanvas.renderAll();
+  };
+
+  const handleRecreate = async () => {
+    if (!selectedObject || !editorCanvas) return;
+    
+    const barcodeData = selectedObject as any;
+    const format: BarcodeFormat = barcodeData.barcodeFormat;
+    const code: string = barcodeData.barcodeValue;
+    
+    if (!format || !code) {
+      alert('Не удалось получить данные штрих-кода');
+      return;
+    }
+    
+    try {
+      // Сохраняем позицию и масштаб старого объекта
+      const left = selectedObject.left || 0;
+      const top = selectedObject.top || 0;
+      const scaleX = selectedObject.scaleX || 1;
+      const scaleY = selectedObject.scaleY || 1;
+      const angle = selectedObject.angle || 0;
+      
+      // Генерируем новый SVG с текстом (для правильной геометрии)
+      const svgWithText = generateBarcodeSVG(code, format, { displayValue: true });
+      
+      // Удаляем текст из SVG
+      const { svgNoText, textYFrac, fontSizeFrac } = stripTextFromSVG(svgWithText);
+      
+      // Парсим штрихи
+      const bars = parseBarcodeBars(svgNoText);
+      
+      // Загружаем SVG без текста в Fabric
+      const barsGroup = await loadBarcodeIntoFabric(svgNoText);
+      
+      // Рассчитываем позиции цифр
+      const positions = computeDigitPositions(bars, format, code);
+      
+      // Создаём цифры как отдельные fabric.Text объекты
+      const groupWidth = barsGroup.width || 1;
+      const groupHeight = barsGroup.height || 1;
+      
+      const digitObjects = positions.map(p => new fabric.Text(p.char, {
+        fontFamily: 'Arial',
+        fontSize: fontSizeFrac * groupHeight,
+        fill: '#000000',
+        originX: 'center',
+        originY: 'center',
+        left: p.xFrac * groupWidth,
+        top: (textYFrac - fontSizeFrac * 0.35) * groupHeight,
+        selectable: false,
+        evented: false,
+      }));
+      
+      // Объединяем штрихи и цифры в одну группу
+      const newGroup = new fabric.Group([barsGroup, ...digitObjects], {
+        originX: 'left',
+        originY: 'top',
+      });
+      
+      // Устанавливаем кастомные свойства
+      (newGroup as any).barcodeFormat = format;
+      (newGroup as any).barcodeValue = code;
+      (newGroup as any).barcodeBars = bars;
+      (newGroup as any).barcodeSVG = svgNoText;
+      (newGroup as any).barcodeTextYFrac = textYFrac;
+      (newGroup as any).barcodeFontSizeFrac = fontSizeFrac;
+      (newGroup as any).name = 'Штрих-код';
+      
+      // Восстанавливаем позицию и масштаб
+      newGroup.set({
+        left,
+        top,
+        scaleX,
+        scaleY,
+        angle,
+      });
+      
+      // Удаляем старый объект и добавляем новый
+      editorCanvas.remove(selectedObject);
+      editorCanvas.add(newGroup);
+      editorCanvas.setActiveObject(newGroup);
+      editorCanvas.renderAll();
+      
+      // Сохраняем изменения
+      const json = editorCanvas.toJSON();
+      if (json.objects) {
+        json.objects = json.objects.map((obj: any) => {
+          if (obj.barcodeFormat) {
+            return {
+              ...obj,
+              barcodeFormat: obj.barcodeFormat,
+              barcodeValue: obj.barcodeValue,
+              barcodeBars: obj.barcodeBars,
+              barcodeSVG: obj.barcodeSVG,
+              barcodeTextYFrac: obj.barcodeTextYFrac,
+              barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
+            };
+          }
+          return obj;
+        });
+      }
+      useProjectStore.getState().setCanvasJSON(json);
+      
+      alert('Штрих-код пересоздан успешно');
+    } catch (error) {
+      console.error('Ошибка пересоздания штрих-кода:', error);
+      alert('Не удалось пересоздать штрих-код');
+    }
   };
 
   if (!isBarcode) {
@@ -133,6 +249,13 @@ export function BarcodePropertiesPanel() {
               className="w-full px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm text-blue-700 transition-colors"
             >
               ✏️ Изменить код
+            </button>
+            <button
+              onClick={handleRecreate}
+              className="w-full px-3 py-2 bg-amber-50 hover:bg-amber-100 rounded-lg text-sm text-amber-700 transition-colors"
+              title="Пересоздать штрих-код с правильным отображением цифр"
+            >
+              🔄 Пересоздать штрих-код
             </button>
             <button
               onClick={handleDelete}
