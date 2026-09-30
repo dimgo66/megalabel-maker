@@ -3,7 +3,7 @@ import { LABEL_FORMATS } from './config/labelFormats';
 import { calculateLayout, mmToPx } from './utils/layoutCalculator';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
 import { loadMyriadPro } from './utils/fontLoader';
-import { useRef } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 
 function App() {
   const {
@@ -26,6 +26,41 @@ function App() {
 
   const layout = calculateLayout(selectedFormat);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-fit A4 sheet into preview container
+  const fitPreviewToContainer = useCallback(() => {
+    const container = previewContainerRef.current;
+    if (!container) return;
+
+    const containerWidth = container.clientWidth - 32; // padding
+    const containerHeight = container.clientHeight - 32; // padding
+    
+    // A4 dimensions in pixels at 96 DPI
+    const a4WidthPx = mmToPx(210);
+    const a4HeightPx = mmToPx(297);
+    
+    // Calculate zoom to fit
+    const zoomX = containerWidth / a4WidthPx;
+    const zoomY = containerHeight / a4HeightPx;
+    const fitZoom = Math.min(zoomX, zoomY);
+    
+    // Clamp to allowed range
+    const clampedZoom = Math.max(0.25, Math.min(3.0, fitZoom));
+    setPreviewZoom(clampedZoom);
+  }, [setPreviewZoom]);
+
+  // Fit on mount and window resize
+  useEffect(() => {
+    fitPreviewToContainer();
+    
+    const handleResize = () => {
+      fitPreviewToContainer();
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [fitPreviewToContainer]);
 
   const handleFormatChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const format = LABEL_FORMATS.find(f => f.id === e.target.value);
@@ -306,12 +341,19 @@ function App() {
         </main>
         
         {/* Right sidebar - Preview */}
-        <aside className="w-80 bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden shrink-0">
-          <div className="px-4 py-2 border-b border-gray-700 flex items-center">
+        <aside className="w-[480px] bg-gray-800 border-l border-gray-700 flex flex-col overflow-hidden shrink-0">
+          <div className="px-4 py-2 border-b border-gray-700 flex items-center justify-between">
             <span className="text-sm font-medium text-gray-300">Предпросмотр листа A4</span>
+            <button
+              onClick={fitPreviewToContainer}
+              className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+              title="Вписать лист"
+            >
+              ⤢ Вписать
+            </button>
           </div>
           
-          <div className="flex-1 overflow-auto p-4 flex items-start justify-center">
+          <div ref={previewContainerRef} className="flex-1 overflow-hidden p-4 flex items-center justify-center">
             {/* A4 Sheet preview */}
             <div 
               className="bg-white shadow-xl border border-gray-300 relative"
