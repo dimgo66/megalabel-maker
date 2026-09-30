@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { IText } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
+import { ImagePanel } from './ImagePanel';
 
 export function LeftPanel() {
   const {
@@ -95,17 +96,7 @@ export function LeftPanel() {
           </div>
         </button>
 
-        <div className="card opacity-50 cursor-not-allowed">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-              <span className="text-xl">🖼️</span>
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700">Изображение</div>
-              <div className="text-xs text-gray-400">Добавить картинку</div>
-            </div>
-          </div>
-        </div>
+        <ImagePanel canvas={(window as any).__fabricCanvas} />
 
         <div className="card opacity-50 cursor-not-allowed">
           <div className="flex items-center gap-3">

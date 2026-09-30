@@ -1,5 +1,7 @@
 import { useProjectStore } from '../store/useProjectStore';
 import { TextPanel } from './TextPanel';
+import { ImagePropertiesPanel } from './ImagePropertiesPanel';
+import { LayersPanel } from './LayersPanel';
 
 export function RightPanel() {
   const {
@@ -21,6 +23,12 @@ export function RightPanel() {
 
       {/* Text properties - shown when text object is selected */}
       <TextPanel />
+
+      {/* Image properties - shown when image object is selected */}
+      <ImagePropertiesPanel />
+
+      {/* Layers panel */}
+      <LayersPanel canvas={(window as any).__fabricCanvas} />
 
       {/* Format section */}
       <div className="p-4 border-b border-gray-200">
