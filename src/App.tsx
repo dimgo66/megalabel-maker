@@ -1,9 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
-import { SheetPreview } from './components/SheetPreview';
 import { LabelCanvas } from './components/LabelCanvas';
+import { PreviewModal } from './components/PreviewModal';
 import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
@@ -93,12 +93,14 @@ function App() {
   };
 
   const { undo, redo } = useProjectStore();
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   useHotkeys({
     onSave: handleSave,
     onLoad: handleLoad,
     onUndo: undo,
     onRedo: redo,
+    onPreview: () => setIsPreviewOpen(prev => !prev),
   });
 
   return (
@@ -212,8 +214,11 @@ function App() {
         <RightPanel />
       </div>
 
-      {/* Bottom preview panel */}
-      <SheetPreview />
+      {/* Preview Modal */}
+      <PreviewModal 
+        isOpen={isPreviewOpen} 
+        onClose={() => setIsPreviewOpen(false)} 
+      />
     </div>
   );
 }

@@ -1,8 +1,9 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { LABEL_FORMATS } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
 import { UndoRedoButtons } from './UndoRedoButtons';
+import { PreviewModal } from './PreviewModal';
 import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
 import { LabelFormat } from '../types';
 
@@ -16,6 +17,7 @@ export function Toolbar() {
     loadProject,
     markSaved,
   } = useProjectStore();
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -124,6 +126,16 @@ export function Toolbar() {
         className="hidden"
       />
 
+      {/* Preview button */}
+      <button
+        onClick={() => setIsPreviewOpen(true)}
+        className="btn btn-secondary flex items-center gap-2"
+        title="Предпросмотр листа (Ctrl+Shift+P)"
+      >
+        <span>👁</span>
+        <span>Предпросмотр</span>
+      </button>
+
       {/* Print button (placeholder) */}
       <button
         onClick={() => alert('Печать будет доступна позже')}
@@ -161,6 +173,12 @@ export function Toolbar() {
           </>
         )}
       </div>
+
+      {/* Preview Modal */}
+      <PreviewModal 
+        isOpen={isPreviewOpen} 
+        onClose={() => setIsPreviewOpen(false)} 
+      />
     </div>
   );
 }

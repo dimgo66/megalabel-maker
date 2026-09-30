@@ -5,6 +5,7 @@ interface HotkeyHandlers {
   onLoad?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
+  onPreview?: () => void;
 }
 
 export function useHotkeys(handlers: HotkeyHandlers) {
@@ -32,6 +33,12 @@ export function useHotkeys(handlers: HotkeyHandlers) {
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
         handlers.onRedo?.();
+      }
+      
+      // Ctrl+Shift+P - Preview
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+        e.preventDefault();
+        handlers.onPreview?.();
       }
     };
 
