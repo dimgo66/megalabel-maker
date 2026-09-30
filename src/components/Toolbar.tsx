@@ -10,8 +10,6 @@ export function Toolbar() {
     projectName,
     selectedFormat,
     isDirty,
-    labelDesign,
-    sheetSettings,
     setProjectName,
     setSelectedFormat,
     loadProject,
@@ -53,7 +51,6 @@ export function Toolbar() {
       alert(`Ошибка загрузки: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
     }
 
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -64,14 +61,25 @@ export function Toolbar() {
   };
 
   return (
-    <div className="h-14 bg-white border-b border-gray-300 flex items-center px-4 gap-3 shrink-0">
+    <div className="h-16 bg-white border-b border-gray-200 flex items-center px-6 gap-4 shrink-0 shadow-sm">
+      {/* Logo */}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <span className="text-white text-lg">🏷️</span>
+        </div>
+        <h1 className="text-lg font-bold text-gray-900">Label Maker</h1>
+      </div>
+
+      {/* Divider */}
+      <div className="h-8 w-px bg-gray-200" />
+
       {/* Project name */}
       <input
         type="text"
         value={projectName}
         onChange={(e) => setProjectName(e.target.value)}
-        className="px-2 py-1 bg-transparent border border-transparent rounded text-sm text-gray-700 hover:border-gray-300 focus:border-gray-400 focus:outline-none w-48 transition-colors"
-        placeholder="Название проекта"
+        className="w-[200px] px-3 py-2 bg-transparent border border-transparent rounded-lg text-sm text-gray-900 placeholder-gray-400 hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+        placeholder="Без названия"
       />
 
       {/* Format selector */}
@@ -81,24 +89,26 @@ export function Toolbar() {
       />
 
       {/* Divider */}
-      <div className="h-6 w-px bg-gray-300" />
+      <div className="h-8 w-px bg-gray-200" />
 
       {/* Save button */}
       <button
         onClick={handleSave}
-        className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        className="btn btn-primary flex items-center gap-2"
         title="Сохранить (Ctrl+S)"
       >
-        💾 Сохранить
+        <span>💾</span>
+        <span>Сохранить</span>
       </button>
 
       {/* Load button */}
       <button
         onClick={handleLoad}
-        className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        className="btn btn-secondary flex items-center gap-2"
         title="Загрузить (Ctrl+O)"
       >
-        📂 Загрузить
+        <span>📂</span>
+        <span>Загрузить</span>
       </button>
 
       {/* Hidden file input */}
@@ -110,34 +120,41 @@ export function Toolbar() {
         className="hidden"
       />
 
-      {/* Divider */}
-      <div className="h-6 w-px bg-gray-300" />
-
       {/* Print button (placeholder) */}
       <button
         onClick={() => alert('Печать будет доступна позже')}
-        className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        className="btn btn-secondary flex items-center gap-2"
       >
-        🖨️ Печать
+        <span>🖨️</span>
+        <span>Печать</span>
       </button>
 
       {/* Export PDF button (placeholder) */}
       <button
         onClick={() => alert('Экспорт будет доступен позже')}
-        className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+        className="btn btn-secondary flex items-center gap-2"
       >
-        📄 Экспорт PDF
+        <span>📄</span>
+        <span>PDF</span>
       </button>
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Save status indicator */}
-      <div className="text-xs">
+      <div className="flex items-center gap-2">
         {isDirty ? (
-          <span className="text-gray-500">● Не сохранено</span>
+          <>
+            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+            <span className="text-sm text-amber-600 font-medium">Изменения</span>
+          </>
         ) : (
-          <span className="text-gray-400">✓ Сохранено</span>
+          <>
+            <svg className="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="text-sm text-green-600 font-medium">Сохранено</span>
+          </>
         )}
       </div>
     </div>

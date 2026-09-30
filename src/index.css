@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Global styles for Megalabel Pro */
 * {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 html, body, #root {
@@ -11,11 +12,8 @@ html, body, #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
-}
-
-body {
-  background-color: #F5F5F5;
-  color: #333333;
+  background-color: #F8F9FA;
+  color: #1F2937;
 }
 
 /* Minimum width with horizontal scroll */
@@ -54,51 +52,130 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #F5F5F5;
+  background: #F8F9FA;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #CCC;
+  background: #D1D5DB;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  background: #9CA3AF;
+}
+
+/* Button styles */
+.btn {
+  @apply px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200;
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md;
+}
+
+.btn-secondary {
+  @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400;
+}
+
+.btn-icon {
+  @apply w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200;
+}
+
+/* Panel styles */
+.panel {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply shadow-md border-gray-300;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.2s ease-out;
 }
 
 /* Range input styling */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 4px;
-  background: #E0E0E0;
-  border-radius: 2px;
+  height: 6px;
+  background: #E5E7EB;
+  border-radius: 3px;
   outline: none;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
-  background: #666;
+  width: 16px;
+  height: 16px;
+  background: #2563EB;
   border-radius: 50%;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  background: #666;
+  width: 16px;
+  height: 16px;
+  background: #2563EB;
   border-radius: 50%;
   cursor: pointer;
   border: none;
+  transition: all 0.2s;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  background: #333;
+  background: #1D4ED8;
+  transform: scale(1.1);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
-  background: #333;
+  background: #1D4ED8;
+  transform: scale(1.1);
+}
+
+/* Number input */
+input[type="number"] {
+  @apply px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+/* Text input */
+input[type="text"] {
+  @apply px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+/* Select */
+select {
+  @apply px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white;
 }

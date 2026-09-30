@@ -35,9 +35,9 @@ function groupFormats(formats: LabelFormat[]): FormatGroup[] {
 
 function FormatThumbnail({ format }: { format: LabelFormat }) {
   const layout = calculateLayout(format);
-  const svgWidth = 60;
-  const svgHeight = 85;
-  const padding = 2;
+  const svgWidth = 80;
+  const svgHeight = 113;
+  const padding = 4;
   
   const availW = svgWidth - padding * 2;
   const availH = svgHeight - padding * 2;
@@ -46,7 +46,7 @@ function FormatThumbnail({ format }: { format: LabelFormat }) {
   const cellH = availH / layout.rows;
 
   return (
-    <svg width={svgWidth} height={svgHeight} className="border border-gray-300 bg-white">
+    <svg width={svgWidth} height={svgHeight} className="border border-gray-200 rounded bg-gray-50">
       {Array.from({ length: layout.rows * layout.cols }).map((_, idx) => {
         const col = idx % layout.cols;
         const row = Math.floor(idx / layout.cols);
@@ -54,7 +54,7 @@ function FormatThumbnail({ format }: { format: LabelFormat }) {
         const y = padding + row * cellH;
 
         if (format.shape === 'circle') {
-          const r = Math.min(cellW, cellH) / 2 - 1;
+          const r = Math.min(cellW, cellH) / 2 - 1.5;
           return (
             <circle
               key={idx}
@@ -62,8 +62,8 @@ function FormatThumbnail({ format }: { format: LabelFormat }) {
               cy={y + cellH / 2}
               r={r}
               fill="none"
-              stroke="#999"
-              strokeWidth="0.5"
+              stroke="#9CA3AF"
+              strokeWidth="1"
             />
           );
         }
@@ -71,13 +71,14 @@ function FormatThumbnail({ format }: { format: LabelFormat }) {
         return (
           <rect
             key={idx}
-            x={x + 0.5}
-            y={y + 0.5}
-            width={cellW - 1}
-            height={cellH - 1}
+            x={x + 1}
+            y={y + 1}
+            width={cellW - 2}
+            height={cellH - 2}
             fill="none"
-            stroke="#999"
-            strokeWidth="0.5"
+            stroke="#9CA3AF"
+            strokeWidth="1"
+            rx="1"
           />
         );
       })}
@@ -98,44 +99,58 @@ export function FormatSelector({ selectedFormat, onSelect }: FormatSelectorProps
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2"
+        className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center gap-2 shadow-sm"
       >
-        <span>{selectedFormat.name}</span>
-        <span className="text-gray-400">▾</span>
+        <span className="font-medium">{selectedFormat.name}</span>
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
       {isOpen && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute top-full left-0 mt-1 w-[520px] max-h-[500px] overflow-y-auto bg-white border border-gray-300 rounded shadow-lg z-50">
-            <div className="p-3">
+          <div className="absolute top-full left-0 mt-2 w-[600px] max-h-[600px] overflow-y-auto bg-white border border-gray-200 rounded-xl shadow-xl z-50 animate-slideIn">
+            <div className="p-4 border-b border-gray-200">
+              <h3 className="text-base font-semibold text-gray-900">Выберите формат этикетки</h3>
+            </div>
+            <div className="p-4">
               {groups.map(group => (
-                <div key={group.label} className="mb-4">
-                  <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                <div key={group.label} className="mb-6 last:mb-0">
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
                     {group.label}
                   </h4>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-3">
                     {group.formats.map(format => (
                       <button
                         key={format.id}
                         onClick={() => handleSelect(format)}
-                        className={`p-2 border rounded text-left hover:bg-gray-50 transition-colors ${
+                        className={`p-3 border rounded-lg text-left transition-all duration-200 hover:scale-105 ${
                           format.id === selectedFormat.id
-                            ? 'border-gray-600 bg-gray-50'
-                            : 'border-gray-200'
+                            ? 'border-blue-500 bg-blue-50 shadow-md'
+                            : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
                         }`}
                       >
-                        <div className="flex items-start gap-2">
+                        <div className="flex items-start gap-3">
                           <FormatThumbnail format={format} />
                           <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-gray-700 truncate">
+                            <div className="text-sm font-medium text-gray-900">
                               {format.width_mm}×{format.height_mm} мм
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {format.count} шт
-                              {format.shape === 'circle' && ' • круг'}
+                            <div className="text-xs text-gray-500 mt-1">
+                              {format.count} шт на листе
                             </div>
+                            {format.shape === 'circle' && (
+                              <div className="text-xs text-blue-600 font-medium mt-1">
+                                ⚪ Круглая форма
+                              </div>
+                            )}
                           </div>
+                          {format.id === selectedFormat.id && (
+                            <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
                         </div>
                       </button>
                     ))}

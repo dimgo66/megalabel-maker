@@ -1,38 +1,54 @@
-import { useProjectStore } from '../store/useProjectStore';
-
 export function LeftPanel() {
-  const { sheetSettings, setSheetSettings } = useProjectStore();
-
   return (
-    <div className="w-60 bg-white border-r border-gray-300 flex flex-col shrink-0">
+    <div className="w-[260px] bg-white border-r border-gray-200 flex flex-col shrink-0">
       {/* Header */}
-      <div className="h-10 border-b border-gray-200 flex items-center px-4 shrink-0">
-        <span className="text-sm font-medium text-gray-700">Инструменты</span>
+      <div className="h-12 border-b border-gray-200 flex items-center px-4 shrink-0">
+        <span className="text-sm font-semibold text-gray-900">Инструменты</span>
       </div>
 
-      {/* Sheet settings */}
-      <div className="p-3 border-b border-gray-200">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Настройки листа</h4>
-        <div>
-          <label className="block text-xs text-gray-500 mb-1">
-            Безопасные поля: {sheetSettings.safetyMargin_mm} мм
-          </label>
-          <input
-            type="range"
-            min="0"
-            max="15"
-            step="0.5"
-            value={sheetSettings.safetyMargin_mm}
-            onChange={(e) => setSheetSettings({ safetyMargin_mm: Number(e.target.value) })}
-            className="w-full"
-          />
+      {/* Tools section */}
+      <div className="p-4 space-y-3">
+        <div className="card opacity-50 cursor-not-allowed">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <span className="text-xl">T</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-700">Текст</div>
+              <div className="text-xs text-gray-400">Добавить текст</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card opacity-50 cursor-not-allowed">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <span className="text-xl">🖼️</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-700">Изображение</div>
+              <div className="text-xs text-gray-400">Добавить картинку</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card opacity-50 cursor-not-allowed">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+              <span className="text-xl">▮▮▮</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-700">Штрих-код</div>
+              <div className="text-xs text-gray-400">Добавить штрих-код</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Content - placeholder for step 3 */}
-      <div className="flex-1 p-4">
-        <div className="text-xs text-gray-400 text-center mt-8">
-          Инструменты будут добавлены на шаге 3
+      {/* Info */}
+      <div className="mt-auto p-4 border-t border-gray-200">
+        <div className="text-xs text-gray-400 text-center">
+          Инструменты будут доступны на шаге 3
         </div>
       </div>
     </div>
