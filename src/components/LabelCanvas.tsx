@@ -39,6 +39,14 @@ export function LabelCanvas() {
     if (canvas.wrapperEl) {
       canvas.wrapperEl.style.width = `${displayWidth}px`;
       canvas.wrapperEl.style.height = `${displayHeight}px`;
+      
+      // Для круглых этикеток применяем clip-path
+      if (selectedFormat.shape === 'circle') {
+        canvas.wrapperEl.style.borderRadius = '50%';
+        canvas.wrapperEl.style.overflow = 'hidden';
+      } else {
+        canvas.wrapperEl.style.borderRadius = '0';
+      }
     }
 
     // Масштабируем контекст для Retina

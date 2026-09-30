@@ -127,55 +127,74 @@ function App() {
           {/* Canvas area with safety margins overlay */}
           <div className="flex-1 flex items-center justify-center overflow-auto p-8">
             <div
-              className="bg-white shadow-xl border border-gray-300 flex items-center justify-center relative rounded-lg overflow-hidden"
+              className={`bg-white shadow-xl flex items-center justify-center relative overflow-hidden ${
+                selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg border border-gray-300'
+              }`}
               style={{
                 width: `${mmToPx(selectedFormat.width_mm) * editorZoom}px`,
                 height: `${mmToPx(selectedFormat.height_mm) * editorZoom}px`,
+                ...(selectedFormat.shape === 'circle' ? { boxShadow: '0 0 0 2px #d1d5db, 0 10px 15px -3px rgba(0, 0, 0, 0.1)' } : {}),
               }}
             >
               {/* Безопасные поля - визуализация */}
               {sheetSettings.safetyMargin_mm > 0 && (
                 <>
-                  {/* Верхняя безопасная зона */}
-                  <div
-                    className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
-                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Нижняя безопасная зона */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
-                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Левая безопасная зона */}
-                  <div
-                    className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
-                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Правая безопасная зона */}
-                  <div
-                    className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
-                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                  />
-                  {/* Пунктирная рамка безопасной зоны */}
-                  <div
-                    className="absolute border-2 border-dashed border-red-400/60 pointer-events-none z-10"
-                    style={{
-                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                    }}
-                  />
-                  {/* Подпись размера безопасного поля */}
-                  <div
-                    className="absolute text-xs text-red-500/80 font-medium pointer-events-none z-10"
-                    style={{
-                      top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 6}px`,
-                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 4}px`,
-                    }}
-                  >
-                    ↕ {sheetSettings.safetyMargin_mm} мм
-                  </div>
+                  {selectedFormat.shape === 'circle' ? (
+                    // Для круглых этикеток - круглая безопасная зона
+                    <div
+                      className="absolute border-2 border-dashed border-red-400/60 rounded-full pointer-events-none z-10"
+                      style={{
+                        top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                        left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                        right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                        bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      }}
+                    />
+                  ) : (
+                    // Для прямоугольных этикеток - прямоугольная безопасная зона
+                    <>
+                      {/* Верхняя безопасная зона */}
+                      <div
+                        className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
+                        style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                      />
+                      {/* Нижняя безопасная зона */}
+                      <div
+                        className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
+                        style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                      />
+                      {/* Левая безопасная зона */}
+                      <div
+                        className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
+                        style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                      />
+                      {/* Правая безопасная зона */}
+                      <div
+                        className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
+                        style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                      />
+                      {/* Пунктирная рамка безопасной зоны */}
+                      <div
+                        className="absolute border-2 border-dashed border-red-400/60 pointer-events-none z-10"
+                        style={{
+                          top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                          left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                          right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                          bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                        }}
+                      />
+                      {/* Подпись размера безопасного поля */}
+                      <div
+                        className="absolute text-xs text-red-500/80 font-medium pointer-events-none z-10"
+                        style={{
+                          top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 6}px`,
+                          left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 4}px`,
+                        }}
+                      >
+                        ↕ {sheetSettings.safetyMargin_mm} мм
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 

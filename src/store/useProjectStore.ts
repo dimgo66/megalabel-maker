@@ -49,8 +49,8 @@ interface ProjectState {
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
-  // Initial format: first in the list (210×297 / 1 шт)
-  selectedFormat: LABEL_FORMATS[0],
+  // Initial format: 18 labels (66.7×46 мм)
+  selectedFormat: LABEL_FORMATS.find(f => f.count === 18) || LABEL_FORMATS[0],
   
   // Initial empty design
   labelDesign: createEmptyDesign(LABEL_FORMATS[0].id, 'Новый проект'),
