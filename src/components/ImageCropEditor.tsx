@@ -10,14 +10,41 @@ interface ImageCropEditorProps {
 
 export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropEditorProps) {
   const [cropRect, setCropRect] = useState<fabric.Rect | null>(null);
+  const [overlay, setOverlay] = useState<fabric.Rect | null>(null);
 
   useEffect(() => {
-    // Создать рамку обрезки поверх изображения
+    // Блокируем все другие объекты
+    canvas.getObjects().forEach((obj) => {
+      if (obj !== image) {
+        obj.selectable = false;
+        obj.evented = false;
+      }
+    });
+
+    // Создаём полупрозрачный оверлей поверх всего
+    const overlayRect = new fabric.Rect({
+      left: 0,
+      top: 0,
+      width: canvas.getWidth(),
+      height: canvas.getHeight(),
+      fill: 'rgba(0, 0, 0, 0.3)',
+      selectable: false,
+      evented: false,
+      excludeFromExport: true,
+    });
+
+    canvas.add(overlayRect);
+    setOverlay(overlayRect);
+
+    // Создаём рамку обрезки поверх изображения
+    const imgWidth = (image.width || 0) * (image.scaleX || 1);
+    const imgHeight = (image.height || 0) * (image.scaleY || 1);
+
     const rect = new fabric.Rect({
       left: image.left || 0,
       top: image.top || 0,
-      width: (image.width || 0) * (image.scaleX || 1) * 0.8,
-      height: (image.height || 0) * (image.scaleY || 1) * 0.8,
+      width: imgWidth * 0.8,
+      height: imgHeight * 0.8,
       fill: 'transparent',
       stroke: '#2563EB',
       strokeWidth: 2,
@@ -37,14 +64,26 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
 
     canvas.add(rect);
     canvas.setActiveObject(rect);
+    
+    // Перемещаем оверлей на задний план
+    canvas.sendObjectToBack(overlayRect);
+    
     canvas.renderAll();
     setCropRect(rect);
 
     return () => {
+      // Восстанавливаем все объекты
+      canvas.getObjects().forEach((obj) => {
+        obj.selectable = true;
+        obj.evented = true;
+      });
+      
+      if (overlay && canvas) {
+        canvas.remove(overlay);
+      }
       if (rect && canvas) {
         canvas.remove(rect);
       }
-      // Восстанавливаем изображение
       if (image) {
         image.selectable = true;
         image.evented = true;
@@ -111,7 +150,7 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
     // Получаем элемент изображения
     let imgElement: HTMLImageElement | HTMLCanvasElement | null = null;
 
-    // В Fabric.js v6 пробуем разные способы
+    // В Fabric.js v6 пробуем несколько способов
     if ((image as any)._element) {
       imgElement = (image as any)._element;
       console.log('handleApply: используем _element');
@@ -166,7 +205,8 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
         visible: image.visible,
       };
 
-      // Удаляем рамку обрезки и старое изображение
+      // Удаляем оверлей, рамку обрезки и старое изображение
+      if (overlay) canvas.remove(overlay);
       canvas.remove(cropRect);
       canvas.remove(image);
 
@@ -182,6 +222,13 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
       // Добавляем на канвас
       canvas.add(croppedImg);
       canvas.setActiveObject(croppedImg);
+      
+      // Разблокируем все объекты
+      canvas.getObjects().forEach((obj) => {
+        obj.selectable = true;
+        obj.evented = true;
+      });
+      
       canvas.renderAll();
 
       console.log('handleApply: обрезка завершена успешно');
@@ -195,12 +242,20 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
   };
 
   const handleCancel = () => {
-    if (cropRect) {
-      canvas.remove(cropRect);
-    }
+    // Удаляем оверлей и рамку
+    if (overlay) canvas.remove(overlay);
+    if (cropRect) canvas.remove(cropRect);
+    
     // Восстанавливаем изображение
     image.selectable = true;
     image.evented = true;
+    
+    // Разблокируем все объекты
+    canvas.getObjects().forEach((obj) => {
+      obj.selectable = true;
+      obj.evented = true;
+    });
+    
     canvas.renderAll();
     onCancel();
   };
@@ -216,7 +271,7 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
         </button>
       </div>
       <p className="text-sm text-gray-600 mt-2">
-        Перемещайте и изменяйте размер синей рамки для обрезки
+        Перемещайте синюю рамку для обрезки
       </p>
     </div>
   );
