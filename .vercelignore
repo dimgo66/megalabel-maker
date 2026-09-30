@@ -1,0 +1,17 @@
+node_modules
+.git
+.gitignore
+.vscode
+.idea
+*.log
+*.md
+!README.md
+.DS_Store
+coverage
+.nyc_output
+tests
+__tests__
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx

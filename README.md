@@ -1,6 +1,23 @@
 # 🏷️ Megalabel Pro - Label Maker
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=YOUR_REPO_URL)
+
 Профессиональное веб-приложение для создания и печати этикеток на листах A4 с поддержкой векторных штрих-кодов и PDF экспорта.
+
+## 🚀 Быстрый деплой на Vercel
+
+```bash
+# 1. Закоммитьте изменения
+git add .
+git commit -m "Deploy to Vercel"
+git push origin main
+
+# 2. Откройте https://vercel.com/new
+# 3. Выберите репозиторий
+# 4. Нажмите Deploy
+```
+
+**Подробная инструкция:** [DEPLOY.md](./DEPLOY.md)
 
 ## ✨ Возможности
 
