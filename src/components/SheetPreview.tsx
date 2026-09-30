@@ -111,7 +111,6 @@ export function SheetPreview() {
 
             const cellWidthPx = mmToPx(layout.cellWidth_mm) * previewZoom;
             const cellHeightPx = mmToPx(layout.cellHeight_mm) * previewZoom;
-            const safetyPx = mmToPx(sheetSettings.safetyMargin_mm) * previewZoom;
 
             return (
               <div
@@ -131,21 +130,6 @@ export function SheetPreview() {
                   }`}
                   style={{ borderWidth: '0.5px' }}
                 />
-
-                {/* Safety margin */}
-                {sheetSettings.safetyMargin_mm > 0 && safetyPx < cellWidthPx / 2 && safetyPx < cellHeightPx / 2 && (
-                  <div
-                    className="absolute border border-dashed border-gray-300"
-                    style={{
-                      top: `${safetyPx}px`,
-                      left: `${safetyPx}px`,
-                      right: `${safetyPx}px`,
-                      bottom: `${safetyPx}px`,
-                      borderWidth: '0.5px',
-                      ...(selectedFormat.shape === 'circle' ? { borderRadius: '50%' } : {}),
-                    }}
-                  />
-                )}
               </div>
             );
           })}

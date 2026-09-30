@@ -11,6 +11,7 @@ import { mmToPx } from './utils/layoutCalculator';
 function App() {
   const {
     selectedFormat,
+    sheetSettings,
     projectName,
     editorZoom,
     markSaved,
@@ -83,14 +84,71 @@ function App() {
           {/* Canvas area */}
           <div className="flex-1 flex items-center justify-center overflow-auto p-8">
             <div
-              className="bg-white shadow-lg border border-gray-300 flex items-center justify-center relative"
+              className="bg-white shadow-lg border border-gray-300 flex items-center justify-center relative overflow-hidden"
               style={{
                 width: `${mmToPx(selectedFormat.width_mm) * editorZoom}px`,
                 height: `${mmToPx(selectedFormat.height_mm) * editorZoom}px`,
               }}
             >
+              {/* Safety margin visualization */}
+              {sheetSettings.safetyMargin_mm > 0 && (
+                <>
+                  {/* Top safety zone */}
+                  <div
+                    className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none"
+                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Bottom safety zone */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none"
+                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Left safety zone */}
+                  <div
+                    className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none"
+                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Right safety zone */}
+                  <div
+                    className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none"
+                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Safety margin border */}
+                  <div
+                    className="absolute border border-dashed border-red-400/60 pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                    }}
+                  />
+                  {/* Safety margin label (top) */}
+                  <div
+                    className="absolute text-[9px] text-red-500/80 font-medium pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 5}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 3}px`,
+                    }}
+                  >
+                    ↕ {sheetSettings.safetyMargin_mm} мм
+                  </div>
+                  {/* Safety margin label (left) */}
+                  <div
+                    className="absolute text-[9px] text-red-500/80 font-medium pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 3}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 12}px`,
+                    }}
+                  >
+                    ↔ {sheetSettings.safetyMargin_mm} мм
+                  </div>
+                </>
+              )}
+
+              {/* Shape guide */}
               {selectedFormat.shape === 'circle' ? (
-                <div className="absolute inset-2 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
+                <div className="absolute inset-2 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center z-10">
                   <div className="text-center text-gray-400">
                     <p className="text-sm">⭕ Круглая этикетка</p>
                     <p className="text-xs mt-1">⌀{selectedFormat.width_mm} мм</p>
@@ -98,7 +156,7 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-400">
+                <div className="text-center text-gray-400 z-10">
                   <p className="text-sm">🏷️ Область редактирования</p>
                   <p className="text-xs mt-1">{selectedFormat.width_mm}×{selectedFormat.height_mm} мм</p>
                   <p className="text-xs text-gray-300 mt-2">Canvas-редактор (Fabric.js)</p>
