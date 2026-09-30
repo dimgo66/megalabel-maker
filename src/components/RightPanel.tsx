@@ -7,10 +7,6 @@ export function RightPanel() {
     setSheetSettings,
   } = useProjectStore();
 
-  const handleOrientationChange = (orientation: 'portrait' | 'landscape') => {
-    setSheetSettings({ orientation });
-  };
-
   const handleSafetyMarginChange = (value: number) => {
     setSheetSettings({ safetyMargin_mm: value });
   };
@@ -45,37 +41,7 @@ export function RightPanel() {
         </div>
       </div>
 
-      {/* Sheet settings section */}
-      <div className="p-4 border-b border-gray-200">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Настройки листа</h4>
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm text-gray-600 mb-2">Ориентация:</label>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleOrientationChange('portrait')}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  sheetSettings.orientation === 'portrait'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                📄 Книжная
-              </button>
-              <button
-                onClick={() => handleOrientationChange('landscape')}
-                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  sheetSettings.orientation === 'landscape'
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                📃 Альбомная
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+
 
       {/* Safety margin section */}
       <div className="p-4">
