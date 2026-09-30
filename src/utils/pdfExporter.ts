@@ -170,10 +170,10 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
 /**
  * Создание canvas для превью/печати
  */
-export function composeSheetCanvas(
+export async function composeSheetCanvas(
   cfg: ExportConfig,
   screenDpi: number = 96
-): HTMLCanvasElement {
+): Promise<HTMLCanvasElement> {
   const { format, editorCanvas, dpi, orientation } = cfg;
 
   // Размеры листа A4 в пикселях
@@ -200,9 +200,10 @@ export function composeSheetCanvas(
   const raster = renderLabelRaster(editorCanvas, format, dpi);
   const barcodes = collectBarcodes(editorCanvas, format);
 
-  // Загружаем растр как изображение
+  // Загружаем растр как изображение и ЖДЁМ загрузки
   const img = new Image();
   img.src = raster;
+  await img.decode(); // ВАЖНО: ждём загрузки изображения!
 
   // Рендерим каждую ячейку
   let index = 0;
@@ -309,7 +310,7 @@ export async function exportWithFallback(cfg: ExportConfig): Promise<{
     });
     
     // Рендерим растровый лист
-    const sheetCanvas = composeSheetCanvas(cfg, 600); // 600 DPI для качества
+    const sheetCanvas = await composeSheetCanvas(cfg, 600); // 600 DPI для качества
     
     // Добавляем растр в PDF
     const dataUrl = sheetCanvas.toDataURL('image/png');

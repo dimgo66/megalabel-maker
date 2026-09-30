@@ -27,12 +27,16 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       orientation: sheetSettings.orientation,
     };
 
-    try {
-      const canvas = composeSheetCanvas(cfg, 96);
-      setPreviewUrl(canvas.toDataURL('image/png'));
-    } catch (error) {
-      console.error('Ошибка генерации превью:', error);
-    }
+    const generatePreview = async () => {
+      try {
+        const canvas = await composeSheetCanvas(cfg, 96);
+        setPreviewUrl(canvas.toDataURL('image/png'));
+      } catch (error) {
+        console.error('Ошибка генерации превью:', error);
+      }
+    };
+
+    generatePreview();
   }, [isOpen, editorCanvas, selectedFormat, sheetSettings.orientation]);
 
   const handleExport = async () => {
