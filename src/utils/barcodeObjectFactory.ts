@@ -67,14 +67,28 @@ export function buildBarcodeGroup(
   });
 
   // 5. САМОПРОВЕРКА
-  const expectedWidth = (norm.leftPadMod + norm.modulesTotal) * px;
+  const expectedWidth = (norm.leftPadMod + norm.modulesTotal + 1) * px; // +1 модуль правый запас
   const actualWidth = group.width || 0;
-  if (Math.abs(actualWidth - expectedWidth) > 2) {
-    console.warn(`buildBarcodeGroup: ширина группы ${actualWidth} не соответствует ожидаемой ${expectedWidth}`);
-  }
+  
+  console.assert(
+    Math.abs(actualWidth - expectedWidth) <= 2,
+    `buildBarcodeGroup: ширина группы ${actualWidth} не соответствует ожидаемой ${expectedWidth}`
+  );
 
-  if (norm.bars.length < 20) {
-    console.warn(`buildBarcodeGroup: слишком мало штрихов (${norm.bars.length})`);
+  console.assert(
+    norm.bars.length >= 20,
+    `buildBarcodeGroup: слишком мало штрихов (${norm.bars.length})`
+  );
+
+  // Численная самопроверка позиций цифр
+  if (norm.format === 'ean13') {
+    console.table(
+      norm.digits.map(d => ({
+        char: d.char,
+        xMod: d.xMod,
+        px: (norm.leftPadMod + d.xMod) * norm.pxPerModule
+      }))
+    );
   }
 
   // 6. Устанавливаем кастомные свойства для сериализации

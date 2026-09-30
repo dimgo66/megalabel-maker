@@ -93,7 +93,7 @@ function generateEan13Bits(code: string): string {
  * Константы вертикальной геометрии EAN-13
  */
 const DATA_BAR_H_MOD = 44;    // высота штрихов данных
-const GUARD_BAR_H_MOD = 52;   // высота защитных штрихов (до середины цифр: 56 - 4.5 = 51.5 ≈ 52)
+const GUARD_BAR_H_MOD = 53;   // высота защитных штрихов (до середины цифр)
 
 /**
  * Зоны защитных штрихов (модули символа 0..95)
@@ -146,10 +146,10 @@ export function buildEan13Norm(code: string): BarcodeNorm {
   const bits = generateEan13Bits(code);
   const bars = bitsToBarsModules(bits);
 
-  // Позиции цифр в модулях
+  // Позиции цифр в модулях (отполированы для визуального соответствия эталону)
   const digits = [
     // Первая цифра (code[0]) - слева вне штрихов
-    { char: code[0], xMod: -3.5 },
+    { char: code[0], xMod: -4.2 },  // чуть левее для лучшего зазора
     
     // Левая половина (цифры 2-7, индексы 1-6)
     { char: code[1], xMod: 6.5 },
@@ -171,11 +171,11 @@ export function buildEan13Norm(code: string): BarcodeNorm {
   return {
     format: 'ean13',
     modulesTotal: 95,
-    leftPadMod: 7,        // запас под первую цифру слева
+    leftPadMod: 8,        // увеличен запас под первую цифру слева
     bars,
     digits,
-    digitYMod: 56,        // базовая линия цифр в модулях (плотнее к штрихам)
-    fontMod: 9,           // кегль цифр в модулях
+    digitYMod: 55,        // ряд цифр чуть выше, не касается безопасного поля
+    fontMod: 8.5,         // ряд цифр чуть мельче, аккуратнее
     pxPerModule: 4,       // пикселей на модуль при scale=1
   };
 }

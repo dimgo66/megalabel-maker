@@ -100,6 +100,12 @@ function App() {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isPrintOpen, setIsPrintOpen] = useState(false);
+  const [showModuleGrid, setShowModuleGrid] = useState(false);
+
+  // Экспортируем состояние для доступа из LabelCanvas
+  useEffect(() => {
+    (window as any).__showModuleGrid = showModuleGrid;
+  }, [showModuleGrid]);
 
   const { showRestoreBanner, restoreAutosave, discardAutosave } = useAutosave();
 
@@ -129,6 +135,16 @@ function App() {
           <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
             <span className="text-sm font-semibold text-gray-900">Редактор этикетки</span>
             <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showModuleGrid}
+                  onChange={(e) => setShowModuleGrid(e.target.checked)}
+                  className="rounded"
+                />
+                <span>🔍 Сетка модулей</span>
+              </label>
+              <div className="h-4 w-px bg-gray-300"></div>
               <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
                 {selectedFormat.width_mm}×{selectedFormat.height_mm} мм
               </span>
