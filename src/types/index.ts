@@ -43,28 +43,17 @@ export interface ProjectFile {
   sheetSettings: SheetSettings;
 }
 
-// Штрих-коды: единая нормализованная структура
-export interface BarcodeDigit {
-  char: string;
-  xFrac: number; // xFrac в 0..1 символа, первая цифра может быть < 0
-}
-
-export interface NormalizedBar {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
+// Штрих-коды: единая структура в модулях
 export interface BarcodeNorm {
-  bars: NormalizedBar[];        // нормализованы к символу (95 модулей EAN / bbox ITF), x 0..1
-  digits: BarcodeDigit[];       // в той же нормализации символа
-  textYFrac: number;            // вертикаль цифр (доли от высоты символа)
-  fontSizeFrac: number;         // размер шрифта цифр (доли от высоты символа)
-  overhangFrac: number;         // насколько левее символа выступает первая цифра (доли ширины символа)
-  unit: number;                 // пикселей на 1 нормализованную единицу при scale=1
-  totalHeightModules: number;   // общая высота символа в модулях (включая цифры)
-  barHeightModules: number;     // высота штрихов в модулях
+  format: 'ean13' | 'itf14';
+  modulesTotal: number;     // EAN-13: 95. ITF-14: ширина символа в px из парсера
+  leftPadMod: number;       // запас слева под первую цифру: EAN-13: 7, ITF-14: 0
+  bars: Array<{ xMod: number; wMod: number }>;      // x и ширина В МОДУЛЯХ от начала символа
+  digits: Array<{ char: string; xMod: number }>;    // центры цифр В МОДУЛЯХ (первая может быть < 0)
+  barHMod: number;          // высота штрихов в модулях: EAN-13: 50
+  digitYMod: number;        // базовая линия цифр в модулях: EAN-13: 57
+  fontMod: number;          // кегль цифр в модулях: EAN-13: 9
+  pxPerModule: number;      // 4 (константа масштаба группы при scale=1)
 }
 
 export type BarcodeFormat = 'ean13' | 'itf14';

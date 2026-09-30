@@ -1,8 +1,5 @@
-import { BarcodeNorm, BarcodeDigit, NormalizedBar } from '../types';
 import JsBarcode from 'jsbarcode';
-
-export type BarcodeFormat = 'ean13' | 'itf14';
-export type { NormalizedBar, BarcodeDigit, BarcodeNorm } from '../types';
+import { BarcodeNorm, BarcodeFormat } from '../types';
 
 // EAN-13: стандартные таблицы кодирования
 // L-коды (для нечётных цифр в левой половине)
@@ -93,10 +90,10 @@ function generateEan13Bits(code: string): string {
 }
 
 /**
- * Преобразует битовую строку в массив штрихов (runs of 1s)
+ * Преобразует битовую строку в массив штрихов в модулях
  */
-function bitsToBars(bits: string): NormalizedBar[] {
-  const bars: NormalizedBar[] = [];
+function bitsToBarsModules(bits: string): Array<{ xMod: number; wMod: number }> {
+  const bars: Array<{ xMod: number; wMod: number }> = [];
   let i = 0;
 
   while (i < bits.length) {
@@ -106,12 +103,7 @@ function bitsToBars(bits: string): NormalizedBar[] {
         i++;
       }
       const length = i - start;
-      bars.push({
-        x: start / 95,
-        y: 0,
-        width: length / 95,
-        height: 1,
-      });
+      bars.push({ xMod: start, wMod: length });
     } else {
       i++;
     }
@@ -121,59 +113,45 @@ function bitsToBars(bits: string): NormalizedBar[] {
 }
 
 /**
- * Вычисляет позиции цифр для EAN-13
- */
-function computeEan13Digits(code: string): BarcodeDigit[] {
-  const digits: BarcodeDigit[] = [];
-
-  // Первая цифра (code[0]) - слева вне штрихов
-  digits.push({
-    char: code[0],
-    xFrac: -3.5 / 95, // 3.5 модуля слева от начала штрихов
-  });
-
-  // Левая половина (цифры 2-7, индексы 1-6)
-  for (let i = 0; i < 6; i++) {
-    digits.push({
-      char: code[1 + i],
-      xFrac: (6 + 7 * i) / 95, // центр каждого 7-модульного блока
-    });
-  }
-
-  // Правая половина (цифры 8-13, индексы 7-12)
-  for (let j = 0; j < 6; j++) {
-    digits.push({
-      char: code[7 + j],
-      xFrac: (53 + 7 * j) / 95, // центр каждого 7-модульного блока
-    });
-  }
-
-  return digits;
-}
-
-/**
  * Строит BarcodeNorm для EAN-13 детерминированно по стандарту
+ * Все значения в МОДУЛЯХ, не в долях!
  */
 export function buildEan13Norm(code: string): BarcodeNorm {
   const bits = generateEan13Bits(code);
-  const bars = bitsToBars(bits);
-  const digits = computeEan13Digits(code);
+  const bars = bitsToBarsModules(bits);
 
-  // Константы в модулях
-  const BAR_H_MODULES = 50;      // высота штрихов
-  const FONT_MODULES = 9;        // размер шрифта
-  const DIGIT_Y_MODULES = 57;    // позиция цифр (от верха)
-  const TOTAL_HEIGHT_MODULES = DIGIT_Y_MODULES + FONT_MODULES; // общая высота с цифрами
+  // Позиции цифр в модулях
+  const digits = [
+    // Первая цифра (code[0]) - слева вне штрихов
+    { char: code[0], xMod: -3.5 },
+    
+    // Левая половина (цифры 2-7, индексы 1-6)
+    { char: code[1], xMod: 6.5 },
+    { char: code[2], xMod: 13.5 },
+    { char: code[3], xMod: 20.5 },
+    { char: code[4], xMod: 27.5 },
+    { char: code[5], xMod: 34.5 },
+    { char: code[6], xMod: 41.5 },
+    
+    // Правая половина (цифры 8-13, индексы 7-12)
+    { char: code[7], xMod: 53.5 },
+    { char: code[8], xMod: 60.5 },
+    { char: code[9], xMod: 67.5 },
+    { char: code[10], xMod: 74.5 },
+    { char: code[11], xMod: 81.5 },
+    { char: code[12], xMod: 88.5 },
+  ];
 
   return {
+    format: 'ean13',
+    modulesTotal: 95,
+    leftPadMod: 7,        // запас под первую цифру слева
     bars,
     digits,
-    textYFrac: DIGIT_Y_MODULES / TOTAL_HEIGHT_MODULES,
-    fontSizeFrac: FONT_MODULES / TOTAL_HEIGHT_MODULES,
-    overhangFrac: 7 / 95, // запас под первую цифру слева
-    unit: 4, // пикселей на модуль при scale=1
-    totalHeightModules: TOTAL_HEIGHT_MODULES,
-    barHeightModules: BAR_H_MODULES,
+    barHMod: 50,          // высота штрихов в модулях
+    digitYMod: 57,        // базовая линия цифр в модулях
+    fontMod: 9,           // кегль цифр в модулях
+    pxPerModule: 4,       // пикселей на модуль при scale=1
   };
 }
 
@@ -182,7 +160,7 @@ export function buildEan13Norm(code: string): BarcodeNorm {
  * КРИТИЧНО: учитывает transform родительских <g> элементов
  */
 export function parseBarcodeBarsFromSVG(svgString: string): {
-  bars: NormalizedBar[];
+  bars: Array<{ x: number; y: number; width: number; height: number }>;
   vbW: number;
   vbH: number;
   bbox: { minX: number; minY: number; maxX: number; maxY: number };
@@ -300,19 +278,8 @@ export function parseBarcodeBarsFromSVG(svgString: string): {
     maxY = Math.max(maxY, rect.y + rect.height);
   }
 
-  // Нормализуем к bbox
-  const symW = maxX - minX;
-  const symH = maxY - minY;
-
-  const bars: NormalizedBar[] = darkRects.map(rect => ({
-    x: (rect.x - minX) / symW,
-    y: (rect.y - minY) / symH,
-    width: rect.width / symW,
-    height: rect.height / symH,
-  }));
-
   return {
-    bars,
+    bars: darkRects,
     vbW,
     vbH,
     bbox: { minX, minY, maxX, maxY },
@@ -321,6 +288,7 @@ export function parseBarcodeBarsFromSVG(svgString: string): {
 
 /**
  * Строит BarcodeNorm для ITF-14 из SVG
+ * Все значения в модулях (px для ITF-14)
  */
 export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
   if (code.length !== 14 || !/^\d{14}$/.test(code)) {
@@ -331,30 +299,36 @@ export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
   const symW = bbox.maxX - bbox.minX;
   const symH = bbox.maxY - bbox.minY;
 
+  // Конвертируем в модули (для ITF-14 модуль = 1 px)
+  const barsModules = bars.map(r => ({
+    xMod: r.x - bbox.minX,
+    wMod: r.width,
+  }));
+
   // Позиции цифр: равномерно распределены
-  const digits: BarcodeDigit[] = [];
+  const digits = [];
   for (let i = 0; i < 14; i++) {
     digits.push({
       char: code[i],
-      xFrac: (i + 0.5) / 14,
+      xMod: (i + 0.5) * symW / 14,
     });
   }
 
   // Константы (приблизительные, на основе анализа SVG)
-  const TOTAL_HEIGHT_MODULES = 70; // включая цифры
-  const BAR_H_MODULES = 50;
-  const FONT_MODULES = 10;
-  const DIGIT_Y_MODULES = 55;
+  const barHMod = symH * 0.7; // высота штрихов
+  const digitYMod = symH * 0.85; // позиция цифр
+  const fontMod = symH * 0.15; // размер шрифта
 
   return {
-    bars,
+    format: 'itf14',
+    modulesTotal: symW,
+    leftPadMod: 0,
+    bars: barsModules,
     digits,
-    textYFrac: DIGIT_Y_MODULES / TOTAL_HEIGHT_MODULES,
-    fontSizeFrac: FONT_MODULES / TOTAL_HEIGHT_MODULES,
-    overhangFrac: 0, // ITF-14 не имеет выступающих цифр
-    unit: symW, // пикселей на нормализованную единицу
-    totalHeightModules: TOTAL_HEIGHT_MODULES,
-    barHeightModules: BAR_H_MODULES,
+    barHMod,
+    digitYMod,
+    fontMod,
+    pxPerModule: 1, // для ITF-14 модуль = 1 px
   };
 }
 
@@ -453,27 +427,36 @@ export function validateBarcode(code: string, format: BarcodeFormat): { valid: b
 }
 
 /**
- * Добавляет контрольную цифру к штрих-коду
+ * Добавление контрольной цифры, если она отсутствует
  */
 export function addCheckDigit(code: string, format: BarcodeFormat): string {
-  if (format === 'ean13' && code.length === 12) {
-    // EAN-13: контрольная цифра по модулю 10
+  const cleanCode = code.replace(/\s/g, '');
+  
+  if (format === 'ean13' && cleanCode.length === 12) {
+    // Добавляем контрольную цифру для EAN-13
+    const digits = cleanCode.split('').map(Number);
     let sum = 0;
+    
     for (let i = 0; i < 12; i++) {
-      const digit = parseInt(code[i]);
-      sum += digit * (i % 2 === 0 ? 1 : 3);
+      sum += digits[i] * (i % 2 === 0 ? 1 : 3);
     }
+    
     const checkDigit = (10 - (sum % 10)) % 10;
-    return code + checkDigit;
-  } else if (format === 'itf14' && code.length === 13) {
-    // ITF-14: контрольная цифра по модулю 10
-    let sum = 0;
-    for (let i = 0; i < 13; i++) {
-      const digit = parseInt(code[i]);
-      sum += digit * (i % 2 === 0 ? 3 : 1);
-    }
-    const checkDigit = (10 - (sum % 10)) % 10;
-    return code + checkDigit;
+    return cleanCode + checkDigit;
   }
-  return code;
+  
+  if (format === 'itf14' && cleanCode.length === 13) {
+    // Добавляем контрольную цифру для ITF-14
+    const digits = cleanCode.split('').map(Number);
+    let sum = 0;
+    
+    for (let i = 0; i < 13; i++) {
+      sum += digits[i] * (i % 2 === 0 ? 3 : 1);
+    }
+    
+    const checkDigit = (10 - (sum % 10)) % 10;
+    return cleanCode + checkDigit;
+  }
+  
+  return cleanCode;
 }

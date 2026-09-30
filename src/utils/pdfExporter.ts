@@ -14,10 +14,8 @@ export interface ExportConfig {
 interface BarcodePlacement {
   norm: BarcodeNorm;
   symbolLeft_mm: number;
-  symbolWidth_mm: number;
   symbolTop_mm: number;
-  barAreaHeight_mm: number;
-  totalHeight_mm: number;
+  moduleMm: number;
 }
 
 /**
@@ -88,23 +86,19 @@ export function collectBarcodes(
   canvas.getObjects().forEach((obj: any) => {
     if (obj.barcodeNorm) {
       const norm = obj.barcodeNorm as BarcodeNorm;
-      const totalHeightPx = norm.totalHeightModules * norm.unit;
-      const barHeightPx = norm.barHeightModules * norm.unit;
-
-      // Вычисляем позицию символа в мм
-      const symbolLeft_mm = (obj.left + norm.overhangFrac * norm.unit * obj.scaleX) * mmPerPx;
-      const symbolWidth_mm = norm.unit * obj.scaleX * mmPerPx;
+      
+      // Размер одного модуля в мм
+      const moduleMm = (norm.pxPerModule * obj.scaleX) * mmPerPx;
+      
+      // Позиция символа в мм
+      const symbolLeft_mm = (obj.left + norm.leftPadMod * norm.pxPerModule * obj.scaleX) * mmPerPx;
       const symbolTop_mm = obj.top * mmPerPx;
-      const barAreaHeight_mm = barHeightPx * obj.scaleY * mmPerPx;
-      const totalHeight_mm = totalHeightPx * obj.scaleY * mmPerPx;
 
       barcodes.push({
         norm,
         symbolLeft_mm,
-        symbolWidth_mm,
         symbolTop_mm,
-        barAreaHeight_mm,
-        totalHeight_mm,
+        moduleMm,
       });
     }
   });
@@ -162,8 +156,7 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
           bc.norm,
           x + bc.symbolLeft_mm,
           y + bc.symbolTop_mm,
-          bc.symbolWidth_mm,
-          bc.totalHeight_mm
+          bc.moduleMm
         );
       }
 
@@ -247,10 +240,8 @@ export function composeSheetCanvas(
       // Рендерим штрих-коды
       for (const bc of barcodes) {
         const norm = bc.norm;
-        const totalHeightPx = norm.totalHeightModules * norm.unit;
-        
-        const scaleX = bc.symbolWidth_mm / (norm.unit * (1 + norm.overhangFrac * 2));
-        const scaleY = bc.totalHeight_mm / totalHeightPx;
+        const px = norm.pxPerModule;
+        const modulePx = px * bc.moduleMm / (format.width_mm / (canvas.width / screenDpi * 25.4));
 
         const bcX_px = x_px + (bc.symbolLeft_mm / layout.cellWidth_mm) * cellW_px;
         const bcY_px = y_px + (bc.symbolTop_mm / layout.cellHeight_mm) * cellH_px;
@@ -258,10 +249,10 @@ export function composeSheetCanvas(
         // Рисуем штрихи
         ctx.fillStyle = '#000000';
         for (const bar of norm.bars) {
-          const barX = bcX_px + (norm.overhangFrac + bar.x) * norm.unit * scaleX;
-          const barY = bcY_px + bar.y * norm.barHeightModules * norm.unit * scaleY;
-          const barW = bar.width * norm.unit * scaleX;
-          const barH = bar.height * norm.barHeightModules * norm.unit * scaleY;
+          const barX = bcX_px + (norm.leftPadMod + bar.xMod) * modulePx;
+          const barY = bcY_px;
+          const barW = bar.wMod * modulePx;
+          const barH = norm.barHMod * modulePx;
 
           if (barW < 0.5 || barH < 0.5) continue;
 
@@ -269,15 +260,15 @@ export function composeSheetCanvas(
         }
 
         // Рисуем цифры
-        const fontSize = norm.fontSizeFrac * totalHeightPx * scaleY;
+        const fontSize = norm.fontMod * modulePx;
         ctx.font = `${fontSize}px Arial`;
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'alphabetic';
 
         for (const digit of norm.digits) {
-          const digitX = bcX_px + (norm.overhangFrac + digit.xFrac) * norm.unit * scaleX;
-          const digitY = bcY_px + norm.textYFrac * totalHeightPx * scaleY;
+          const digitX = bcX_px + (norm.leftPadMod + digit.xMod) * modulePx;
+          const digitY = bcY_px + norm.digitYMod * modulePx;
           ctx.fillText(digit.char, digitX, digitY);
         }
       }

@@ -1,13 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
-  generateBarcodeSVG,
   validateBarcode,
   addCheckDigit,
-  BarcodeFormat,
-  buildEan13Norm,
 } from '../utils/barcodeGenerator';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
-import { BarcodeNorm } from '../types';
+import { BarcodeFormat } from '../types';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 
@@ -17,46 +14,13 @@ interface BarcodeModalProps {
   existingObject?: fabric.Group; // Для редактирования существующего штрихкода
 }
 
-/**
- * Генерирует SVG превью из BarcodeNorm для отображения в модалке
- */
-function generatePreviewSVG(norm: BarcodeNorm): string {
-  const totalHeightPx = norm.totalHeightModules * norm.unit;
-  const barHeightPx = norm.barHeightModules * norm.unit;
-  const width = norm.unit * (1 + norm.overhangFrac * 2);
-  
-  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeightPx}" viewBox="0 0 ${width} ${totalHeightPx}">`;
-  
-  // Штрихи
-  for (const bar of norm.bars) {
-    const x = (norm.overhangFrac + bar.x) * norm.unit;
-    const y = bar.y * barHeightPx;
-    const w = bar.width * norm.unit;
-    const h = bar.height * barHeightPx;
-    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000"/>`;
-  }
-  
-  // Цифры
-  const fontSize = norm.fontSizeFrac * totalHeightPx;
-  for (const digit of norm.digits) {
-    const x = (norm.overhangFrac + digit.xFrac) * norm.unit;
-    const y = norm.textYFrac * totalHeightPx;
-    svg += `<text x="${x}" y="${y}" font-family="Arial" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="#000000">${digit.char}</text>`;
-  }
-  
-  svg += '</svg>';
-  return svg;
-}
-
 export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalProps) {
   const { editorCanvas } = useProjectStore();
   
   const [format, setFormat] = useState<BarcodeFormat>('ean13');
   const [code, setCode] = useState('');
   const [fullCode, setFullCode] = useState('');
-  const [svgPreview, setSvgPreview] = useState('');
   const [error, setError] = useState('');
-  const [displayValue, setDisplayValue] = useState(true);
 
   // Загрузка данных существующего штрихкода
   useEffect(() => {
@@ -70,10 +34,9 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     }
   }, [existingObject]);
 
-  // Генерация превью при изменении кода
+  // Валидация при изменении кода
   useEffect(() => {
     if (!code || code.trim() === '') {
-      setSvgPreview('');
       setError('');
       setFullCode('');
       return;
@@ -82,7 +45,6 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     const validation = validateBarcode(code, format);
     if (!validation.valid) {
       setError(validation.error || 'Некорректный код');
-      setSvgPreview('');
       setFullCode('');
       return;
     }
@@ -92,29 +54,10 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     // Добавляем контрольную цифру если нужно
     const finalCode = addCheckDigit(code, format);
     setFullCode(finalCode);
-
-    try {
-      let svg: string;
-      
-      if (format === 'ean13') {
-        // Для EAN-13 используем детерминированный генератор
-        const norm = buildEan13Norm(finalCode);
-        svg = generatePreviewSVG(norm);
-      } else {
-        // Для ITF-14 используем JsBarcode
-        svg = generateBarcodeSVG(finalCode, format, { displayValue });
-      }
-      
-      setSvgPreview(svg);
-    } catch (err) {
-      console.error('Ошибка генерации штрихкода:', err);
-      setError('Ошибка генерации штрихкода');
-      setSvgPreview('');
-    }
-  }, [code, format, displayValue]);
+  }, [code, format]);
 
   const handleAdd = async () => {
-    if (!editorCanvas || !fullCode || !svgPreview) {
+    if (!editorCanvas || !fullCode) {
       console.error('handleAdd: отсутствуют необходимые данные');
       return;
     }
@@ -187,12 +130,7 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
               ...obj,
               barcodeFormat: obj.barcodeFormat,
               barcodeValue: obj.barcodeValue,
-              barcodeBars: obj.barcodeBars,
-              barcodeSVG: obj.barcodeSVG,
-              barcodeTextYFrac: obj.barcodeTextYFrac,
-              barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
-              barcodeBaseW: obj.barcodeBaseW,
-              barcodeBaseH: obj.barcodeBaseH,
+              barcodeNorm: obj.barcodeNorm,
             };
           }
           return obj;
@@ -207,7 +145,6 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
       // Сбрасываем форму
       setCode('');
       setFullCode('');
-      setSvgPreview('');
     } catch (err) {
       console.error('handleAdd: ошибка добавления штрихкода', err);
       setError('Ошибка добавления штрихкода');
@@ -289,36 +226,14 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
               )}
             </div>
 
-            {/* Отображение значения */}
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={displayValue}
-                  onChange={(e) => setDisplayValue(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm text-gray-700">Показывать цифры под штрихкодом</span>
-              </label>
-            </div>
-
-            {/* Превью */}
-            {svgPreview && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Предпросмотр (вектор SVG)
-                </label>
-                <div className="border border-gray-200 rounded-lg p-4 bg-white flex items-center justify-center">
-                  <div
-                    dangerouslySetInnerHTML={{ __html: svgPreview }}
-                    className="max-w-full"
-                  />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Штрихкод будет векторным — идеально чётким при любом масштабе
-                </p>
+            {/* Информация */}
+            <div className="p-4 bg-blue-50 rounded-lg">
+              <div className="text-xs text-blue-900 space-y-1">
+                <div>✓ Векторные штрихи (чёткие при любом масштабе)</div>
+                <div>✓ Стандартная раскладка цифр</div>
+                <div>✓ Сохраняется в проект</div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 
@@ -332,7 +247,7 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
           </button>
           <button
             onClick={handleAdd}
-            disabled={!fullCode || !svgPreview || !!error}
+            disabled={!fullCode || !!error}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {existingObject ? 'Обновить' : 'Добавить'}

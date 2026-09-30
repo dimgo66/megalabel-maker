@@ -24,50 +24,58 @@ export function buildBarcodeGroup(
     norm = buildItf14Norm(svgNoText, code);
   }
 
-  // 2. Вычисляем размеры в пикселях
-  const TOTAL_HEIGHT_PX = norm.totalHeightModules * norm.unit;
-  const BAR_HEIGHT_PX = norm.barHeightModules * norm.unit;
+  const px = norm.pxPerModule;
 
-  // 3. Создаём штрихи как fabric.Rect
+  // 2. Создаём штрихи как fabric.Rect в пикселях
   const barRects = norm.bars.map((b) => {
     return new fabric.Rect({
-      left: (norm.overhangFrac + b.x) * norm.unit,
+      left: (norm.leftPadMod + b.xMod) * px,
       top: 0,
-      width: b.width * norm.unit,
-      height: BAR_HEIGHT_PX,
+      width: b.wMod * px,  // ВАЖНО: без leftPadMod
+      height: norm.barHMod * px,
       fill: '#000000',
       originX: 'left',
       originY: 'top',
       selectable: false,
       evented: false,
       objectCaching: false,
-      strokeUniform: true,
     });
   });
 
-  // 4. Создаём цифры как fabric.Text
+  // 3. Создаём цифры как fabric.Text
   const digitTexts = norm.digits.map((d) => {
     return new fabric.Text(d.char, {
-      left: (norm.overhangFrac + d.xFrac) * norm.unit,
-      top: norm.textYFrac * TOTAL_HEIGHT_PX,
-      fontSize: norm.fontSizeFrac * TOTAL_HEIGHT_PX,
+      left: (norm.leftPadMod + d.xMod) * px,
+      top: norm.digitYMod * px,
+      fontSize: norm.fontMod * px,
       fontFamily: 'Arial',
       fill: '#000000',
       originX: 'center',
-      originY: 'center',
+      originY: 'bottom',
       selectable: false,
       evented: false,
       objectCaching: false,
     });
   });
 
-  // 5. Объединяем все примитивы в одну группу
+  // 4. Объединяем все примитивы в одну группу
   const group = new fabric.Group([...barRects, ...digitTexts], {
     originX: 'left',
     originY: 'top',
     selectable: true,
     evented: true,
   });
+
+  // 5. САМОПРОВЕРКА
+  const expectedWidth = (norm.leftPadMod + norm.modulesTotal) * px;
+  const actualWidth = group.width || 0;
+  if (Math.abs(actualWidth - expectedWidth) > 2) {
+    console.warn(`buildBarcodeGroup: ширина группы ${actualWidth} не соответствует ожидаемой ${expectedWidth}`);
+  }
+
+  if (norm.bars.length < 20) {
+    console.warn(`buildBarcodeGroup: слишком мало штрихов (${norm.bars.length})`);
+  }
 
   // 6. Устанавливаем кастомные свойства для сериализации
   (group as any).name = 'Штрих-код';

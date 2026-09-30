@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { BarcodeModal } from './BarcodeModal';
-import { BarcodeFormat } from '../utils/barcodeGenerator';
+import { BarcodeFormat } from '../types';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 
 export function BarcodePropertiesPanel() {
