@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { calculateLayout, mmToPx } from '../utils/layoutCalculator';
 
@@ -7,36 +7,152 @@ export function SheetPreview() {
     selectedFormat,
     previewZoom,
     setPreviewZoom,
+    editorCanvas,
+    labelDesign,
   } = useProjectStore();
 
-  const layout = calculateLayout(selectedFormat);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [cachedDataURL, setCachedDataURL] = useState<string | null>(null);
+  const [isRendering, setIsRendering] = useState(false);
 
-  // Auto-fit on mount and resize
-  const fitToContainer = useCallback(() => {
+  const layout = calculateLayout(selectedFormat);
+
+  // Кэширование dataURL этикетки
+  useEffect(() => {
+    if (!editorCanvas) {
+      setCachedDataURL(null);
+      return;
+    }
+
+    // Генерируем dataURL с множителем 2 для качества
+    const dataURL = editorCanvas.toDataURL({
+      format: 'png',
+      multiplier: 2,
+      left: 0,
+      top: 0,
+      width: editorCanvas.getWidth(),
+      height: editorCanvas.getHeight(),
+    });
+
+    setCachedDataURL(dataURL);
+  }, [editorCanvas, labelDesign.canvasJSON]);
+
+  // Рендеринг листа предпросмотра
+  const renderSheet = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !cachedDataURL) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    setIsRendering(true);
+
+    // Размеры листа A4 в пикселях с учётом зума
+    const sheetWidth_px = mmToPx(210) * previewZoom;
+    const sheetHeight_px = mmToPx(297) * previewZoom;
+
+    // Устанавливаем размер canvas
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = sheetWidth_px * dpr;
+    canvas.height = sheetHeight_px * dpr;
+    canvas.style.width = `${sheetWidth_px}px`;
+    canvas.style.height = `${sheetHeight_px}px`;
+
+    // Масштабируем контекст для Retina
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Белый фон листа
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, sheetWidth_px, sheetHeight_px);
+
+    // Рамка листа
+    ctx.strokeStyle = '#CCCCCC';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([]);
+    ctx.strokeRect(0, 0, sheetWidth_px, sheetHeight_px);
+
+    // Загружаем изображение этикетки
+    const labelImg = new Image();
+    labelImg.onload = () => {
+      // Рендерим каждую ячейку
+      let index = 0;
+      for (let row = 0; row < layout.rows; row++) {
+        for (let col = 0; col < layout.cols; col++) {
+          if (index >= selectedFormat.count) break;
+
+          // Позиция ячейки в мм
+          const x_mm = layout.marginLeft_mm + col * (layout.cellWidth_mm + layout.gapX_mm);
+          const y_mm = layout.marginTop_mm + row * (layout.cellHeight_mm + layout.gapY_mm);
+
+          // Конвертируем в пиксели
+          const x_px = mmToPx(x_mm) * previewZoom;
+          const y_px = mmToPx(y_mm) * previewZoom;
+          const cellW_px = mmToPx(layout.cellWidth_mm) * previewZoom;
+          const cellH_px = mmToPx(layout.cellHeight_mm) * previewZoom;
+
+          // Для круглых этикеток: круглый clipPath
+          if (selectedFormat.shape === 'circle') {
+            ctx.save();
+            ctx.beginPath();
+            const radius = Math.min(cellW_px, cellH_px) / 2;
+            ctx.arc(x_px + cellW_px / 2, y_px + cellH_px / 2, radius, 0, Math.PI * 2);
+            ctx.clip();
+          }
+
+          // Рисуем содержимое этикетки
+          ctx.drawImage(labelImg, x_px, y_px, cellW_px, cellH_px);
+
+          // Восстанавливаем контекст для круглых
+          if (selectedFormat.shape === 'circle') {
+            ctx.restore();
+          }
+
+          // Рамка ячейки (пунктирная)
+          ctx.strokeStyle = '#999999';
+          ctx.lineWidth = 0.5;
+          ctx.setLineDash([4, 4]);
+          ctx.strokeRect(x_px, y_px, cellW_px, cellH_px);
+
+          index++;
+        }
+      }
+
+      setIsRendering(false);
+    };
+
+    labelImg.src = cachedDataURL;
+  }, [cachedDataURL, previewZoom, layout, selectedFormat]);
+
+  // Дебаунс обновлений
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      renderSheet();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [renderSheet]);
+
+  // Автоматическое вписывание при загрузке
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const containerWidth = container.clientWidth - 48;
-    const containerHeight = container.clientHeight - 48;
+    const containerWidth = container.clientWidth - 32;
+    const containerHeight = container.clientHeight - 32;
 
-    const a4WidthPx = mmToPx(210);
-    const a4HeightPx = mmToPx(297);
+    const sheetWidth = mmToPx(210);
+    const sheetHeight = mmToPx(297);
 
-    const zoomX = containerWidth / a4WidthPx;
-    const zoomY = containerHeight / a4HeightPx;
+    const zoomX = containerWidth / sheetWidth;
+    const zoomY = containerHeight / sheetHeight;
     const fitZoom = Math.min(zoomX, zoomY);
 
     const clampedZoom = Math.max(0.25, Math.min(4.0, fitZoom));
     setPreviewZoom(clampedZoom);
-  }, [setPreviewZoom]);
+  }, []);
 
-  useEffect(() => {
-    fitToContainer();
-    window.addEventListener('resize', fitToContainer);
-    return () => window.removeEventListener('resize', fitToContainer);
-  }, [fitToContainer]);
-
+  // Обработчики зума
   const handleZoomIn = () => {
     setPreviewZoom(Math.min(4.0, previewZoom + 0.25));
   };
@@ -45,8 +161,22 @@ export function SheetPreview() {
     setPreviewZoom(Math.max(0.25, previewZoom - 0.25));
   };
 
-  const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPreviewZoom(Number(e.target.value) / 100);
+  const handleFitToScreen = () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const containerWidth = container.clientWidth - 32;
+    const containerHeight = container.clientHeight - 32;
+
+    const sheetWidth = mmToPx(210);
+    const sheetHeight = mmToPx(297);
+
+    const zoomX = containerWidth / sheetWidth;
+    const zoomY = containerHeight / sheetHeight;
+    const fitZoom = Math.min(zoomX, zoomY);
+
+    const clampedZoom = Math.max(0.25, Math.min(4.0, fitZoom));
+    setPreviewZoom(clampedZoom);
   };
 
   return (
@@ -58,11 +188,14 @@ export function SheetPreview() {
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
             {selectedFormat.name}
           </span>
+          <span className="text-xs text-gray-400">
+            {selectedFormat.count} этикеток, {selectedFormat.width_mm}×{selectedFormat.height_mm} мм каждая
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleZoomOut}
-            className="btn-icon"
+            className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
             title="Уменьшить"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -74,12 +207,12 @@ export function SheetPreview() {
             min="25"
             max="400"
             value={previewZoom * 100}
-            onChange={handleZoomChange}
+            onChange={(e) => setPreviewZoom(Number(e.target.value) / 100)}
             className="w-32"
           />
           <button
             onClick={handleZoomIn}
-            className="btn-icon"
+            className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
             title="Увеличить"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -87,7 +220,7 @@ export function SheetPreview() {
             </svg>
           </button>
           <button
-            onClick={fitToContainer}
+            onClick={handleFitToScreen}
             className="px-3 h-9 bg-white border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
             title="Вписать"
           >
@@ -100,49 +233,16 @@ export function SheetPreview() {
       </div>
 
       {/* Preview area */}
-      <div ref={containerRef} className="flex-1 overflow-hidden flex items-center justify-center bg-gray-100 p-6">
-        <div
-          className="bg-white shadow-lg border border-gray-300 relative rounded"
-          style={{
-            width: `${mmToPx(210) * previewZoom}px`,
-            height: `${mmToPx(297) * previewZoom}px`,
-          }}
-        >
-          {/* Grid cells - БЕЗ безопасных полей */}
-          {Array.from({ length: layout.rows * layout.cols }).map((_, idx) => {
-            const col = idx % layout.cols;
-            const row = Math.floor(idx / layout.cols);
-            const x = layout.marginLeft_mm + col * (layout.cellWidth_mm + layout.gapX_mm);
-            const y = layout.marginTop_mm + row * (layout.cellHeight_mm + layout.gapY_mm);
-
-            const cellWidthPx = mmToPx(layout.cellWidth_mm) * previewZoom;
-            const cellHeightPx = mmToPx(layout.cellHeight_mm) * previewZoom;
-
-            return (
-              <div
-                key={idx}
-                className="absolute"
-                style={{
-                  left: `${mmToPx(x) * previewZoom}px`,
-                  top: `${mmToPx(y) * previewZoom}px`,
-                  width: `${cellWidthPx}px`,
-                  height: `${cellHeightPx}px`,
-                }}
-              >
-                {/* Cell border - пунктирная рамка */}
-                <div
-                  className={`absolute inset-0 border border-gray-400 ${
-                    selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-sm'
-                  }`}
-                  style={{ 
-                    borderWidth: '1px',
-                    borderStyle: 'dashed',
-                  }}
-                />
-              </div>
-            );
-          })}
-        </div>
+      <div ref={containerRef} className="flex-1 overflow-hidden flex items-center justify-center bg-gray-100 p-4 relative">
+        {isRendering && (
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
+            <div className="text-sm text-gray-600">Обновление предпросмотра...</div>
+          </div>
+        )}
+        <canvas
+          ref={canvasRef}
+          className="border border-gray-300 shadow-lg"
+        />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as fabric from 'fabric';
 import { LabelFormat, LabelDesign, SheetSettings } from '../types';
 import { LABEL_FORMATS } from '../config/labelFormats';
 import { createEmptyDesign, createDefaultSettings } from '../utils/projectSerializer';
@@ -28,6 +29,9 @@ interface ProjectState {
   // Selected object (any to avoid fabric type issues)
   selectedObject: any;
   
+  // Editor canvas reference
+  editorCanvas: fabric.Canvas | null;
+  
   // Actions
   setSelectedFormat: (format: LabelFormat) => void;
   setCanvasJSON: (json: object) => void;
@@ -39,6 +43,7 @@ interface ProjectState {
   setPreviewZoom: (zoom: number) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
   setSelectedObject: (obj: any) => void;
+  setEditorCanvas: (canvas: fabric.Canvas | null) => void;
   
   // Font actions
   setGoogleFontLoaded: (fontId: string) => void;
@@ -71,6 +76,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   // Selected object
   selectedObject: null,
+  
+  // Editor canvas reference
+  editorCanvas: null,
   
   // Actions
   setSelectedFormat: (format: LabelFormat) => {
@@ -207,5 +215,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   setSelectedObject: (obj: any) => {
     set({ selectedObject: obj });
+  },
+  
+  setEditorCanvas: (canvas: fabric.Canvas | null) => {
+    set({ editorCanvas: canvas });
   },
 }));

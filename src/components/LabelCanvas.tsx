@@ -14,6 +14,7 @@ export function LabelCanvas() {
     labelDesign,
     setCanvasJSON,
     setEditorZoom,
+    setEditorCanvas,
   } = useProjectStore();
 
 
@@ -69,6 +70,9 @@ export function LabelCanvas() {
     
     // Экспортируем canvas для доступа из других компонентов
     (window as any).__fabricCanvas = canvas;
+    
+    // Сохраняем canvas в store для предпросмотра
+    setEditorCanvas(canvas);
 
     // Обработчики событий для сохранения состояния
     const handleModification = () => {
@@ -123,6 +127,7 @@ export function LabelCanvas() {
     loadSavedState();
     return () => {
       canvas.dispose();
+      setEditorCanvas(null);
     };
   }, []);
 
