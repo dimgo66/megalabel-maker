@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { exportToPDF, composeSheetCanvas, ExportConfig } from '../utils/pdfExporter';
+import { composeSheetCanvas, ExportConfig } from '../utils/pdfExporter';
+import { exportToVectorPDF, checkPdfSources } from '../utils/vectorExporter';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -49,7 +50,28 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       };
 
       setProgress(30);
-      const doc = await exportToPDF(cfg);
+      
+      // Проверяем наличие PDF источников
+      const { missing, total } = checkPdfSources(editorCanvas);
+      
+      if (missing.length > 0 && total > 0) {
+        const confirmed = confirm(
+          `PDF-источники не прикреплены в этой сессии (${missing.length} из ${total}).\n\n` +
+          `В PDF они уйдут растром. Загрузите исходники повторно для векторного экспорта.\n\n` +
+          `Продолжить экспорт?`
+        );
+        
+        if (!confirmed) {
+          setIsExporting(false);
+          setProgress(0);
+          return;
+        }
+      }
+      
+      setProgress(50);
+      
+      // Используем векторный экспорт
+      const pdfBytes = await exportToVectorPDF(cfg);
 
       setProgress(80);
 
@@ -58,7 +80,15 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       const filename = `${projectName || 'label'}_${selectedFormat.id}_${date}.pdf`;
 
       setProgress(100);
-      doc.save(filename);
+      
+      // Создаём Blob и скачиваем
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
 
       setTimeout(() => {
         setIsExporting(false);

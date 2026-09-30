@@ -36,6 +36,9 @@ interface ProjectState {
   history: object[];
   historyIndex: number;
   
+  // PDF sources (исходные байты загруженных PDF для векторного экспорта)
+  pdfSources: Record<string, ArrayBuffer>;
+  
   // Actions
   setSelectedFormat: (format: LabelFormat) => void;
   setCanvasJSON: (json: object) => void;
@@ -61,6 +64,10 @@ interface ProjectState {
   setLocalFonts: (fonts: LocalFontInfo[]) => void;
   setLoadedGoogleFonts: (fontIds: string[]) => void;
   getAvailableFonts: () => FontConfig[];
+  
+  // PDF source actions
+  addPdfSource: (id: string, data: ArrayBuffer) => void;
+  getPdfSource: (id: string) => ArrayBuffer | undefined;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -93,6 +100,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   // Undo/Redo history
   history: [],
   historyIndex: -1,
+  
+  // PDF sources
+  pdfSources: {},
   
   // Actions
   setSelectedFormat: (format: LabelFormat) => {
@@ -296,5 +306,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   canRedo: () => {
     const { history, historyIndex } = get();
     return historyIndex < history.length - 1;
+  },
+  
+  // PDF source methods
+  addPdfSource: (id: string, data: ArrayBuffer) => {
+    set((state) => ({
+      pdfSources: {
+        ...state.pdfSources,
+        [id]: data,
+      },
+    }));
+  },
+  
+  getPdfSource: (id: string) => {
+    return get().pdfSources[id];
   },
 }));

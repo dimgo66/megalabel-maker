@@ -1,4 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import { useProjectStore } from '../store/useProjectStore';
 
 // Установить локальный воркер через new URL для Vite
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
@@ -10,6 +11,7 @@ export interface PdfPageResult {
   canvas: HTMLCanvasElement;
   pageCount: number;
   pageNumber: number;
+  srcPdfId?: string; // ID источника PDF для векторного экспорта
 }
 
 /**
@@ -17,6 +19,7 @@ export interface PdfPageResult {
  * @param file - PDF файл
  * @param pageNumber - номер страницы (по умолчанию 1)
  * @param scale - масштаб рендеринга (по умолчанию 3 для высокого качества)
+ * @returns Результат с canvas и ID источника PDF
  */
 export async function loadPdfAsImage(
   file: File,
@@ -25,6 +28,13 @@ export async function loadPdfAsImage(
 ): Promise<PdfPageResult> {
   try {
     const arrayBuffer = await file.arrayBuffer();
+    
+    // Генерируем уникальный ID для этого PDF источника
+    const srcPdfId = `pdf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Сохраняем байты в store для векторного экспорта
+    useProjectStore.getState().addPdfSource(srcPdfId, arrayBuffer);
+    
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     
     if (pageNumber < 1 || pageNumber > pdf.numPages) {
@@ -54,7 +64,8 @@ export async function loadPdfAsImage(
     return {
       canvas,
       pageCount: pdf.numPages,
-      pageNumber
+      pageNumber,
+      srcPdfId
     };
   } catch (error) {
     console.error('Ошибка загрузки PDF:', error);

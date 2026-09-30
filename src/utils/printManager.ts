@@ -1,16 +1,17 @@
-import { jsPDF } from 'jspdf';
-import { ExportConfig, exportToPDF, composeSheetCanvas } from './pdfExporter';
+import { ExportConfig, composeSheetCanvas } from './pdfExporter';
+import { exportToVectorPDF } from './vectorExporter';
 
 /**
- * Печать через PDF-окно (рекомендуемый способ)
+ * Печать через PDF-окно (рекомендуемый способ - векторный)
  */
 export async function printViaPdfWindow(cfg: ExportConfig): Promise<void> {
-  const doc = await exportToPDF(cfg);
-  const blob = doc.output('blob');
+  const pdfBytes = await exportToVectorPDF(cfg);
+  const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
 
   const printWindow = window.open(url);
   if (!printWindow) {
+    URL.revokeObjectURL(url);
     throw new Error('Не удалось открыть окно печати. Проверьте настройки блокировки всплывающих окон.');
   }
 

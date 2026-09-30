@@ -88,6 +88,13 @@ export async function loadPdfFile(file: File, pageNumber: number = 1): Promise<f
     
     img.onload = () => {
       const fabricImg = new fabric.FabricImage(img);
+      
+      // Сохраняем информацию о PDF источнике для векторного экспорта
+      if (result.srcPdfId) {
+        (fabricImg as any).srcPdfId = result.srcPdfId;
+        (fabricImg as any).srcPdfPage = result.pageNumber;
+      }
+      
       resolve(fabricImg);
     };
     
