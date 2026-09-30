@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 
 export function ImageCropPanel() {
   const { selectedObject, editorCanvas } = useProjectStore();
   const [isCropping, setIsCropping] = useState(false);
-  const [cropRect, setCropRect] = useState<fabric.Rect | null>(null);
+  const cropRectRef = useRef<fabric.Rect | null>(null);
+  const imageRef = useRef<fabric.FabricImage | null>(null);
 
   const isImage = selectedObject instanceof fabric.FabricImage;
 
@@ -21,12 +22,19 @@ export function ImageCropPanel() {
 
     const img = selectedObject as fabric.FabricImage;
     
+    // Сохраняем ссылку на изображение
+    imageRef.current = img;
+    
+    // Вычисляем размеры изображения с учётом масштаба
+    const imgWidth = (img.width || 0) * (img.scaleX || 1);
+    const imgHeight = (img.height || 0) * (img.scaleY || 1);
+    
     // Создаём прямоугольник обрезки поверх изображения
     const rect = new fabric.Rect({
       left: img.left || 0,
       top: img.top || 0,
-      width: (img.width || 0) * (img.scaleX || 1),
-      height: (img.height || 0) * (img.scaleY || 1),
+      width: imgWidth,
+      height: imgHeight,
       fill: 'rgba(0, 123, 255, 0.2)',
       stroke: '#007bff',
       strokeWidth: 2,
@@ -38,24 +46,34 @@ export function ImageCropPanel() {
       lockRotation: true,
     });
 
+    // Делаем изображение неактивным, чтобы не мешало
+    img.selectable = false;
+    img.evented = false;
+
     editorCanvas.add(rect);
     editorCanvas.setActiveObject(rect);
     editorCanvas.renderAll();
     
-    setCropRect(rect);
+    cropRectRef.current = rect;
     setIsCropping(true);
   };
 
-  const applyCrop = () => {
-    if (!editorCanvas || !selectedObject || !cropRect || !isImage) return;
+  const applyCrop = async () => {
+    if (!editorCanvas || !imageRef.current || !cropRectRef.current) {
+      console.error('applyCrop: отсутствуют необходимые объекты');
+      return;
+    }
 
-    const img = selectedObject as fabric.FabricImage;
+    const img = imageRef.current;
+    const cropRect = cropRectRef.current;
+    
+    console.log('applyCrop: начинаем обрезку');
     
     // Получаем координаты обрезки
     const cropLeft = cropRect.left || 0;
     const cropTop = cropRect.top || 0;
-    const cropWidth = cropRect.width || 0;
-    const cropHeight = cropRect.height || 0;
+    const cropWidth = (cropRect.width || 0) * (cropRect.scaleX || 1);
+    const cropHeight = (cropRect.height || 0) * (cropRect.scaleY || 1);
 
     // Вычисляем относительные координаты относительно изображения
     const imgLeft = img.left || 0;
@@ -68,35 +86,69 @@ export function ImageCropPanel() {
     const relWidth = cropWidth / imgScaleX;
     const relHeight = cropHeight / imgScaleY;
 
+    console.log('applyCrop: координаты', { relLeft, relTop, relWidth, relHeight });
+
     // Создаём временный canvas для обрезки
     const tempCanvas = document.createElement('canvas');
     const tempCtx = tempCanvas.getContext('2d');
     
-    if (!tempCtx || !img._element) {
-      console.error('Не удалось получить контекст canvas или элемент изображения');
+    if (!tempCtx) {
+      console.error('applyCrop: не удалось получить контекст canvas');
       return;
     }
 
     tempCanvas.width = relWidth;
     tempCanvas.height = relHeight;
 
+    // Получаем элемент изображения
+    let imgElement: HTMLImageElement | HTMLCanvasElement | undefined;
+    
+    // В Fabric.js v6 используем разные способы получения элемента
+    if ((img as any)._element) {
+      imgElement = (img as any)._element;
+    } else if ((img as any).getElement) {
+      imgElement = (img as any).getElement();
+    } else if ((img as any).toCanvasElement) {
+      // Если нет прямого доступа к элементу, создаём canvas из изображения
+      const srcCanvas = (img as any).toCanvasElement();
+      imgElement = srcCanvas;
+    }
+    
+    if (!imgElement) {
+      console.error('applyCrop: не удалось получить элемент изображения');
+      alert('Не удалось получить данные изображения для обрезки');
+      return;
+    }
+
+    console.log('applyCrop: элемент изображения получен', imgElement);
+
     // Рисуем обрезанную часть изображения
-    tempCtx.drawImage(
-      img._element as HTMLImageElement,
-      relLeft,
-      relTop,
-      relWidth,
-      relHeight,
-      0,
-      0,
-      relWidth,
-      relHeight
-    );
+    try {
+      tempCtx.drawImage(
+        imgElement,
+        relLeft,
+        relTop,
+        relWidth,
+        relHeight,
+        0,
+        0,
+        relWidth,
+        relHeight
+      );
+    } catch (error) {
+      console.error('applyCrop: ошибка при рисовании', error);
+      alert('Ошибка при обрезке изображения');
+      return;
+    }
 
     // Создаём новое изображение из обрезанного canvas
     const croppedDataUrl = tempCanvas.toDataURL('image/png');
     
-    fabric.FabricImage.fromURL(croppedDataUrl).then((croppedImg) => {
+    console.log('applyCrop: создаём новое изображение');
+    
+    try {
+      const croppedImg = await fabric.FabricImage.fromURL(croppedDataUrl);
+      
       // Заменяем старое изображение новым
       const left = cropLeft;
       const top = cropTop;
@@ -121,29 +173,39 @@ export function ImageCropPanel() {
       const json = editorCanvas.toJSON();
       useProjectStore.getState().setCanvasJSON(json);
 
-      // Завершаем режим обрезки ПОСЛЕ создания нового изображения
-      setCropRect(null);
+      console.log('applyCrop: обрезка завершена успешно');
+
+      // Завершаем режим обрезки
+      cropRectRef.current = null;
+      imageRef.current = null;
       setIsCropping(false);
-    }).catch((error) => {
-      console.error('Ошибка при обрезке изображения:', error);
-      alert('Не удалось обрезать изображение');
+    } catch (error) {
+      console.error('applyCrop: ошибка при создании изображения', error);
+      alert('Не удалось создать обрезанное изображение');
       exitCropMode();
-    });
+    }
   };
 
   const exitCropMode = () => {
     if (!editorCanvas) return;
 
-    if (cropRect) {
-      editorCanvas.remove(cropRect);
-      setCropRect(null);
+    // Восстанавливаем доступность изображения
+    if (imageRef.current) {
+      imageRef.current.selectable = true;
+      imageRef.current.evented = true;
     }
 
+    if (cropRectRef.current) {
+      editorCanvas.remove(cropRectRef.current);
+      cropRectRef.current = null;
+    }
+
+    imageRef.current = null;
     setIsCropping(false);
     editorCanvas.renderAll();
   };
 
-  if (!isImage) {
+  if (!isImage && !isCropping) {
     return null;
   }
 
