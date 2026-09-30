@@ -6,6 +6,8 @@ interface HotkeyHandlers {
   onUndo?: () => void;
   onRedo?: () => void;
   onPreview?: () => void;
+  onPrint?: () => void;
+  onExport?: () => void;
 }
 
 export function useHotkeys(handlers: HotkeyHandlers) {
@@ -39,6 +41,18 @@ export function useHotkeys(handlers: HotkeyHandlers) {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
         e.preventDefault();
         handlers.onPreview?.();
+      }
+      
+      // Ctrl+P - Print
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        e.preventDefault();
+        handlers.onPrint?.();
+      }
+      
+      // Ctrl+Shift+E - Export
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        handlers.onExport?.();
       }
     };
 

@@ -4,6 +4,8 @@ import { LABEL_FORMATS } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { PreviewModal } from './PreviewModal';
+import { ExportModal } from './ExportModal';
+import { PrintModal } from './PrintModal';
 import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
 import { LabelFormat } from '../types';
 
@@ -18,6 +20,8 @@ export function Toolbar() {
     markSaved,
   } = useProjectStore();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -136,19 +140,21 @@ export function Toolbar() {
         <span>Предпросмотр</span>
       </button>
 
-      {/* Print button (placeholder) */}
+      {/* Print button */}
       <button
-        onClick={() => alert('Печать будет доступна позже')}
+        onClick={() => setIsPrintOpen(true)}
         className="btn btn-secondary flex items-center gap-2"
+        title="Печать (Ctrl+P)"
       >
         <span>🖨️</span>
         <span>Печать</span>
       </button>
 
-      {/* Export PDF button (placeholder) */}
+      {/* Export PDF button */}
       <button
-        onClick={() => alert('Экспорт будет доступен позже')}
+        onClick={() => setIsExportOpen(true)}
         className="btn btn-secondary flex items-center gap-2"
+        title="Экспорт в PDF (Ctrl+Shift+E)"
       >
         <span>📄</span>
         <span>PDF</span>
@@ -178,6 +184,18 @@ export function Toolbar() {
       <PreviewModal 
         isOpen={isPreviewOpen} 
         onClose={() => setIsPreviewOpen(false)} 
+      />
+
+      {/* Export Modal */}
+      <ExportModal 
+        isOpen={isExportOpen} 
+        onClose={() => setIsExportOpen(false)} 
+      />
+
+      {/* Print Modal */}
+      <PrintModal 
+        isOpen={isPrintOpen} 
+        onClose={() => setIsPrintOpen(false)} 
       />
     </div>
   );

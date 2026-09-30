@@ -1,0 +1,39 @@
+/* Стили для печати */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  /* Скрываем весь UI */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Показываем только область печати */
+  #direct-print-area,
+  #direct-print-area * {
+    visibility: visible;
+  }
+
+  #direct-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 0;
+  }
+
+  #direct-print-area img {
+    width: 210mm;
+    height: 297mm;
+    display: block;
+  }
+}
+
+/* Скрываем область печати в обычном режиме */
+#direct-print-area {
+  display: none;
+}

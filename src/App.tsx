@@ -4,13 +4,17 @@ import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
 import { LabelCanvas } from './components/LabelCanvas';
 import { PreviewModal } from './components/PreviewModal';
+import { ExportModal } from './components/ExportModal';
+import { PrintModal } from './components/PrintModal';
 import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
+import { useAutosave } from './hooks/useAutosave';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
 import { LABEL_FORMATS } from './config/labelFormats';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
 import { FONT_CONFIGS } from './config/fonts';
+import './styles/print.css';
 
 function App() {
   const {
@@ -94,6 +98,10 @@ function App() {
 
   const { undo, redo } = useProjectStore();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isPrintOpen, setIsPrintOpen] = useState(false);
+
+  const { showRestoreBanner, restoreAutosave, discardAutosave } = useAutosave();
 
   useHotkeys({
     onSave: handleSave,
@@ -101,6 +109,8 @@ function App() {
     onUndo: undo,
     onRedo: redo,
     onPreview: () => setIsPreviewOpen(prev => !prev),
+    onPrint: () => setIsPrintOpen(true),
+    onExport: () => setIsExportOpen(true),
   });
 
   return (
@@ -219,6 +229,40 @@ function App() {
         isOpen={isPreviewOpen} 
         onClose={() => setIsPreviewOpen(false)} 
       />
+
+      {/* Export Modal */}
+      <ExportModal 
+        isOpen={isExportOpen} 
+        onClose={() => setIsExportOpen(false)} 
+      />
+
+      {/* Print Modal */}
+      <PrintModal 
+        isOpen={isPrintOpen} 
+        onClose={() => setIsPrintOpen(false)} 
+      />
+
+      {/* Autosave Restore Banner */}
+      {showRestoreBanner && (
+        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-4 rounded-lg shadow-xl z-50 flex items-center gap-4">
+          <span>Найден несохранённый проект. Восстановить?</span>
+          <button
+            onClick={restoreAutosave}
+            className="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-blue-50"
+          >
+            Восстановить
+          </button>
+          <button
+            onClick={discardAutosave}
+            className="px-4 py-2 bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-800"
+          >
+            Удалить
+          </button>
+        </div>
+      )}
+
+      {/* Direct Print Area */}
+      <div id="direct-print-area" />
     </div>
   );
 }
