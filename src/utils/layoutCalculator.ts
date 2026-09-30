@@ -7,9 +7,15 @@ const SHEET_HEIGHT_MM = 297;
 /**
  * Calculates the optimal grid layout for a given label format on A4 sheet.
  * Centers the grid with equal margins and gaps.
+ * @param format - label format configuration
+ * @param orientation - page orientation ('portrait' or 'landscape'), defaults to 'portrait'
  */
-export function calculateLayout(format: LabelFormat): LayoutResult {
+export function calculateLayout(format: LabelFormat, orientation: 'portrait' | 'landscape' = 'portrait'): LayoutResult {
   const { width_mm, height_mm, count, shape } = format;
+
+  // Determine sheet dimensions based on orientation
+  const sheetWidth = orientation === 'landscape' ? SHEET_HEIGHT_MM : SHEET_WIDTH_MM;
+  const sheetHeight = orientation === 'landscape' ? SHEET_WIDTH_MM : SHEET_HEIGHT_MM;
 
   // For circular labels, cell is a square with side = diameter
   const cellWidth_mm = shape === 'circle' ? width_mm : width_mm;
@@ -30,15 +36,15 @@ export function calculateLayout(format: LabelFormat): LayoutResult {
     const totalWidth = cols * cellWidth_mm;
     const totalHeight = rows * cellHeight_mm;
 
-    if (totalWidth > SHEET_WIDTH_MM || totalHeight > SHEET_HEIGHT_MM) {
+    if (totalWidth > sheetWidth || totalHeight > sheetHeight) {
       continue;
     }
 
     // Score: prefer layouts that are closer to square and use space efficiently
     const usedWidth = cols * cellWidth_mm;
     const usedHeight = rows * cellHeight_mm;
-    const wastedWidth = SHEET_WIDTH_MM - usedWidth;
-    const wastedHeight = SHEET_HEIGHT_MM - usedHeight;
+    const wastedWidth = sheetWidth - usedWidth;
+    const wastedHeight = sheetHeight - usedHeight;
     const score = wastedWidth + wastedHeight;
 
     if (score < bestScore) {
@@ -52,8 +58,8 @@ export function calculateLayout(format: LabelFormat): LayoutResult {
   const totalUsedWidth = bestCols * cellWidth_mm;
   const totalUsedHeight = bestRows * cellHeight_mm;
 
-  const availableGapX = SHEET_WIDTH_MM - totalUsedWidth;
-  const availableGapY = SHEET_HEIGHT_MM - totalUsedHeight;
+  const availableGapX = sheetWidth - totalUsedWidth;
+  const availableGapY = sheetHeight - totalUsedHeight;
 
   // Distribute space: margins on edges + gaps between cells
   // margin + (cols-1)*gap + margin = availableGapX

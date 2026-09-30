@@ -183,8 +183,8 @@ export async function exportToVectorPDF(cfg: ExportConfig): Promise<Uint8Array> 
     }
   }
   
-  // 5. Рассчитываем раскладку и рисуем ячейки
-  const layout = calculateLayout(format);
+  // 5. Рассчитываем раскладку и рисуем ячейки с учётом ориентации
+  const layout = calculateLayout(format, orientation);
   
   for (let row = 0; row < layout.rows; row++) {
     for (let col = 0; col < layout.cols; col++) {
