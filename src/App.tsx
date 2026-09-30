@@ -122,7 +122,11 @@ function App() {
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Toolbar */}
-      <Toolbar />
+      <Toolbar 
+        onPreview={() => setIsPreviewOpen(true)}
+        onPrint={() => setIsPrintOpen(true)}
+        onExport={() => setIsExportOpen(true)}
+      />
 
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">

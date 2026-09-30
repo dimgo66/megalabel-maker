@@ -83,7 +83,12 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
 
     // Загружаем изображение этикетки
     const labelImg = new Image();
-    labelImg.onload = () => {
+    labelImg.src = cachedDataURL;
+    
+    labelImg.onload = async () => {
+      // Ждём полной загрузки изображения
+      await labelImg.decode();
+      
       // Рендерим каждую ячейку
       let index = 0;
       for (let row = 0; row < layout.rows; row++) {
@@ -129,8 +134,11 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
 
       setIsRendering(false);
     };
-
-    labelImg.src = cachedDataURL;
+    
+    labelImg.onerror = () => {
+      console.error('Ошибка загрузки изображения для превью');
+      setIsRendering(false);
+    };
   }, [isOpen, cachedDataURL, previewZoom, layout, selectedFormat]);
 
   // Автообновление с дебаунсом
