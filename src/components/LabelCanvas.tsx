@@ -24,7 +24,7 @@ export function LabelCanvas() {
     const canvas = fabricCanvasRef.current;
     const displayWidth = mmToPx(selectedFormat.width_mm) * editorZoom;
     const displayHeight = mmToPx(selectedFormat.height_mm) * editorZoom;
-    const margin = sheetSettings.safetyMargin_mm * mmToPx(1) * editorZoom;
+    const margin = mmToPx(sheetSettings.safetyMargin_mm) * editorZoom;
 
     // Удаляем старую безопасную область
     if (safeAreaRef.current) {
@@ -147,6 +147,15 @@ export function LabelCanvas() {
 
     canvas.on('selection:cleared', () => {
       useProjectStore.getState().setSelectedObject(null);
+    });
+
+    // Обработчик изменения выделения текста (для IText)
+    canvas.on('text:selection:changed', (e: any) => {
+      const textObj = e.target;
+      if (textObj) {
+        // Обновляем selectedObject чтобы TextPanel знал об изменении выделения
+        useProjectStore.getState().setSelectedObject(textObj);
+      }
     });
 
     // Загрузка сохранённого состояния

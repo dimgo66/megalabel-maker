@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { IText } from 'fabric';
+import { IText, Textbox } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 
 export function TextPanel() {
@@ -13,6 +13,7 @@ export function TextPanel() {
   const [lineHeight, setLineHeight] = useState(1.2);
   const [charSpacing, setCharSpacing] = useState(0);
   const [angle, setAngle] = useState(0);
+  const [hasSelection, setHasSelection] = useState(false);
 
   // Синхронизация с выбранным объектом
   useEffect(() => {
@@ -24,8 +25,16 @@ export function TextPanel() {
       setFontStyle(selectedObject.fontStyle || 'normal');
       setTextAlign(selectedObject.textAlign || 'left');
       setLineHeight(selectedObject.lineHeight || 1.2);
-      setCharSpacing(selectedObject.charSpacing || 0);
+      
+      // charSpacing в Fabric.js измеряется в тысячных долях
+      const storedSpacing = selectedObject.charSpacing || 0;
+      setCharSpacing(storedSpacing / 1000);
+      
       setAngle(selectedObject.angle || 0);
+      
+      // Проверяем наличие выделения
+      const textObj = selectedObject as IText;
+      setHasSelection(textObj.selectionStart !== textObj.selectionEnd);
     }
   }, [selectedObject]);
 
@@ -34,10 +43,34 @@ export function TextPanel() {
     if (!selectedObject) return;
     
     selectedObject.set(property, value);
+    selectedObject.setCoords();
     selectedObject.canvas?.renderAll();
     
     // Триггерим событие для сохранения
-    selectedObject.canvas?.trigger('object:modified', { target: selectedObject });
+    selectedObject.fire('modified');
+  };
+
+  // Применение стиля к выделенному тексту или ко всему объекту
+  const applyStyleToSelection = (property: string, value: any) => {
+    if (!selectedObject) return;
+    
+    const textObj = selectedObject as IText;
+    
+    // Если есть выделение, применяем только к выделенному тексту
+    if (textObj.selectionStart !== textObj.selectionEnd) {
+      const styles: any = {};
+      styles[property] = value;
+      textObj.setSelectionStyles(styles);
+    } else {
+      // Иначе применяем ко всему объекту
+      textObj.set(property, value);
+    }
+    
+    textObj.setCoords();
+    textObj.canvas?.renderAll();
+    
+    // Триггерим событие для сохранения через fire
+    textObj.fire('modified');
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -48,24 +81,24 @@ export function TextPanel() {
 
   const handleFontSizeChange = (value: number) => {
     setFontSize(value);
-    updateObject('fontSize', value);
+    applyStyleToSelection('fontSize', value);
   };
 
   const handleFontFamilyChange = (value: string) => {
     setFontFamily(value);
-    updateObject('fontFamily', value);
+    applyStyleToSelection('fontFamily', value);
   };
 
   const handleFontWeightChange = () => {
     const newWeight = fontWeight === 'normal' ? 'bold' : 'normal';
     setFontWeight(newWeight);
-    updateObject('fontWeight', newWeight);
+    applyStyleToSelection('fontWeight', newWeight);
   };
 
   const handleFontStyleChange = () => {
     const newStyle = fontStyle === 'normal' ? 'italic' : 'normal';
     setFontStyle(newStyle);
-    updateObject('fontStyle', newStyle);
+    applyStyleToSelection('fontStyle', newStyle);
   };
 
   const handleTextAlignChange = (align: string) => {
@@ -80,7 +113,8 @@ export function TextPanel() {
 
   const handleCharSpacingChange = (value: number) => {
     setCharSpacing(value);
-    updateObject('charSpacing', value);
+    // В Fabric.js charSpacing измеряется в тысячных долях
+    updateObject('charSpacing', value * 1000);
   };
 
   const handleAngleChange = (value: number) => {
@@ -94,7 +128,12 @@ export function TextPanel() {
 
   return (
     <div className="p-4 border-b border-gray-200">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Текст</h4>
+      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+        Текст
+        {hasSelection && (
+          <span className="ml-2 text-blue-600 normal-case font-normal">(выделено)</span>
+        )}
+      </h4>
       
       <div className="space-y-4">
         {/* Текст */}
@@ -150,7 +189,10 @@ export function TextPanel() {
 
         {/* Начертание */}
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Начертание:</label>
+          <label className="block text-xs text-gray-600 mb-1">
+            Начертание:
+            {hasSelection && <span className="text-blue-600 ml-1">(к выделенному)</span>}
+          </label>
           <div className="flex gap-2">
             <button
               onClick={handleFontWeightChange}
@@ -228,7 +270,7 @@ export function TextPanel() {
 
         {/* Межбуквенный интервал */}
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Межбуквенный: {charSpacing}</label>
+          <label className="block text-xs text-gray-600 mb-1">Межбуквенный: {charSpacing.toFixed(1)}</label>
           <input
             type="range"
             min="-2"
