@@ -155,7 +155,7 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
 
       // Рендерим штрих-коды векторно
       for (const bc of barcodes) {
-        drawBarcodeVectorPDF(
+        await drawBarcodeVectorPDF(
           doc,
           bc.norm,
           x + bc.symbolLeft_mm,

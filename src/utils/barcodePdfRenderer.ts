@@ -1,17 +1,21 @@
 import { jsPDF } from 'jspdf';
 import { BarcodeNorm } from '../types';
+import { initializeCyrillicFont } from './pdfFontHelper';
 
 /**
  * Отрисовка векторного штрих-кода в PDF из BarcodeNorm
  * Все координаты в модулях, конвертируются в мм через moduleMm
  */
-export function drawBarcodeVectorPDF(
+export async function drawBarcodeVectorPDF(
   doc: jsPDF,
   norm: BarcodeNorm,
   x_mm: number,
   y_mm: number,
   moduleMm: number  // размер одного модуля в мм
-): void {
+): Promise<void> {
+  // Инициализируем шрифт с поддержкой кириллицы
+  await initializeCyrillicFont(doc);
+  
   const px = norm.pxPerModule;
 
   // Отрисовка штрихов
@@ -30,7 +34,6 @@ export function drawBarcodeVectorPDF(
 
   // Отрисовка цифр
   const fontSize = norm.fontMod * moduleMm * 2.83465; // mm to pt
-  doc.setFont('helvetica', 'normal');
   doc.setFontSize(fontSize);
   doc.setTextColor(0, 0, 0);
 
