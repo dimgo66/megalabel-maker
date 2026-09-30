@@ -235,24 +235,6 @@ function App() {
           <div className="mb-6">
             <h3 className="text-xs font-semibold text-gray-400 uppercase mb-2">Настройки листа</h3>
             <div className="space-y-3">
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sheetSettings.showCutLines}
-                  onChange={(e) => useProjectStore.getState().setSheetSettings({ showCutLines: e.target.checked })}
-                  className="accent-blue-500"
-                />
-                Линии отреза
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sheetSettings.mirrorPrint}
-                  onChange={(e) => useProjectStore.getState().setSheetSettings({ mirrorPrint: e.target.checked })}
-                  className="accent-blue-500"
-                />
-                Зеркальная печать
-              </label>
               <div>
                 <label className="block text-sm text-gray-400 mb-1">
                   Безопасные поля: {sheetSettings.safetyMargin_mm} мм
@@ -356,12 +338,58 @@ function App() {
           <div ref={previewContainerRef} className="flex-1 overflow-hidden p-4 flex items-center justify-center">
             {/* A4 Sheet preview */}
             <div 
-              className="bg-white shadow-xl border border-gray-300 relative"
+              className="bg-white shadow-xl border border-gray-300 relative overflow-hidden"
               style={{
                 width: `${mmToPx(210) * previewZoom}px`,
                 height: `${mmToPx(297) * previewZoom}px`,
               }}
             >
+              {/* Safety margin zones — semi-transparent red overlay on edges */}
+              {sheetSettings.safetyMargin_mm > 0 && (
+                <>
+                  {/* Top margin */}
+                  <div
+                    className="absolute top-0 left-0 right-0 bg-red-500/10"
+                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
+                  />
+                  {/* Bottom margin */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-red-500/10"
+                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
+                  />
+                  {/* Left margin */}
+                  <div
+                    className="absolute top-0 left-0 bottom-0 bg-red-500/10"
+                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
+                  />
+                  {/* Right margin */}
+                  <div
+                    className="absolute top-0 right-0 bottom-0 bg-red-500/10"
+                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
+                  />
+                  {/* Safety margin border (dashed red line) */}
+                  <div
+                    className="absolute border border-dashed border-red-400/60 pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
+                      right: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
+                      bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
+                    }}
+                  />
+                  {/* Safety margin label */}
+                  <div
+                    className="absolute text-[7px] text-red-500/70 font-medium"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * previewZoom - 4}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom + 2}px`,
+                    }}
+                  >
+                    {sheetSettings.safetyMargin_mm} мм
+                  </div>
+                </>
+              )}
+
               {/* Grid cells */}
               {Array.from({ length: layout.rows * layout.cols }).map((_, idx) => {
                 const col = idx % layout.cols;
