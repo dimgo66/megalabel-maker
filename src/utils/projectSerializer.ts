@@ -113,6 +113,6 @@ export function createDefaultSettings(): SheetSettings {
     orientation: 'portrait',
     showCutLines: true,
     mirrorPrint: false,
-    safetyMargin_mm: 5,
+    safetyMargin_mm: 2,
   };
 }
