@@ -1,33 +1,75 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { getPdfPageThumbnails } from '../utils/pdfImageLoader';
 
 interface PdfPageSelectorProps {
-  file: File;
+  file: File | null;
   onSelect: (pageNumber: number) => void;
   onCancel: () => void;
 }
 
 export function PdfPageSelector({ file, onSelect, onCancel }: PdfPageSelectorProps) {
-  const [thumbnails, setThumbnails] = useState<HTMLCanvasElement[]>([]);
+  // ВСЕ useState — в самом верху
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedPage, setSelectedPage] = useState(1);
 
+  // ВСЕ useEffect — после всех useState
   useEffect(() => {
+    if (!file) return;
+
+    let cancelled = false;
+
+    const loadThumbnails = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const thumbs = await getPdfPageThumbnails(file, 0.5);
+
+        if (cancelled) return;
+
+        const dataUrls = thumbs.map(canvas => canvas.toDataURL('image/png'));
+        setThumbnails(dataUrls);
+        setLoading(false);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Ошибка загрузки PDF');
+          setLoading(false);
+        }
+      }
+    };
+
     loadThumbnails();
+
+    return () => {
+      cancelled = true;
+    };
   }, [file]);
 
-  const loadThumbnails = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const thumbs = await getPdfPageThumbnails(file, 0.5);
-      setThumbnails(thumbs);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка загрузки PDF');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Обработчики — useCallback
+  const handlePageClick = useCallback((pageNumber: number) => {
+    setSelectedPage(pageNumber);
+    onSelect(pageNumber);
+  }, [onSelect]);
+
+  const handleClose = useCallback(() => {
+    onCancel();
+  }, [onCancel]);
+
+  // Ранний return — ПОСЛЕ всех хуков
+  if (!file) {
+    return null;
+  }
+
+  // Если только одна страница, сразу выбираем её
+  if (!loading && !error && thumbnails.length === 1) {
+    // Используем setTimeout чтобы не вызывать onSelect во время рендера
+    setTimeout(() => {
+      onSelect(1);
+    }, 0);
+    return null;
+  }
 
   if (loading) {
     return (
@@ -51,7 +93,7 @@ export function PdfPageSelector({ file, onSelect, onCancel }: PdfPageSelectorPro
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Ошибка</h3>
             <p className="text-gray-600 mb-4">{error}</p>
             <button
-              onClick={onCancel}
+              onClick={handleClose}
               className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
             >
               Закрыть
@@ -60,14 +102,6 @@ export function PdfPageSelector({ file, onSelect, onCancel }: PdfPageSelectorPro
         </div>
       </div>
     );
-  }
-
-  // Если только одна страница, сразу выбираем её
-  if (thumbnails.length === 1) {
-    useEffect(() => {
-      onSelect(1);
-    }, []);
-    return null;
   }
 
   return (
@@ -82,14 +116,18 @@ export function PdfPageSelector({ file, onSelect, onCancel }: PdfPageSelectorPro
 
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-3 gap-4">
-            {thumbnails.map((canvas, index) => (
+            {thumbnails.map((dataUrl, index) => (
               <button
                 key={index}
-                onClick={() => onSelect(index + 1)}
-                className="group relative border-2 border-gray-200 hover:border-blue-500 rounded-lg overflow-hidden transition-all hover:shadow-lg"
+                onClick={() => handlePageClick(index + 1)}
+                className={`group relative border-2 rounded-lg overflow-hidden transition-all hover:shadow-lg ${
+                  selectedPage === index + 1
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-blue-300'
+                }`}
               >
                 <img
-                  src={canvas.toDataURL()}
+                  src={dataUrl}
                   alt={`Страница ${index + 1}`}
                   className="w-full h-auto"
                 />
@@ -103,7 +141,7 @@ export function PdfPageSelector({ file, onSelect, onCancel }: PdfPageSelectorPro
 
         <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
           <button
-            onClick={onCancel}
+            onClick={handleClose}
             className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
           >
             Отмена
