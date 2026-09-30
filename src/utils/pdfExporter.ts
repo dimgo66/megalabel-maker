@@ -109,10 +109,10 @@ export function collectBarcodes(
 import { renderLabelAtDpi } from './sheetRenderer';
 
 /**
- * Экспорт в PDF с фиксированным DPI 1200 и alias для изображения
+ * Экспорт в PDF с использованием DPI из конфигурации и alias для изображения
  */
 export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
-  const { format, orientation } = cfg;
+  const { format, orientation, dpi } = cfg;
 
   // Создаём документ
   const doc = new jsPDF({
@@ -122,11 +122,11 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
     compress: true,
   });
 
-  // Рассчитываем раскладку
-  const layout = calculateLayout(format);
+  // Рассчитываем раскладку с учётом ориентации
+  const layout = calculateLayout(format, orientation);
 
-  // Рендерим этикетку на 1200 DPI (с автокапом памяти)
-  const labelURL = await renderLabelAtDpi(cfg.editorCanvas, format, 1200);
+  // Рендерим этикетку на указанном DPI (с автокапом памяти)
+  const labelURL = await renderLabelAtDpi(cfg.editorCanvas, format, dpi);
 
   // Собираем штрих-коды
   const barcodes = collectBarcodes(cfg.editorCanvas, format);
@@ -197,8 +197,8 @@ export async function composeSheetCanvas(
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, 0, sheetWidthPx, sheetHeightPx);
 
-  // Рассчитываем раскладку
-  const layout = calculateLayout(format);
+  // Рассчитываем раскладку с учётом ориентации
+  const layout = calculateLayout(format, orientation);
 
   // Рендерим растр и собираем штрих-коды
   const raster = renderLabelRaster(editorCanvas, format, dpi);
