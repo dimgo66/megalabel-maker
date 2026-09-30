@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { Canvas } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { mmToPx } from '../utils/layoutCalculator';
+import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 
 export function LabelCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -93,6 +94,8 @@ export function LabelCanvas() {
               barcodeSVG: obj.barcodeSVG,
               barcodeTextYFrac: obj.barcodeTextYFrac,
               barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
+              barcodeBaseW: obj.barcodeBaseW,
+              barcodeBaseH: obj.barcodeBaseH,
             };
           }
           return obj;
@@ -135,11 +138,51 @@ export function LabelCanvas() {
       }
     });
 
-    // Загрузка сохранённого состояния
+    // Загрузка сохранённого состояния с миграцией штрих-кодов
     const loadSavedState = async () => {
       if (labelDesign.canvasJSON && Object.keys(labelDesign.canvasJSON).length > 0) {
         await canvas.loadFromJSON(labelDesign.canvasJSON as any);
-        canvas.renderAll();
+        
+        // Миграция: пересоздаём все штрих-коды через фабрику
+        const objects = canvas.getObjects();
+        const barcodeObjects = objects.filter((obj: any) => obj.barcodeValue && obj.barcodeFormat);
+        
+        if (barcodeObjects.length > 0) {
+          console.log(`Миграция: пересоздаём ${barcodeObjects.length} штрих-кодов через фабрику`);
+          
+          for (const oldObj of barcodeObjects) {
+            const oldAny = oldObj as any;
+            const format = oldAny.barcodeFormat;
+            const value = oldAny.barcodeValue;
+            
+            if (!format || !value) continue;
+            
+            // Сохраняем позицию и трансформации
+            const left = oldObj.left || 0;
+            const top = oldObj.top || 0;
+            const scaleX = oldObj.scaleX || 1;
+            const scaleY = oldObj.scaleY || 1;
+            const angle = oldObj.angle || 0;
+            
+            // Создаём новый штрих-код через фабрику
+            const newGroup = buildBarcodeGroup(value, format);
+            
+            // Восстанавливаем позицию и трансформации
+            newGroup.set({
+              left,
+              top,
+              scaleX,
+              scaleY,
+              angle,
+            });
+            
+            // Заменяем старый объект
+            canvas.remove(oldObj);
+            canvas.add(newGroup);
+          }
+          
+          canvas.renderAll();
+        }
       }
     };
 

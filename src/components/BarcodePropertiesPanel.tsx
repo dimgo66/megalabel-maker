@@ -2,14 +2,8 @@ import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { BarcodeModal } from './BarcodeModal';
-import {
-  generateBarcodeSVG,
-  parseBarcodeBars,
-  loadBarcodeIntoFabric,
-  stripTextFromSVG,
-  computeDigitPositions,
-  BarcodeFormat,
-} from '../utils/barcodeGenerator';
+import { BarcodeFormat } from '../utils/barcodeGenerator';
+import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 
 export function BarcodePropertiesPanel() {
   const { selectedObject, editorCanvas } = useProjectStore();
@@ -79,51 +73,8 @@ export function BarcodePropertiesPanel() {
       const scaleY = selectedObject.scaleY || 1;
       const angle = selectedObject.angle || 0;
       
-      // Генерируем новый SVG с текстом (для правильной геометрии)
-      const svgWithText = generateBarcodeSVG(code, format, { displayValue: true });
-      
-      // Удаляем текст из SVG
-      const { svgNoText, textYFrac, fontSizeFrac } = stripTextFromSVG(svgWithText);
-      
-      // Парсим штрихи
-      const bars = parseBarcodeBars(svgNoText);
-      
-      // Загружаем SVG без текста в Fabric
-      const barsGroup = await loadBarcodeIntoFabric(svgNoText);
-      
-      // Рассчитываем позиции цифр
-      const positions = computeDigitPositions(bars, format, code);
-      
-      // Создаём цифры как отдельные fabric.Text объекты
-      const groupWidth = barsGroup.width || 1;
-      const groupHeight = barsGroup.height || 1;
-      
-      const digitObjects = positions.map(p => new fabric.Text(p.char, {
-        fontFamily: 'Arial',
-        fontSize: fontSizeFrac * groupHeight,
-        fill: '#000000',
-        originX: 'center',
-        originY: 'center',
-        left: p.xFrac * groupWidth,
-        top: (textYFrac - fontSizeFrac * 0.35) * groupHeight,
-        selectable: false,
-        evented: false,
-      }));
-      
-      // Объединяем штрихи и цифры в одну группу
-      const newGroup = new fabric.Group([barsGroup, ...digitObjects], {
-        originX: 'left',
-        originY: 'top',
-      });
-      
-      // Устанавливаем кастомные свойства
-      (newGroup as any).barcodeFormat = format;
-      (newGroup as any).barcodeValue = code;
-      (newGroup as any).barcodeBars = bars;
-      (newGroup as any).barcodeSVG = svgNoText;
-      (newGroup as any).barcodeTextYFrac = textYFrac;
-      (newGroup as any).barcodeFontSizeFrac = fontSizeFrac;
-      (newGroup as any).name = 'Штрих-код';
+      // Создаём новый штрих-код через фабрику
+      const newGroup = buildBarcodeGroup(code, format);
       
       // Восстанавливаем позицию и масштаб
       newGroup.set({
@@ -153,6 +104,8 @@ export function BarcodePropertiesPanel() {
               barcodeSVG: obj.barcodeSVG,
               barcodeTextYFrac: obj.barcodeTextYFrac,
               barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
+              barcodeBaseW: obj.barcodeBaseW,
+              barcodeBaseH: obj.barcodeBaseH,
             };
           }
           return obj;
