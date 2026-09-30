@@ -138,16 +138,22 @@ export async function handleFileUpload(
   const fileType = file.type.toLowerCase();
   const fileName = file.name.toLowerCase();
   
+  console.log('handleFileUpload: начинаем обработку', file.name, 'тип:', fileType, 'страница:', pdfPageNumber);
+  
   try {
     let fabricObject: fabric.FabricObject;
     
     // PDF файлы
     if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+      console.log('handleFileUpload: это PDF файл');
       // Если есть callback для выбора страницы и не указан номер страницы, вызываем его
       if (onPdfPageSelect && !pdfPageNumber) {
+        console.log('handleFileUpload: вызываем callback для выбора страницы и выходим');
         onPdfPageSelect(file);
+        console.log('handleFileUpload: после вызова callback, выходим из функции');
         return;
       }
+      console.log('handleFileUpload: загружаем страницу PDF', pdfPageNumber || 1);
       // Иначе загружаем указанную страницу (или первую по умолчанию)
       fabricObject = await loadPdfFile(file, pdfPageNumber || 1);
     }

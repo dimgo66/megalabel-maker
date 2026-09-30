@@ -120,9 +120,15 @@ export function ImageCropPanel() {
       // Сохраняем изменения
       const json = editorCanvas.toJSON();
       useProjectStore.getState().setCanvasJSON(json);
-    });
 
-    exitCropMode();
+      // Завершаем режим обрезки ПОСЛЕ создания нового изображения
+      setCropRect(null);
+      setIsCropping(false);
+    }).catch((error) => {
+      console.error('Ошибка при обрезке изображения:', error);
+      alert('Не удалось обрезать изображение');
+      exitCropMode();
+    });
   };
 
   const exitCropMode = () => {
