@@ -11,27 +11,36 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [showPdfSelector, setShowPdfSelector] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Защита от повторного вызова
+    if (isProcessing) return;
+    
     const files = Array.from(e.target.files || []);
     if (!canvas || files.length === 0) return;
 
-    for (const file of files) {
-      try {
-        await handleFileUpload(file, canvas, (pdfFile) => {
-          // Если это PDF, показываем селектор страниц
-          setPdfFile(pdfFile);
-          setShowPdfSelector(true);
-        });
-      } catch (error) {
-        console.error('Ошибка загрузки файла:', error);
-        alert(`Не удалось загрузить файл: ${file.name}`);
-      }
-    }
+    setIsProcessing(true);
 
-    // Сбрасываем input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+    try {
+      for (const file of files) {
+        try {
+          await handleFileUpload(file, canvas, (pdfFile) => {
+            // Если это PDF, показываем селектор страниц
+            setPdfFile(pdfFile);
+            setShowPdfSelector(true);
+          });
+        } catch (error) {
+          console.error('Ошибка загрузки файла:', error);
+          alert(`Не удалось загрузить файл: ${file.name}`);
+        }
+      }
+    } finally {
+      // Сбрасываем input и флаг обработки
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      setIsProcessing(false);
     }
   };
 
@@ -39,7 +48,7 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
     if (!canvas || !pdfFile) return;
 
     try {
-      await handleFileUpload(pdfFile, canvas);
+      await handleFileUpload(pdfFile, canvas, undefined, pageNumber);
     } catch (error) {
       console.error('Ошибка загрузки PDF:', error);
       alert('Не удалось загрузить PDF');

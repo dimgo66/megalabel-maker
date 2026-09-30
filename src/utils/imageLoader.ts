@@ -132,7 +132,8 @@ export function fitImageToCanvas(
 export async function handleFileUpload(
   file: File,
   canvas: fabric.Canvas,
-  onPdfPageSelect?: (file: File) => void
+  onPdfPageSelect?: (file: File) => void,
+  pdfPageNumber?: number
 ): Promise<void> {
   const fileType = file.type.toLowerCase();
   const fileName = file.name.toLowerCase();
@@ -142,13 +143,13 @@ export async function handleFileUpload(
     
     // PDF файлы
     if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      // Если есть callback для выбора страницы, вызываем его
-      if (onPdfPageSelect) {
+      // Если есть callback для выбора страницы и не указан номер страницы, вызываем его
+      if (onPdfPageSelect && !pdfPageNumber) {
         onPdfPageSelect(file);
         return;
       }
-      // Иначе загружаем первую страницу
-      fabricObject = await loadPdfFile(file, 1);
+      // Иначе загружаем указанную страницу (или первую по умолчанию)
+      fabricObject = await loadPdfFile(file, pdfPageNumber || 1);
     }
     // SVG файлы
     else if (fileType === 'image/svg+xml' || fileName.endsWith('.svg')) {

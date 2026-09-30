@@ -62,15 +62,6 @@ export function PdfPageSelector({ file, onSelect, onCancel }: PdfPageSelectorPro
     return null;
   }
 
-  // Если только одна страница, сразу выбираем её
-  if (!loading && !error && thumbnails.length === 1) {
-    // Используем setTimeout чтобы не вызывать onSelect во время рендера
-    setTimeout(() => {
-      onSelect(1);
-    }, 0);
-    return null;
-  }
-
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
