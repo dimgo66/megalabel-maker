@@ -297,14 +297,71 @@ function App() {
           {/* Canvas placeholder */}
           <div className="flex-1 flex items-center justify-center bg-gray-900 overflow-auto p-8">
             <div 
-              className="bg-white shadow-2xl border border-gray-300 flex items-center justify-center relative"
+              className="bg-white shadow-2xl border border-gray-300 flex items-center justify-center relative overflow-hidden"
               style={{
                 width: `${mmToPx(selectedFormat.width_mm) * editorZoom}px`,
                 height: `${mmToPx(selectedFormat.height_mm) * editorZoom}px`,
               }}
             >
+              {/* Safety margin visualization */}
+              {sheetSettings.safetyMargin_mm > 0 && (
+                <>
+                  {/* Top safety zone */}
+                  <div
+                    className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none"
+                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Bottom safety zone */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none"
+                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Left safety zone */}
+                  <div
+                    className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none"
+                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Right safety zone */}
+                  <div
+                    className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none"
+                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                  />
+                  {/* Safety margin border */}
+                  <div
+                    className="absolute border border-dashed border-red-400/60 pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                      bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
+                    }}
+                  />
+                  {/* Safety margin label (top) */}
+                  <div
+                    className="absolute text-[9px] text-red-500/80 font-medium pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 5}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 3}px`,
+                    }}
+                  >
+                    ↕ {sheetSettings.safetyMargin_mm} мм
+                  </div>
+                  {/* Safety margin label (left) */}
+                  <div
+                    className="absolute text-[9px] text-red-500/80 font-medium pointer-events-none"
+                    style={{
+                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 3}px`,
+                      left: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 12}px`,
+                    }}
+                  >
+                    ↔ {sheetSettings.safetyMargin_mm} мм
+                  </div>
+                </>
+              )}
+
+              {/* Shape guide */}
               {selectedFormat.shape === 'circle' ? (
-                <div className="absolute inset-2 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
+                <div className="absolute inset-2 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center z-10">
                   <div className="text-center text-gray-400">
                     <p className="text-sm">⭕ Круглая этикетка</p>
                     <p className="text-xs mt-1">⌀{selectedFormat.width_mm} мм</p>
@@ -312,7 +369,7 @@ function App() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center text-gray-400">
+                <div className="text-center text-gray-400 z-10">
                   <p className="text-sm">🏷️ Область редактирования</p>
                   <p className="text-xs mt-1">{selectedFormat.width_mm}×{selectedFormat.height_mm} мм</p>
                   <p className="text-xs text-gray-300 mt-2">Canvas-редактор (Fabric.js)</p>
@@ -338,58 +395,12 @@ function App() {
           <div ref={previewContainerRef} className="flex-1 overflow-hidden p-4 flex items-center justify-center">
             {/* A4 Sheet preview */}
             <div 
-              className="bg-white shadow-xl border border-gray-300 relative overflow-hidden"
+              className="bg-white shadow-xl border border-gray-300 relative"
               style={{
                 width: `${mmToPx(210) * previewZoom}px`,
                 height: `${mmToPx(297) * previewZoom}px`,
               }}
             >
-              {/* Safety margin zones — semi-transparent red overlay on edges */}
-              {sheetSettings.safetyMargin_mm > 0 && (
-                <>
-                  {/* Top margin */}
-                  <div
-                    className="absolute top-0 left-0 right-0 bg-red-500/10"
-                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
-                  />
-                  {/* Bottom margin */}
-                  <div
-                    className="absolute bottom-0 left-0 right-0 bg-red-500/10"
-                    style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
-                  />
-                  {/* Left margin */}
-                  <div
-                    className="absolute top-0 left-0 bottom-0 bg-red-500/10"
-                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
-                  />
-                  {/* Right margin */}
-                  <div
-                    className="absolute top-0 right-0 bottom-0 bg-red-500/10"
-                    style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px` }}
-                  />
-                  {/* Safety margin border (dashed red line) */}
-                  <div
-                    className="absolute border border-dashed border-red-400/60 pointer-events-none"
-                    style={{
-                      top: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
-                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
-                      right: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
-                      bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom}px`,
-                    }}
-                  />
-                  {/* Safety margin label */}
-                  <div
-                    className="absolute text-[7px] text-red-500/70 font-medium"
-                    style={{
-                      top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * previewZoom - 4}px`,
-                      left: `${mmToPx(sheetSettings.safetyMargin_mm) * previewZoom + 2}px`,
-                    }}
-                  >
-                    {sheetSettings.safetyMargin_mm} мм
-                  </div>
-                </>
-              )}
-
               {/* Grid cells */}
               {Array.from({ length: layout.rows * layout.cols }).map((_, idx) => {
                 const col = idx % layout.cols;
