@@ -4,8 +4,10 @@ import {
   validateBarcode,
   addCheckDigit,
   BarcodeFormat,
+  buildEan13Norm,
 } from '../utils/barcodeGenerator';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
+import { BarcodeNorm } from '../types';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 
@@ -13,6 +15,37 @@ interface BarcodeModalProps {
   isOpen: boolean;
   onClose: () => void;
   existingObject?: fabric.Group; // Для редактирования существующего штрихкода
+}
+
+/**
+ * Генерирует SVG превью из BarcodeNorm для отображения в модалке
+ */
+function generatePreviewSVG(norm: BarcodeNorm): string {
+  const totalHeightPx = norm.totalHeightModules * norm.unit;
+  const barHeightPx = norm.barHeightModules * norm.unit;
+  const width = norm.unit * (1 + norm.overhangFrac * 2);
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeightPx}" viewBox="0 0 ${width} ${totalHeightPx}">`;
+  
+  // Штрихи
+  for (const bar of norm.bars) {
+    const x = (norm.overhangFrac + bar.x) * norm.unit;
+    const y = bar.y * barHeightPx;
+    const w = bar.width * norm.unit;
+    const h = bar.height * barHeightPx;
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#000000"/>`;
+  }
+  
+  // Цифры
+  const fontSize = norm.fontSizeFrac * totalHeightPx;
+  for (const digit of norm.digits) {
+    const x = (norm.overhangFrac + digit.xFrac) * norm.unit;
+    const y = norm.textYFrac * totalHeightPx;
+    svg += `<text x="${x}" y="${y}" font-family="Arial" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="#000000">${digit.char}</text>`;
+  }
+  
+  svg += '</svg>';
+  return svg;
 }
 
 export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalProps) {
@@ -61,7 +94,17 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     setFullCode(finalCode);
 
     try {
-      const svg = generateBarcodeSVG(finalCode, format, { displayValue });
+      let svg: string;
+      
+      if (format === 'ean13') {
+        // Для EAN-13 используем детерминированный генератор
+        const norm = buildEan13Norm(finalCode);
+        svg = generatePreviewSVG(norm);
+      } else {
+        // Для ITF-14 используем JsBarcode
+        svg = generateBarcodeSVG(finalCode, format, { displayValue });
+      }
+      
       setSvgPreview(svg);
     } catch (err) {
       console.error('Ошибка генерации штрихкода:', err);
