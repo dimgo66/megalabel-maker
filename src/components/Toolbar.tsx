@@ -1,15 +1,18 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { LABEL_FORMATS } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
 import { UndoRedoButtons } from './UndoRedoButtons';
-import { PreviewModal } from './PreviewModal';
-import { ExportModal } from './ExportModal';
-import { PrintModal } from './PrintModal';
 import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
 import { LabelFormat } from '../types';
 
-export function Toolbar() {
+interface ToolbarProps {
+  onPreview?: () => void;
+  onPrint?: () => void;
+  onExport?: () => void;
+}
+
+export function Toolbar({ onPreview, onPrint, onExport }: ToolbarProps) {
   const {
     projectName,
     selectedFormat,
@@ -19,9 +22,6 @@ export function Toolbar() {
     loadProject,
     markSaved,
   } = useProjectStore();
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,7 +132,7 @@ export function Toolbar() {
 
       {/* Preview button */}
       <button
-        onClick={() => setIsPreviewOpen(true)}
+        onClick={onPreview}
         className="btn btn-secondary flex items-center gap-2"
         title="Предпросмотр листа (Ctrl+Shift+P)"
       >
@@ -142,7 +142,7 @@ export function Toolbar() {
 
       {/* Print button */}
       <button
-        onClick={() => setIsPrintOpen(true)}
+        onClick={onPrint}
         className="btn btn-secondary flex items-center gap-2"
         title="Печать (Ctrl+P)"
       >
@@ -152,7 +152,7 @@ export function Toolbar() {
 
       {/* Export PDF button */}
       <button
-        onClick={() => setIsExportOpen(true)}
+        onClick={onExport}
         className="btn btn-secondary flex items-center gap-2"
         title="Экспорт в PDF (Ctrl+Shift+E)"
       >
@@ -180,23 +180,7 @@ export function Toolbar() {
         )}
       </div>
 
-      {/* Preview Modal */}
-      <PreviewModal 
-        isOpen={isPreviewOpen} 
-        onClose={() => setIsPreviewOpen(false)} 
-      />
 
-      {/* Export Modal */}
-      <ExportModal 
-        isOpen={isExportOpen} 
-        onClose={() => setIsExportOpen(false)} 
-      />
-
-      {/* Print Modal */}
-      <PrintModal 
-        isOpen={isPrintOpen} 
-        onClose={() => setIsPrintOpen(false)} 
-      />
     </div>
   );
 }
