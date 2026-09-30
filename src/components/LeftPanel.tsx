@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { IText } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
 
@@ -49,6 +50,23 @@ export function LeftPanel() {
     }
   };
 
+  const handleAddText = () => {
+    const canvas = (window as any).__fabricCanvas;
+    if (!canvas) return;
+
+    const text = new IText('Текст', {
+      left: 100,
+      top: 100,
+      fill: '#000000',
+      fontSize: 24,
+      fontFamily: 'Arial',
+    });
+
+    canvas.add(text);
+    canvas.setActiveObject(text);
+    canvas.renderAll();
+  };
+
   const systemFonts = fontConfigs.filter(f => f.source === 'system');
   const googleFonts = fontConfigs.filter(f => f.source === 'google');
   const availableFonts = getAvailableFonts();
@@ -62,6 +80,21 @@ export function LeftPanel() {
 
       {/* Tools section */}
       <div className="p-4 space-y-3 border-b border-gray-200">
+        <button
+          onClick={handleAddText}
+          className="w-full card card-hover cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+              <span className="text-xl text-blue-600">T</span>
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-medium text-gray-700">Текст</div>
+              <div className="text-xs text-gray-400">Добавить текст</div>
+            </div>
+          </div>
+        </button>
+
         <div className="card opacity-50 cursor-not-allowed">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
