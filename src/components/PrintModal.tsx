@@ -11,7 +11,6 @@ interface PrintModalProps {
 export function PrintModal({ isOpen, onClose }: PrintModalProps) {
   const { selectedFormat, sheetSettings, editorCanvas } = useProjectStore();
   const [printMethod, setPrintMethod] = useState<'pdf' | 'browser'>('pdf');
-  const [browserDpi, setBrowserDpi] = useState<300 | 600>(300);
   const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = async () => {
@@ -23,7 +22,7 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
       const cfg: ExportConfig = {
         format: selectedFormat,
         editorCanvas,
-        dpi: printMethod === 'pdf' ? 300 : browserDpi,
+        dpi: printMethod === 'pdf' ? 1200 : 300, // PDF: 1200 DPI, Browser: 300 DPI
         orientation: sheetSettings.orientation,
       };
 
@@ -32,10 +31,10 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
         
         // Показываем уведомление о результате
         if (!isVector && error) {
-          alert(`Векторная печать недоступна: ${error}\n\nПечать растром 600 DPI.`);
+          alert(`Векторная печать недоступна: ${error}\n\nПечать растром 1200 DPI.`);
         }
       } else {
-        await printViaBrowser(cfg, browserDpi);
+        await printViaBrowser(cfg);
       }
 
       setTimeout(() => {
@@ -92,9 +91,9 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">Открыть PDF</div>
+                  <div className="text-sm font-medium text-gray-900">Открыть PDF (1200 DPI)</div>
                   <div className="text-xs text-gray-500 mt-1">
-                    Рекомендуемый способ. Векторные штрихкоды, точные размеры.
+                    Рекомендуемый способ. Векторные штрихкоды, точные размеры, высокое качество.
                   </div>
                 </div>
               </label>
@@ -109,7 +108,7 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
                   className="mt-1"
                 />
                 <div className="flex-1">
-                  <div className="text-sm font-medium text-gray-900">Печать через браузер</div>
+                  <div className="text-sm font-medium text-gray-900">Черновик через браузер (300 DPI)</div>
                   <div className="text-xs text-gray-500 mt-1">
                     Растровая печать. Используйте, если PDF не работает.
                   </div>
@@ -117,28 +116,6 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
               </label>
             </div>
           </div>
-
-          {/* Browser DPI */}
-          {printMethod === 'browser' && (
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Качество (DPI)</label>
-              <div className="space-y-2">
-                {[300, 600].map((d) => (
-                  <label key={d} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="browserDpi"
-                      value={d}
-                      checked={browserDpi === d}
-                      onChange={() => setBrowserDpi(d as any)}
-                      className="text-blue-600"
-                    />
-                    <span className="text-sm text-gray-700">{d} DPI</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Warning */}
           <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">

@@ -10,7 +10,6 @@ interface ExportModalProps {
 
 export function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { selectedFormat, sheetSettings, editorCanvas, projectName } = useProjectStore();
-  const [dpi, setDpi] = useState<150 | 300 | 600>(300);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [isExporting, setIsExporting] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -49,7 +48,7 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       const cfg: ExportConfig = {
         format: selectedFormat,
         editorCanvas,
-        dpi,
+        dpi: 1200, // Фиксированный DPI для экспорта
         orientation: sheetSettings.orientation,
       };
 
@@ -159,27 +158,13 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
           <div className="w-80 border-l border-gray-200 p-6 flex flex-col">
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Настройки экспорта</h3>
 
-            {/* DPI */}
+            {/* Качество */}
             <div className="mb-6">
-              <label className="block text-sm text-gray-700 mb-2">Качество (DPI)</label>
-              <div className="space-y-2">
-                {[150, 300, 600].map((d) => (
-                  <label key={d} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="dpi"
-                      value={d}
-                      checked={dpi === d}
-                      onChange={() => setDpi(d as any)}
-                      className="text-blue-600"
-                    />
-                    <span className="text-sm text-gray-700">{d} DPI</span>
-                    {d === 300 && (
-                      <span className="text-xs text-gray-400">(рекомендуется)</span>
-                    )}
-                  </label>
-                ))}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <span className="text-sm text-gray-700">Качество</span>
+                <span className="text-sm font-semibold text-gray-900">1200 DPI</span>
               </div>
+              <p className="text-xs text-gray-500 mt-2">Фиксированное высокое качество</p>
             </div>
 
             {/* Info */}
