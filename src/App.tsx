@@ -101,27 +101,27 @@ function App() {
                 <>
                   {/* Верхняя безопасная зона */}
                   <div
-                    className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none"
+                    className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
                     style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
                   />
                   {/* Нижняя безопасная зона */}
                   <div
-                    className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none"
+                    className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
                     style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
                   />
                   {/* Левая безопасная зона */}
                   <div
-                    className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none"
+                    className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
                     style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
                   />
                   {/* Правая безопасная зона */}
                   <div
-                    className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none"
+                    className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
                     style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
                   />
                   {/* Пунктирная рамка безопасной зоны */}
                   <div
-                    className="absolute border-2 border-dashed border-red-400/60 pointer-events-none"
+                    className="absolute border-2 border-dashed border-red-400/60 pointer-events-none z-10"
                     style={{
                       top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
                       left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
@@ -131,7 +131,7 @@ function App() {
                   />
                   {/* Подпись размера безопасного поля */}
                   <div
-                    className="absolute text-xs text-red-500/80 font-medium pointer-events-none"
+                    className="absolute text-xs text-red-500/80 font-medium pointer-events-none z-10"
                     style={{
                       top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 6}px`,
                       left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 4}px`,
