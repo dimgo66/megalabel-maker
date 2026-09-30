@@ -23,11 +23,11 @@ export async function printViaPdfWindow(cfg: ExportConfig): Promise<{ isVector: 
 }
 
 /**
- * Печать через браузер (растр)
+ * Печать через браузер (растр, 300 DPI)
  */
-export async function printViaBrowser(cfg: ExportConfig, dpi: number = 300): Promise<void> {
-  // Создаём canvas с нужным DPI
-  const canvas = await composeSheetCanvas({ ...cfg, dpi }, dpi);
+export async function printViaBrowser(cfg: ExportConfig): Promise<void> {
+  // Создаём canvas с фиксированным DPI 300
+  const canvas = await composeSheetCanvas({ ...cfg, dpi: 300 }, 300);
   const dataURL = canvas.toDataURL('image/png');
 
   // Находим или создаём контейнер для печати

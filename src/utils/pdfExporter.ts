@@ -106,11 +106,13 @@ export function collectBarcodes(
   return barcodes;
 }
 
+import { renderLabelAtDpi } from './sheetRenderer';
+
 /**
- * Экспорт в PDF
+ * Экспорт в PDF с фиксированным DPI 1200 и alias для изображения
  */
 export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
-  const { format, editorCanvas, dpi, orientation } = cfg;
+  const { format, orientation } = cfg;
 
   // Создаём документ
   const doc = new jsPDF({
@@ -123,11 +125,13 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
   // Рассчитываем раскладку
   const layout = calculateLayout(format);
 
-  // Рендерим растр и собираем штрих-коды
-  const raster = renderLabelRaster(editorCanvas, format, dpi);
-  const barcodes = collectBarcodes(editorCanvas, format);
+  // Рендерим этикетку на 1200 DPI (с автокапом памяти)
+  const labelURL = await renderLabelAtDpi(cfg.editorCanvas, format, 1200);
 
-  // Рендерим каждую ячейку
+  // Собираем штрих-коды
+  const barcodes = collectBarcodes(cfg.editorCanvas, format);
+
+  // Рисуем каждую ячейку с использованием alias 'labelImg'
   let index = 0;
   for (let row = 0; row < layout.rows; row++) {
     for (let col = 0; col < layout.cols; col++) {
@@ -146,8 +150,8 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
         doc.circle(centerX, centerY, radius, 'F');
       }
 
-      // Добавляем растр этикетки
-      doc.addImage(raster, 'PNG', x, y, layout.cellWidth_mm, layout.cellHeight_mm);
+      // Добавляем растр этикетки с alias 'labelImg' (изображение хранится один раз)
+      doc.addImage(labelURL, 'PNG', x, y, layout.cellWidth_mm, layout.cellHeight_mm, 'labelImg');
 
       // Рендерим штрих-коды векторно
       for (const bc of barcodes) {
