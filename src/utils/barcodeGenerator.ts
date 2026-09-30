@@ -245,95 +245,59 @@ export interface DigitPosition {
 }
 
 /**
- * Расчёт позиций цифр для EAN-13
- * Геометрия EAN-13: 95 модулей
- * - Первая цифра слева вне штрихов
- * - 6 цифр под левой половиной
- * - 6 цифр под правой половиной
- */
-export function computeEAN13DigitPositions(
-  bars: NormalizedBar[],
-  code: string
-): DigitPosition[] {
-  if (bars.length === 0 || code.length !== 13) {
-    return [];
-  }
-  
-  // Находим границы штрихов
-  const minX = Math.min(...bars.map(b => b.x));
-  const maxX = Math.max(...bars.map(b => b.x + b.width));
-  
-  // Ширина одного модуля (95 модулей в EAN-13)
-  const module = (maxX - minX) / 95;
-  
-  const positions: DigitPosition[] = [];
-  
-  // Первая цифра (индекс 0) - слева вне штрихов
-  positions.push({
-    char: code[0],
-    xFrac: minX - 3.5 * module,
-  });
-  
-  // Цифры 2-7 (индексы 1-6) - под левой половиной
-  for (let i = 0; i < 6; i++) {
-    positions.push({
-      char: code[i + 1],
-      xFrac: minX + (6.5 + 7 * i) * module,
-    });
-  }
-  
-  // Цифры 8-13 (индексы 7-12) - под правой половиной
-  for (let j = 0; j < 6; j++) {
-    positions.push({
-      char: code[j + 7],
-      xFrac: minX + (53.5 + 7 * j) * module,
-    });
-  }
-  
-  return positions;
-}
-
-/**
- * Расчёт позиций цифр для ITF-14
- * Все 14 цифр равномерно распределены по ширине
- */
-export function computeITF14DigitPositions(
-  bars: NormalizedBar[],
-  code: string
-): DigitPosition[] {
-  if (bars.length === 0 || code.length !== 14) {
-    return [];
-  }
-  
-  // Находим границы штрихов
-  const minX = Math.min(...bars.map(b => b.x));
-  const maxX = Math.max(...bars.map(b => b.x + b.width));
-  
-  const positions: DigitPosition[] = [];
-  
-  // Все 14 цифр равномерно распределены
-  for (let k = 0; k < 14; k++) {
-    positions.push({
-      char: code[k],
-      xFrac: minX + (k + 0.5) * (maxX - minX) / 14,
-    });
-  }
-  
-  return positions;
-}
-
-/**
- * Диспетчер для расчёта позиций цифр
+ * Расчёт позиций цифр для штрихкода
+ * Использует стандартную геометрию для правильного расположения цифр
  */
 export function computeDigitPositions(
   bars: NormalizedBar[],
-  format: BarcodeFormat,
+  format: 'ean13' | 'itf14',
   code: string
-): DigitPosition[] {
-  if (format === 'ean13') {
-    return computeEAN13DigitPositions(bars, code);
-  } else if (format === 'itf14') {
-    return computeITF14DigitPositions(bars, code);
+): Array<{ char: string; xFrac: number }> {
+  if (bars.length === 0) return [];
+  
+  // Найти границы штрихов (нормализованные 0..1)
+  const minX = Math.min(...bars.map(b => b.x));
+  const maxX = Math.max(...bars.map(b => b.x + b.width));
+  const totalWidth = maxX - minX;
+  
+  if (format === 'ean13' && code.length === 13) {
+    // EAN-13: 95 модулей
+    // Структура: защитные(3) + левая половина(42) + центральные(5) + правая(42) + защитные(3)
+    // Позиции цифр в модулях от minX:
+    
+    const module = totalWidth / 95;
+    
+    const positions = [
+      // Первая цифра слева (вне штрихов)
+      { char: code[0], xFrac: minX - 3.5 * module / totalWidth },
+      
+      // Левая половина (цифры 2-7)
+      { char: code[1], xFrac: minX + (6.5 * module) / totalWidth },
+      { char: code[2], xFrac: minX + (13.5 * module) / totalWidth },
+      { char: code[3], xFrac: minX + (20.5 * module) / totalWidth },
+      { char: code[4], xFrac: minX + (27.5 * module) / totalWidth },
+      { char: code[5], xFrac: minX + (34.5 * module) / totalWidth },
+      { char: code[6], xFrac: minX + (41.5 * module) / totalWidth },
+      
+      // Правая половина (цифры 8-13)
+      { char: code[7], xFrac: minX + (53.5 * module) / totalWidth },
+      { char: code[8], xFrac: minX + (60.5 * module) / totalWidth },
+      { char: code[9], xFrac: minX + (67.5 * module) / totalWidth },
+      { char: code[10], xFrac: minX + (74.5 * module) / totalWidth },
+      { char: code[11], xFrac: minX + (81.5 * module) / totalWidth },
+      { char: code[12], xFrac: minX + (88.5 * module) / totalWidth },
+    ];
+    
+    return positions;
   }
+  
+  if (format === 'itf14' && code.length === 14) {
+    // ITF-14: равномерное распределение 14 цифр
+    return code.split('').map((char, i) => ({
+      char,
+      xFrac: minX + (i + 0.5) * totalWidth / 14
+    }));
+  }
+  
   return [];
 }
