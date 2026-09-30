@@ -35,7 +35,7 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
           alert(`Векторная печать недоступна: ${error}\n\nПечать растром 600 DPI.`);
         }
       } else {
-        printViaBrowser(cfg, browserDpi);
+        await printViaBrowser(cfg, browserDpi);
       }
 
       setTimeout(() => {
