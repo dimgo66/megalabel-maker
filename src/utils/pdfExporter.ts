@@ -1,9 +1,8 @@
 import { jsPDF } from 'jspdf';
 import * as fabric from 'fabric';
-import { LabelFormat } from '../types';
-import { calculateLayout, mmToPx } from './layoutCalculator';
-import { drawBarcodeVectorPDF, extractBarcodeData } from './barcodePdfRenderer';
-import { computeDigitPositions } from './barcodeGenerator';
+import { LabelFormat, BarcodeNorm } from '../types';
+import { calculateLayout } from './layoutCalculator';
+import { drawBarcodeVectorPDF } from './barcodePdfRenderer';
 
 export interface ExportConfig {
   format: LabelFormat;
@@ -13,29 +12,26 @@ export interface ExportConfig {
 }
 
 interface BarcodePlacement {
-  bars: any[];
-  value: string;
-  format: string;
-  x_mm: number;
-  y_mm: number;
-  w_mm: number;
-  h_mm: number;
-  textYFrac?: number;
-  fontSizeFrac?: number;
+  norm: BarcodeNorm;
+  symbolLeft_mm: number;
+  symbolWidth_mm: number;
+  symbolTop_mm: number;
+  barAreaHeight_mm: number;
+  totalHeight_mm: number;
 }
 
 /**
- * Рендер растра этикетки (без штрихкодов)
+ * Рендер растра этикетки (без штрих-кодов)
  */
 export function renderLabelRaster(
   canvas: fabric.Canvas,
   format: LabelFormat,
   dpi: number
 ): string {
-  // Временно скрываем объекты со штрихкодами
+  // Временно скрываем штрих-коды
   const barcodeObjects: fabric.FabricObject[] = [];
   canvas.getObjects().forEach((obj: any) => {
-    if (obj.barcodeValue) {
+    if (obj.barcodeNorm) {
       barcodeObjects.push(obj);
       obj.set('visible', false);
     }
@@ -49,7 +45,7 @@ export function renderLabelRaster(
 
   canvas.renderAll();
 
-  // Рассчитываем множитель для нужного DPI
+  // Рассчитываем масштаб для нужного DPI
   const canvasWidthPx = canvas.getWidth();
   const targetWidthPx = (format.width_mm / 25.4) * dpi;
   const multiplier = targetWidthPx / canvasWidthPx;
@@ -80,7 +76,7 @@ export function renderLabelRaster(
 }
 
 /**
- * Сбор данных о штрихкодах на канвасе
+ * Сбор данных о штрих-кодах на канвасе
  */
 export function collectBarcodes(
   canvas: fabric.Canvas,
@@ -90,18 +86,25 @@ export function collectBarcodes(
   const barcodes: BarcodePlacement[] = [];
 
   canvas.getObjects().forEach((obj: any) => {
-    const barcodeData = extractBarcodeData(obj);
-    if (barcodeData) {
+    if (obj.barcodeNorm) {
+      const norm = obj.barcodeNorm as BarcodeNorm;
+      const totalHeightPx = norm.totalHeightModules * norm.unit;
+      const barHeightPx = norm.barHeightModules * norm.unit;
+
+      // Вычисляем позицию символа в мм
+      const symbolLeft_mm = (obj.left + norm.overhangFrac * norm.unit * obj.scaleX) * mmPerPx;
+      const symbolWidth_mm = norm.unit * obj.scaleX * mmPerPx;
+      const symbolTop_mm = obj.top * mmPerPx;
+      const barAreaHeight_mm = barHeightPx * obj.scaleY * mmPerPx;
+      const totalHeight_mm = totalHeightPx * obj.scaleY * mmPerPx;
+
       barcodes.push({
-        bars: barcodeData.bars,
-        value: barcodeData.value,
-        format: barcodeData.format,
-        x_mm: (obj.left || 0) * mmPerPx,
-        y_mm: (obj.top || 0) * mmPerPx,
-        w_mm: (obj.width || 0) * (obj.scaleX || 1) * mmPerPx,
-        h_mm: (obj.height || 0) * (obj.scaleY || 1) * mmPerPx,
-        textYFrac: obj.barcodeTextYFrac,
-        fontSizeFrac: obj.barcodeFontSizeFrac,
+        norm,
+        symbolLeft_mm,
+        symbolWidth_mm,
+        symbolTop_mm,
+        barAreaHeight_mm,
+        totalHeight_mm,
       });
     }
   });
@@ -126,7 +129,7 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
   // Рассчитываем раскладку
   const layout = calculateLayout(format);
 
-  // Рендерим растр и собираем штрихкоды
+  // Рендерим растр и собираем штрих-коды
   const raster = renderLabelRaster(editorCanvas, format, dpi);
   const barcodes = collectBarcodes(editorCanvas, format);
 
@@ -152,20 +155,15 @@ export async function exportToPDF(cfg: ExportConfig): Promise<jsPDF> {
       // Добавляем растр этикетки
       doc.addImage(raster, 'PNG', x, y, layout.cellWidth_mm, layout.cellHeight_mm);
 
-      // Рендерим штрихкоды векторно
+      // Рендерим штрих-коды векторно
       for (const bc of barcodes) {
-        // Рисуем штрихи
         drawBarcodeVectorPDF(
           doc,
-          bc.bars,
-          x + bc.x_mm,
-          y + bc.y_mm,
-          bc.w_mm,
-          bc.h_mm,
-          bc.format as any,
-          bc.value,
-          bc.textYFrac,
-          bc.fontSizeFrac
+          bc.norm,
+          x + bc.symbolLeft_mm,
+          y + bc.symbolTop_mm,
+          bc.symbolWidth_mm,
+          bc.totalHeight_mm
         );
       }
 
@@ -205,7 +203,7 @@ export function composeSheetCanvas(
   // Рассчитываем раскладку
   const layout = calculateLayout(format);
 
-  // Рендерим растр и собираем штрихкоды
+  // Рендерим растр и собираем штрих-коды
   const raster = renderLabelRaster(editorCanvas, format, dpi);
   const barcodes = collectBarcodes(editorCanvas, format);
 
@@ -246,39 +244,41 @@ export function composeSheetCanvas(
         ctx.restore();
       }
 
-      // Рендерим штрихкоды
+      // Рендерим штрих-коды
       for (const bc of barcodes) {
-        const bcX_px = x_px + (bc.x_mm / layout.cellWidth_mm) * cellW_px;
-        const bcY_px = y_px + (bc.y_mm / layout.cellHeight_mm) * cellH_px;
-        const bcW_px = (bc.w_mm / layout.cellWidth_mm) * cellW_px;
-        const bcH_px = (bc.h_mm / layout.cellHeight_mm) * cellH_px;
+        const norm = bc.norm;
+        const totalHeightPx = norm.totalHeightModules * norm.unit;
+        
+        const scaleX = bc.symbolWidth_mm / (norm.unit * (1 + norm.overhangFrac * 2));
+        const scaleY = bc.totalHeight_mm / totalHeightPx;
+
+        const bcX_px = x_px + (bc.symbolLeft_mm / layout.cellWidth_mm) * cellW_px;
+        const bcY_px = y_px + (bc.symbolTop_mm / layout.cellHeight_mm) * cellH_px;
 
         // Рисуем штрихи
         ctx.fillStyle = '#000000';
-        for (const bar of bc.bars) {
-          const barX = bcX_px + bar.x * bcW_px;
-          const barY = bcY_px + bar.y * bcH_px;
-          const barW = bar.width * bcW_px;
-          const barH = bar.height * bcH_px;
+        for (const bar of norm.bars) {
+          const barX = bcX_px + (norm.overhangFrac + bar.x) * norm.unit * scaleX;
+          const barY = bcY_px + bar.y * norm.barHeightModules * norm.unit * scaleY;
+          const barW = bar.width * norm.unit * scaleX;
+          const barH = bar.height * norm.barHeightModules * norm.unit * scaleY;
 
           if (barW < 0.5 || barH < 0.5) continue;
 
           ctx.fillRect(barX, barY, barW, barH);
         }
 
-        // Рисуем цифры поцифренно
-        const positions = computeDigitPositions(bc.bars, bc.format as any, bc.value);
-        const fontSize = (bc.fontSizeFrac ?? 0.16) * cellH_px;
-
+        // Рисуем цифры
+        const fontSize = norm.fontSizeFrac * totalHeightPx * scaleY;
         ctx.font = `${fontSize}px Arial`;
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        for (const p of positions) {
-          const charX = bcX_px + p.xFrac * bcW_px;
-          const charY = bcY_px + (bc.textYFrac ?? 0.95) * bcH_px;
-          ctx.fillText(p.char, charX, charY);
+        for (const digit of norm.digits) {
+          const digitX = bcX_px + (norm.overhangFrac + digit.xFrac) * norm.unit * scaleX;
+          const digitY = bcY_px + norm.textYFrac * totalHeightPx * scaleY;
+          ctx.fillText(digit.char, digitX, digitY);
         }
       }
 

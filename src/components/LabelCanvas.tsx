@@ -85,17 +85,12 @@ export function LabelCanvas() {
       // Добавляем кастомные свойства штрихкода в JSON
       if (objects) {
         objects = objects.map((obj: any) => {
-          if (obj.barcodeFormat) {
+          if (obj.barcodeNorm) {
             return {
               ...obj,
               barcodeFormat: obj.barcodeFormat,
               barcodeValue: obj.barcodeValue,
-              barcodeBars: obj.barcodeBars,
-              barcodeSVG: obj.barcodeSVG,
-              barcodeTextYFrac: obj.barcodeTextYFrac,
-              barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
-              barcodeBaseW: obj.barcodeBaseW,
-              barcodeBaseH: obj.barcodeBaseH,
+              barcodeNorm: obj.barcodeNorm, // ЕДИНЫЙ источник истины
             };
           }
           return obj;
@@ -143,14 +138,16 @@ export function LabelCanvas() {
       if (labelDesign.canvasJSON && Object.keys(labelDesign.canvasJSON).length > 0) {
         await canvas.loadFromJSON(labelDesign.canvasJSON as any);
         
-        // Миграция: пересоздаём все штрих-коды через фабрику
+        // Миграция: пересоздаём старые штрих-коды (без barcodeNorm) через фабрику
         const objects = canvas.getObjects();
-        const barcodeObjects = objects.filter((obj: any) => obj.barcodeValue && obj.barcodeFormat);
+        const oldBarcodeObjects = objects.filter((obj: any) => 
+          obj.barcodeValue && obj.barcodeFormat && !obj.barcodeNorm
+        );
         
-        if (barcodeObjects.length > 0) {
-          console.log(`Миграция: пересоздаём ${barcodeObjects.length} штрих-кодов через фабрику`);
+        if (oldBarcodeObjects.length > 0) {
+          console.log(`Миграция: пересоздаём ${oldBarcodeObjects.length} старых штрих-кодов через фабрику`);
           
-          for (const oldObj of barcodeObjects) {
+          for (const oldObj of oldBarcodeObjects) {
             const oldAny = oldObj as any;
             const format = oldAny.barcodeFormat;
             const value = oldAny.barcodeValue;

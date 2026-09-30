@@ -42,3 +42,29 @@ export interface ProjectFile {
   labelDesign: LabelDesign;
   sheetSettings: SheetSettings;
 }
+
+// Штрих-коды: единая нормализованная структура
+export interface BarcodeDigit {
+  char: string;
+  xFrac: number; // xFrac в 0..1 символа, первая цифра может быть < 0
+}
+
+export interface NormalizedBar {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface BarcodeNorm {
+  bars: NormalizedBar[];        // нормализованы к символу (95 модулей EAN / bbox ITF), x 0..1
+  digits: BarcodeDigit[];       // в той же нормализации символа
+  textYFrac: number;            // вертикаль цифр (доли от высоты символа)
+  fontSizeFrac: number;         // размер шрифта цифр (доли от высоты символа)
+  overhangFrac: number;         // насколько левее символа выступает первая цифра (доли ширины символа)
+  unit: number;                 // пикселей на 1 нормализованную единицу при scale=1
+  totalHeightModules: number;   // общая высота символа в модулях (включая цифры)
+  barHeightModules: number;     // высота штрихов в модулях
+}
+
+export type BarcodeFormat = 'ean13' | 'itf14';

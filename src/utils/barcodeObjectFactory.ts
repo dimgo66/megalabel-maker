@@ -1,66 +1,56 @@
 import * as fabric from 'fabric';
-import {
-  generateBarcodeSVG,
-  stripTextFromSVG,
-  parseBarcodeBars,
-  computeDigitPositions,
-  BarcodeFormat,
-} from './barcodeGenerator';
+import { BarcodeNorm, BarcodeFormat } from '../types';
+import { buildEan13Norm, buildItf14Norm, generateBarcodeSVG, stripTextFromSVG } from './barcodeGenerator';
 
 /**
- * Фабрика для создания векторного объекта штрих-кода
- * Собирает все примитивы (штрихи и цифры) в ЕДИНОЙ системе координат
- * без вложенных групп, что предотвращает проблемы с раскладкой
+ * Фабрика для создания векторного объекта штрих-кода из BarcodeNorm
+ * Единый источник истины для канваса, PDF и печати
  */
 export function buildBarcodeGroup(
   code: string,
   format: BarcodeFormat,
-  options: {
-    displayValue?: boolean;
-  } = {}
+  options: { displayValue?: boolean } = {}
 ): fabric.Group {
-  // 1. Генерируем SVG с текстом (для правильной геометрии защитных штрихов)
-  const svg = generateBarcodeSVG(code, format, { displayValue: true });
+  // 1. Строим BarcodeNorm
+  let norm: BarcodeNorm;
+  
+  if (format === 'ean13') {
+    // EAN-13: детерминированная генерация по стандарту
+    norm = buildEan13Norm(code);
+  } else {
+    // ITF-14: генерируем SVG через JsBarcode, парсим с учётом transform
+    const svg = generateBarcodeSVG(code, format, options);
+    const { svgNoText } = stripTextFromSVG(svg);
+    norm = buildItf14Norm(svgNoText, code);
+  }
 
-  // 2. Удаляем текст из SVG и получаем метаданные о позиции текста
-  const { svgNoText, textYFrac, fontSizeFrac } = stripTextFromSVG(svg);
+  // 2. Вычисляем размеры в пикселях
+  const TOTAL_HEIGHT_PX = norm.totalHeightModules * norm.unit;
+  const BAR_HEIGHT_PX = norm.barHeightModules * norm.unit;
 
-  // 3. Парсим штрихи из SVG без текста
-  const bars = parseBarcodeBars(svgNoText);
-
-  // 4. Получаем базовые размеры из SVG
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgNoText, 'image/svg+xml');
-  const svgElement = doc.querySelector('svg');
-
-  const baseW = parseFloat(svgElement?.getAttribute('width') || '200');
-  const baseH = parseFloat(svgElement?.getAttribute('height') || '100');
-
-  // 5. Создаём штрихи как Rect в единой системе координат (origin left/top)
-  const barRects = bars.map((b) => {
+  // 3. Создаём штрихи как fabric.Rect
+  const barRects = norm.bars.map((b) => {
     return new fabric.Rect({
-      left: b.x * baseW,
-      top: b.y * baseH,
-      width: b.width * baseW,
-      height: b.height * baseH,
+      left: (norm.overhangFrac + b.x) * norm.unit,
+      top: 0,
+      width: b.width * norm.unit,
+      height: BAR_HEIGHT_PX,
       fill: '#000000',
       originX: 'left',
       originY: 'top',
       selectable: false,
       evented: false,
       objectCaching: false,
+      strokeUniform: true,
     });
   });
 
-  // 6. Рассчитываем позиции цифр
-  const positions = computeDigitPositions(bars, format, code);
-
-  // 7. Создаём цифры как Text в той же системе координат
-  const digitTexts = positions.map((p) => {
-    return new fabric.Text(p.char, {
-      left: p.xFrac * baseW,
-      top: textYFrac * baseH,
-      fontSize: fontSizeFrac * baseH,
+  // 4. Создаём цифры как fabric.Text
+  const digitTexts = norm.digits.map((d) => {
+    return new fabric.Text(d.char, {
+      left: (norm.overhangFrac + d.xFrac) * norm.unit,
+      top: norm.textYFrac * TOTAL_HEIGHT_PX,
+      fontSize: norm.fontSizeFrac * TOTAL_HEIGHT_PX,
       fontFamily: 'Arial',
       fill: '#000000',
       originX: 'center',
@@ -71,7 +61,7 @@ export function buildBarcodeGroup(
     });
   });
 
-  // 8. Объединяем ВСЕ примитивы в ОДНУ группу (без вложенности)
+  // 5. Объединяем все примитивы в одну группу
   const group = new fabric.Group([...barRects, ...digitTexts], {
     originX: 'left',
     originY: 'top',
@@ -79,16 +69,11 @@ export function buildBarcodeGroup(
     evented: true,
   });
 
-  // 9. Устанавливаем кастомные свойства для сериализации
+  // 6. Устанавливаем кастомные свойства для сериализации
   (group as any).name = 'Штрих-код';
   (group as any).barcodeFormat = format;
   (group as any).barcodeValue = code;
-  (group as any).barcodeBars = bars;
-  (group as any).barcodeSVG = svgNoText;
-  (group as any).barcodeTextYFrac = textYFrac;
-  (group as any).barcodeFontSizeFrac = fontSizeFrac;
-  (group as any).barcodeBaseW = baseW;
-  (group as any).barcodeBaseH = baseH;
+  (group as any).barcodeNorm = norm; // ЕДИНЫЙ источник истины
 
   return group;
 }

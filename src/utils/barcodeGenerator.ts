@@ -1,194 +1,365 @@
+import { BarcodeNorm, BarcodeDigit, NormalizedBar } from '../types';
 import JsBarcode from 'jsbarcode';
-import * as fabric from 'fabric';
-
-export interface NormalizedBar {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
 
 export type BarcodeFormat = 'ean13' | 'itf14';
+export type { NormalizedBar, BarcodeDigit, BarcodeNorm } from '../types';
+
+// EAN-13: стандартные таблицы кодирования
+// L-коды (для нечётных цифр в левой половине)
+const L_CODES = [
+  '0001101', // 0
+  '0011001', // 1
+  '0010011', // 2
+  '0111101', // 3
+  '0100011', // 4
+  '0110001', // 5
+  '0101111', // 6
+  '0111011', // 7
+  '0110111', // 8
+  '0001011', // 9
+];
+
+// R-коды (для правой половины)
+const R_CODES = [
+  '1110010', // 0
+  '1100110', // 1
+  '1101100', // 2
+  '1000010', // 3
+  '1011100', // 4
+  '1001110', // 5
+  '1010000', // 6
+  '1000100', // 7
+  '1001000', // 8
+  '1110100', // 9
+];
+
+// G-коды = reverse(R) (для чётных цифр в левой половине)
+const G_CODES = R_CODES.map(code => code.split('').reverse().join(''));
+
+// Таблица чётности по первой цифре
+const PARITY = [
+  'LLLLLL', // 0
+  'LLGLGG', // 1
+  'LGLGLG', // 2
+  'LGLLGG', // 3
+  'GGLLLG', // 4
+  'GLLLGG', // 5
+  'GLGGLG', // 6
+  'GLGLGG', // 7
+  'GGLGLG', // 8
+  'GGLLGG', // 9
+];
 
 /**
- * Генерация SVG штрихкода
+ * Генерирует 95-битную строку для EAN-13
  */
-export function generateBarcodeSVG(
-  code: string,
-  format: BarcodeFormat,
-  options: {
-    displayValue?: boolean;
-    width?: number;
-    height?: number;
-  } = {}
-): string {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  
-  JsBarcode(svg, code, {
-    format: format === 'ean13' ? 'EAN13' : 'ITF14',
-    displayValue: options.displayValue ?? true,
-    width: options.width ?? 2,
-    height: options.height ?? 80,
-    lineColor: '#000000',
-    background: '#FFFFFF',
-    margin: 10,
-    fontSize: 16,
-    font: 'Arial',
-  });
-  
-  return svg.outerHTML;
+function generateEan13Bits(code: string): string {
+  if (code.length !== 13 || !/^\d{13}$/.test(code)) {
+    throw new Error('EAN-13 код должен содержать ровно 13 цифр');
+  }
+
+  const firstDigit = parseInt(code[0]);
+  const parity = PARITY[firstDigit];
+
+  let bits = '101'; // start guard
+
+  // Левая половина (цифры 2-7, индексы 1-6)
+  for (let i = 0; i < 6; i++) {
+    const digit = parseInt(code[1 + i]);
+    const parityType = parity[i];
+    
+    if (parityType === 'L') {
+      bits += L_CODES[digit];
+    } else {
+      bits += G_CODES[digit];
+    }
+  }
+
+  bits += '01010'; // center guard
+
+  // Правая половина (цифры 8-13, индексы 7-12)
+  for (let j = 0; j < 6; j++) {
+    const digit = parseInt(code[7 + j]);
+    bits += R_CODES[digit];
+  }
+
+  bits += '101'; // end guard
+
+  if (bits.length !== 95) {
+    throw new Error(`Ошибка генерации EAN-13: ожидалось 95 бит, получено ${bits.length}`);
+  }
+
+  return bits;
 }
 
 /**
- * Парсинг SVG-строки и извлечение нормализованных штрихов
+ * Преобразует битовую строку в массив штрихов (runs of 1s)
  */
-export function parseBarcodeBars(svgString: string): NormalizedBar[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
-  const svg = doc.querySelector('svg');
-  
-  if (!svg) {
-    console.error('parseBarcodeBars: SVG не найден');
-    return [];
-  }
-  
-  // Получаем размеры SVG
-  const vb = svg.viewBox?.baseVal;
-  const totalW = vb?.width || parseFloat(svg.getAttribute('width') || '0');
-  const totalH = vb?.height || parseFloat(svg.getAttribute('height') || '0');
-  
-  if (totalW === 0 || totalH === 0) {
-    console.error('parseBarcodeBars: некорректные размеры SVG');
-    return [];
-  }
-  
-  // Находим все rect элементы (штрихи)
-  const rects = Array.from(doc.querySelectorAll('rect'));
-  
-  console.log(`parseBarcodeBars: найдено ${rects.length} rect элементов`);
-  
-  // Фильтруем белые прямоугольники (фон) и нормализуем координаты
-  const bars: NormalizedBar[] = rects
-    .filter(r => {
-      const fill = r.getAttribute('fill');
-      const style = r.getAttribute('style') || '';
-      
-      // Исключаем белые прямоугольники (фон)
-      if (fill === '#ffffff' || fill === '#FFFFFF' || fill === 'white') {
-        return false;
+function bitsToBars(bits: string): NormalizedBar[] {
+  const bars: NormalizedBar[] = [];
+  let i = 0;
+
+  while (i < bits.length) {
+    if (bits[i] === '1') {
+      const start = i;
+      while (i < bits.length && bits[i] === '1') {
+        i++;
       }
-      if (style.includes('fill:#ffffff') || style.includes('fill:#FFFFFF') || style.includes('fill:white')) {
-        return false;
-      }
-      
-      return true;
-    })
-    .map(r => {
-      const x = parseFloat(r.getAttribute('x') || '0');
-      const y = parseFloat(r.getAttribute('y') || '0');
-      const width = parseFloat(r.getAttribute('width') || '0');
-      const height = parseFloat(r.getAttribute('height') || '0');
-      
-      return {
-        x: x / totalW,
-        y: y / totalH,
-        width: width / totalW,
-        height: height / totalH,
-      };
-    });
-  
-  console.log(`parseBarcodeBars: после фильтрации ${bars.length} штрихов`);
-  
+      const length = i - start;
+      bars.push({
+        x: start / 95,
+        y: 0,
+        width: length / 95,
+        height: 1,
+      });
+    } else {
+      i++;
+    }
+  }
+
   return bars;
 }
 
 /**
- * Загрузка SVG штрихкода в Fabric.js как векторную группу
+ * Вычисляет позиции цифр для EAN-13
  */
-export async function loadBarcodeIntoFabric(svgString: string): Promise<fabric.Group> {
-  return new Promise((resolve, reject) => {
-    fabric.loadSVGFromString(svgString).then((result) => {
-      const objects = result.objects.filter(obj => obj !== null) as fabric.FabricObject[];
-      
-      if (objects.length === 0) {
-        reject(new Error('Не удалось загрузить SVG штрихкод'));
-        return;
-      }
-      
-      // Создаём группу из всех объектов
-      const group = new fabric.Group(objects, {
-        originX: 'left',
-        originY: 'top',
-      });
-      
-      resolve(group);
-    }).catch((error) => {
-      console.error('loadBarcodeIntoFabric: ошибка загрузки SVG', error);
-      reject(error);
-    });
+function computeEan13Digits(code: string): BarcodeDigit[] {
+  const digits: BarcodeDigit[] = [];
+
+  // Первая цифра (code[0]) - слева вне штрихов
+  digits.push({
+    char: code[0],
+    xFrac: -3.5 / 95, // 3.5 модуля слева от начала штрихов
   });
+
+  // Левая половина (цифры 2-7, индексы 1-6)
+  for (let i = 0; i < 6; i++) {
+    digits.push({
+      char: code[1 + i],
+      xFrac: (6 + 7 * i) / 95, // центр каждого 7-модульного блока
+    });
+  }
+
+  // Правая половина (цифры 8-13, индексы 7-12)
+  for (let j = 0; j < 6; j++) {
+    digits.push({
+      char: code[7 + j],
+      xFrac: (53 + 7 * j) / 95, // центр каждого 7-модульного блока
+    });
+  }
+
+  return digits;
 }
 
 /**
- * Валидация кода штрихкода
+ * Строит BarcodeNorm для EAN-13 детерминированно по стандарту
  */
-export function validateBarcode(code: string, format: BarcodeFormat): { valid: boolean; error?: string } {
-  if (!code || code.trim() === '') {
-    return { valid: false, error: 'Код не может быть пустым' };
-  }
-  
-  const cleanCode = code.replace(/\s/g, '');
-  
-  if (format === 'ean13') {
-    if (!/^\d{12,13}$/.test(cleanCode)) {
-      return { valid: false, error: 'EAN-13 должен содержать 12 или 13 цифр' };
-    }
-  } else if (format === 'itf14') {
-    if (!/^\d{13,14}$/.test(cleanCode)) {
-      return { valid: false, error: 'ITF-14 должен содержать 13 или 14 цифр' };
-    }
-  }
-  
-  return { valid: true };
+export function buildEan13Norm(code: string): BarcodeNorm {
+  const bits = generateEan13Bits(code);
+  const bars = bitsToBars(bits);
+  const digits = computeEan13Digits(code);
+
+  // Константы в модулях
+  const BAR_H_MODULES = 50;      // высота штрихов
+  const FONT_MODULES = 9;        // размер шрифта
+  const DIGIT_Y_MODULES = 57;    // позиция цифр (от верха)
+  const TOTAL_HEIGHT_MODULES = DIGIT_Y_MODULES + FONT_MODULES; // общая высота с цифрами
+
+  return {
+    bars,
+    digits,
+    textYFrac: DIGIT_Y_MODULES / TOTAL_HEIGHT_MODULES,
+    fontSizeFrac: FONT_MODULES / TOTAL_HEIGHT_MODULES,
+    overhangFrac: 7 / 95, // запас под первую цифру слева
+    unit: 4, // пикселей на модуль при scale=1
+    totalHeightModules: TOTAL_HEIGHT_MODULES,
+    barHeightModules: BAR_H_MODULES,
+  };
 }
 
 /**
- * Добавление контрольной цифры, если она отсутствует
+ * Парсит SVG штрих-кода и возвращает штрихи в пикселях viewBox
+ * КРИТИЧНО: учитывает transform родительских <g> элементов
  */
-export function addCheckDigit(code: string, format: BarcodeFormat): string {
-  const cleanCode = code.replace(/\s/g, '');
-  
-  if (format === 'ean13' && cleanCode.length === 12) {
-    // Добавляем контрольную цифру для EAN-13
-    const digits = cleanCode.split('').map(Number);
-    let sum = 0;
-    
-    for (let i = 0; i < 12; i++) {
-      sum += digits[i] * (i % 2 === 0 ? 1 : 3);
-    }
-    
-    const checkDigit = (10 - (sum % 10)) % 10;
-    return cleanCode + checkDigit;
+export function parseBarcodeBarsFromSVG(svgString: string): {
+  bars: NormalizedBar[];
+  vbW: number;
+  vbH: number;
+  bbox: { minX: number; minY: number; maxX: number; maxY: number };
+} {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+
+  if (!svg) {
+    throw new Error('SVG не найден');
   }
-  
-  if (format === 'itf14' && cleanCode.length === 13) {
-    // Добавляем контрольную цифру для ITF-14
-    const digits = cleanCode.split('').map(Number);
-    let sum = 0;
-    
-    for (let i = 0; i < 13; i++) {
-      sum += digits[i] * (i % 2 === 0 ? 3 : 1);
-    }
-    
-    const checkDigit = (10 - (sum % 10)) % 10;
-    return cleanCode + checkDigit;
+
+  // Получаем viewBox
+  const viewBox = svg.getAttribute('viewBox');
+  if (!viewBox) {
+    throw new Error('viewBox не найден в SVG');
   }
-  
-  return cleanCode;
+
+  const [, , vbW, vbH] = viewBox.split(' ').map(parseFloat);
+
+  // Рекурсивно собираем все <rect> с учётом transform
+  const allRects: Array<{ x: number; y: number; width: number; height: number; fill: string }> = [];
+
+  function collectRects(element: Element, parentTransform: { tx: number; ty: number; sx: number; sy: number }) {
+    // Получаем transform этого элемента
+    const transformAttr = element.getAttribute('transform');
+    let currentTransform = { ...parentTransform };
+
+    if (transformAttr) {
+      // Парсим transform (упрощённо: только translate и scale)
+      const translateMatch = transformAttr.match(/translate\(([^,]+),\s*([^)]+)\)/);
+      if (translateMatch) {
+        currentTransform.tx += parseFloat(translateMatch[1]);
+        currentTransform.ty += parseFloat(translateMatch[2]);
+      }
+
+      const scaleMatch = transformAttr.match(/scale\(([^,)]+)(?:,\s*([^)]+))?\)/);
+      if (scaleMatch) {
+        const sx = parseFloat(scaleMatch[1]);
+        const sy = scaleMatch[2] ? parseFloat(scaleMatch[2]) : sx;
+        currentTransform.sx *= sx;
+        currentTransform.sy *= sy;
+      }
+    }
+
+    // Обрабатываем <rect>
+    if (element.tagName === 'rect') {
+      const x = parseFloat(element.getAttribute('x') || '0');
+      const y = parseFloat(element.getAttribute('y') || '0');
+      const width = parseFloat(element.getAttribute('width') || '0');
+      const height = parseFloat(element.getAttribute('height') || '0');
+      const fill = element.getAttribute('fill') || '#000000';
+
+      // Применяем transform
+      const transformedX = x * currentTransform.sx + currentTransform.tx;
+      const transformedY = y * currentTransform.sy + currentTransform.ty;
+      const transformedWidth = width * currentTransform.sx;
+      const transformedHeight = height * currentTransform.sy;
+
+      allRects.push({
+        x: transformedX,
+        y: transformedY,
+        width: transformedWidth,
+        height: transformedHeight,
+        fill,
+      });
+    }
+
+    // Рекурсивно обрабатываем дочерние элементы
+    for (const child of Array.from(element.children)) {
+      collectRects(child, currentTransform);
+    }
+  }
+
+  collectRects(svg, { tx: 0, ty: 0, sx: 1, sy: 1 });
+
+  // Фильтруем только тёмные прямоугольники (штрихи)
+  const darkRects = allRects.filter(rect => {
+    // Проверяем fill
+    const fill = rect.fill.toLowerCase();
+    
+    // Пропускаем белые/светлые
+    if (fill === '#ffffff' || fill === '#fff' || fill === 'white' || fill === 'none') {
+      return false;
+    }
+
+    // Проверяем яркость (упрощённо)
+    if (fill.startsWith('#')) {
+      const hex = fill.slice(1);
+      if (hex.length === 3) {
+        const r = parseInt(hex[0] + hex[0], 16);
+        const g = parseInt(hex[1] + hex[1], 16);
+        const b = parseInt(hex[2] + hex[2], 16);
+        const brightness = (r + g + b) / 3;
+        return brightness < 128;
+      } else if (hex.length === 6) {
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const brightness = (r + g + b) / 3;
+        return brightness < 128;
+      }
+    }
+
+    // По умолчанию считаем тёмным
+    return true;
+  });
+
+  // Вычисляем bbox
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const rect of darkRects) {
+    minX = Math.min(minX, rect.x);
+    minY = Math.min(minY, rect.y);
+    maxX = Math.max(maxX, rect.x + rect.width);
+    maxY = Math.max(maxY, rect.y + rect.height);
+  }
+
+  // Нормализуем к bbox
+  const symW = maxX - minX;
+  const symH = maxY - minY;
+
+  const bars: NormalizedBar[] = darkRects.map(rect => ({
+    x: (rect.x - minX) / symW,
+    y: (rect.y - minY) / symH,
+    width: rect.width / symW,
+    height: rect.height / symH,
+  }));
+
+  return {
+    bars,
+    vbW,
+    vbH,
+    bbox: { minX, minY, maxX, maxY },
+  };
 }
 
 /**
- * Удаление текста из SVG и извлечение информации о позиции текста
+ * Строит BarcodeNorm для ITF-14 из SVG
+ */
+export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
+  if (code.length !== 14 || !/^\d{14}$/.test(code)) {
+    throw new Error('ITF-14 код должен содержать ровно 14 цифр');
+  }
+
+  const { bars, bbox } = parseBarcodeBarsFromSVG(svgString);
+  const symW = bbox.maxX - bbox.minX;
+  const symH = bbox.maxY - bbox.minY;
+
+  // Позиции цифр: равномерно распределены
+  const digits: BarcodeDigit[] = [];
+  for (let i = 0; i < 14; i++) {
+    digits.push({
+      char: code[i],
+      xFrac: (i + 0.5) / 14,
+    });
+  }
+
+  // Константы (приблизительные, на основе анализа SVG)
+  const TOTAL_HEIGHT_MODULES = 70; // включая цифры
+  const BAR_H_MODULES = 50;
+  const FONT_MODULES = 10;
+  const DIGIT_Y_MODULES = 55;
+
+  return {
+    bars,
+    digits,
+    textYFrac: DIGIT_Y_MODULES / TOTAL_HEIGHT_MODULES,
+    fontSizeFrac: FONT_MODULES / TOTAL_HEIGHT_MODULES,
+    overhangFrac: 0, // ITF-14 не имеет выступающих цифр
+    unit: symW, // пикселей на нормализованную единицу
+    totalHeightModules: TOTAL_HEIGHT_MODULES,
+    barHeightModules: BAR_H_MODULES,
+  };
+}
+
+/**
+ * Удаляет текст из SVG и возвращает информацию о позиции текста
  */
 export function stripTextFromSVG(svgString: string): {
   svgNoText: string;
@@ -198,106 +369,111 @@ export function stripTextFromSVG(svgString: string): {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svg = doc.querySelector('svg');
-  
+
   if (!svg) {
-    console.error('stripTextFromSVG: SVG не найден');
     return {
       svgNoText: svgString,
       textYFrac: 0.95,
       fontSizeFrac: 0.16,
     };
   }
-  
-  // Получаем размеры SVG
-  const vb = svg.viewBox?.baseVal;
-  const totalH = vb?.height || parseFloat(svg.getAttribute('height') || '0');
-  
-  // Находим все text элементы
+
+  // Получаем viewBox
+  const viewBox = svg.getAttribute('viewBox');
+  const [, , , vbH] = viewBox ? viewBox.split(' ').map(parseFloat) : [0, 0, 100, 100];
+
+  // Находим все <text> элементы
   const textElements = Array.from(doc.querySelectorAll('text'));
-  
+
   let textYFrac = 0.95;
   let fontSizeFrac = 0.16;
-  
+
   if (textElements.length > 0) {
     const firstText = textElements[0];
     const y = parseFloat(firstText.getAttribute('y') || '0');
     const fontSize = parseFloat(firstText.getAttribute('font-size') || '16');
-    
-    textYFrac = y / totalH;
-    fontSizeFrac = fontSize / totalH;
+
+    textYFrac = y / vbH;
+    fontSizeFrac = fontSize / vbH;
   }
-  
-  // Удаляем все text элементы
-  textElements.forEach(text => text.remove());
-  
-  // Получаем SVG без текста
+
+  // Удаляем все <text> элементы
+  textElements.forEach(el => el.remove());
+
   const svgNoText = svg.outerHTML;
-  
+
   return { svgNoText, textYFrac, fontSizeFrac };
 }
 
 /**
- * Интерфейс для позиции цифры
+ * Генерирует SVG для штрих-кода (используется только для ITF-14)
  */
-export interface DigitPosition {
-  char: string;
-  xFrac: number;
+export function generateBarcodeSVG(
+  code: string,
+  format: 'ean13' | 'itf14',
+  options: { displayValue?: boolean } = {}
+): string {
+  // Для EAN-13 не используем JsBarcode, генерируем детерминированно
+  if (format === 'ean13') {
+    throw new Error('Для EAN-13 используйте buildEan13Norm вместо generateBarcodeSVG');
+  }
+
+  // Для ITF-14 используем JsBarcode
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  
+  JsBarcode(svg, code, {
+    format: 'ITF14',
+    displayValue: options.displayValue ?? true,
+    width: 2,
+    height: 80,
+    lineColor: '#000000',
+    background: '#FFFFFF',
+    margin: 10,
+    fontSize: 16,
+    font: 'Arial',
+  });
+
+  return svg.outerHTML;
 }
 
 /**
- * Расчёт позиций цифр для штрихкода
- * Использует стандартную геометрию для правильного расположения цифр
+ * Валидация штрих-кода
  */
-export function computeDigitPositions(
-  bars: NormalizedBar[],
-  format: 'ean13' | 'itf14',
-  code: string
-): Array<{ char: string; xFrac: number }> {
-  if (bars.length === 0) return [];
-  
-  // Найти границы штрихов (нормализованные 0..1)
-  const minX = Math.min(...bars.map(b => b.x));
-  const maxX = Math.max(...bars.map(b => b.x + b.width));
-  const totalWidth = maxX - minX;
-  
-  if (format === 'ean13' && code.length === 13) {
-    // EAN-13: 95 модулей
-    // Структура: защитные(3) + левая половина(42) + центральные(5) + правая(42) + защитные(3)
-    // Позиции цифр в модулях от minX:
-    
-    const module = totalWidth / 95;
-    
-    const positions = [
-      // Первая цифра слева (вне штрихов)
-      { char: code[0], xFrac: minX - 3.5 * module / totalWidth },
-      
-      // Левая половина (цифры 2-7)
-      { char: code[1], xFrac: minX + (6.5 * module) / totalWidth },
-      { char: code[2], xFrac: minX + (13.5 * module) / totalWidth },
-      { char: code[3], xFrac: minX + (20.5 * module) / totalWidth },
-      { char: code[4], xFrac: minX + (27.5 * module) / totalWidth },
-      { char: code[5], xFrac: minX + (34.5 * module) / totalWidth },
-      { char: code[6], xFrac: minX + (41.5 * module) / totalWidth },
-      
-      // Правая половина (цифры 8-13)
-      { char: code[7], xFrac: minX + (53.5 * module) / totalWidth },
-      { char: code[8], xFrac: minX + (60.5 * module) / totalWidth },
-      { char: code[9], xFrac: minX + (67.5 * module) / totalWidth },
-      { char: code[10], xFrac: minX + (74.5 * module) / totalWidth },
-      { char: code[11], xFrac: minX + (81.5 * module) / totalWidth },
-      { char: code[12], xFrac: minX + (88.5 * module) / totalWidth },
-    ];
-    
-    return positions;
+export function validateBarcode(code: string, format: BarcodeFormat): { valid: boolean; error?: string } {
+  if (format === 'ean13') {
+    if (!/^\d{12,13}$/.test(code)) {
+      return { valid: false, error: 'EAN-13 должен содержать 12 или 13 цифр' };
+    }
+  } else if (format === 'itf14') {
+    if (!/^\d{13,14}$/.test(code)) {
+      return { valid: false, error: 'ITF-14 должен содержать 13 или 14 цифр' };
+    }
   }
-  
-  if (format === 'itf14' && code.length === 14) {
-    // ITF-14: равномерное распределение 14 цифр
-    return code.split('').map((char, i) => ({
-      char,
-      xFrac: minX + (i + 0.5) * totalWidth / 14
-    }));
+  return { valid: true };
+}
+
+/**
+ * Добавляет контрольную цифру к штрих-коду
+ */
+export function addCheckDigit(code: string, format: BarcodeFormat): string {
+  if (format === 'ean13' && code.length === 12) {
+    // EAN-13: контрольная цифра по модулю 10
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      const digit = parseInt(code[i]);
+      sum += digit * (i % 2 === 0 ? 1 : 3);
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    return code + checkDigit;
+  } else if (format === 'itf14' && code.length === 13) {
+    // ITF-14: контрольная цифра по модулю 10
+    let sum = 0;
+    for (let i = 0; i < 13; i++) {
+      const digit = parseInt(code[i]);
+      sum += digit * (i % 2 === 0 ? 3 : 1);
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    return code + checkDigit;
   }
-  
-  return [];
+  return code;
 }
