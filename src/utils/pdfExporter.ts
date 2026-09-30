@@ -279,3 +279,49 @@ export function composeSheetCanvas(
 
   return canvas;
 }
+
+/**
+ * Экспорт с fallback на растровый метод в случае ошибки векторного пути
+ */
+export async function exportWithFallback(cfg: ExportConfig): Promise<{
+  pdfBytes: Uint8Array;
+  isVector: boolean;
+  error?: string;
+}> {
+  try {
+    // Пытаемся использовать векторный экспорт
+    const { exportToVectorPDF } = await import('./vectorExporter');
+    const pdfBytes = await exportToVectorPDF(cfg);
+    
+    return { pdfBytes, isVector: true };
+  } catch (error) {
+    console.error('VECTOR PATH FAILED, fallback to raster', error);
+    
+    // Fallback на растровый экспорт
+    const { orientation } = cfg;
+    const pageWidth = orientation === 'portrait' ? 210 : 297;
+    const pageHeight = orientation === 'portrait' ? 297 : 210;
+    
+    const pdf = new jsPDF({
+      orientation,
+      unit: 'mm',
+      format: 'a4',
+    });
+    
+    // Рендерим растровый лист
+    const sheetCanvas = composeSheetCanvas(cfg, 600); // 600 DPI для качества
+    
+    // Добавляем растр в PDF
+    const dataUrl = sheetCanvas.toDataURL('image/png');
+    pdf.addImage(dataUrl, 'PNG', 0, 0, pageWidth, pageHeight);
+    
+    // Получаем байты
+    const pdfBytes = new Uint8Array(pdf.output('arraybuffer'));
+    
+    return { 
+      pdfBytes, 
+      isVector: false, 
+      error: error instanceof Error ? error.message : 'Неизвестная ошибка' 
+    };
+  }
+}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { composeSheetCanvas, ExportConfig } from '../utils/pdfExporter';
-import { exportToVectorPDF, checkPdfSources } from '../utils/vectorExporter';
+import { composeSheetCanvas, ExportConfig, exportWithFallback } from '../utils/pdfExporter';
+import { checkPdfSources } from '../utils/vectorExporter';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -70,8 +70,8 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       
       setProgress(50);
       
-      // Используем векторный экспорт
-      const pdfBytes = await exportToVectorPDF(cfg);
+      // Используем экспорт с fallback
+      const { pdfBytes, isVector, error } = await exportWithFallback(cfg);
 
       setProgress(80);
 
@@ -90,14 +90,19 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       link.click();
       URL.revokeObjectURL(url);
 
+      // Показываем уведомление о результате
+      if (!isVector && error) {
+        alert(`Векторный экспорт недоступен: ${error}\n\nСохранено растром 600 DPI.`);
+      }
+
       setTimeout(() => {
         setIsExporting(false);
         setProgress(0);
         onClose();
       }, 500);
     } catch (error) {
-      console.error('Ошибка экспорта:', error);
-      alert('Ошибка при экспорте PDF');
+      console.error('EXPORT FAILED:', error);
+      alert(`Ошибка экспорта: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
       setIsExporting(false);
       setProgress(0);
     }

@@ -28,7 +28,12 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
       };
 
       if (printMethod === 'pdf') {
-        await printViaPdfWindow(cfg);
+        const { isVector, error } = await printViaPdfWindow(cfg);
+        
+        // Показываем уведомление о результате
+        if (!isVector && error) {
+          alert(`Векторная печать недоступна: ${error}\n\nПечать растром 600 DPI.`);
+        }
       } else {
         printViaBrowser(cfg, browserDpi);
       }
@@ -38,8 +43,8 @@ export function PrintModal({ isOpen, onClose }: PrintModalProps) {
         onClose();
       }, 1000);
     } catch (error) {
-      console.error('Ошибка печати:', error);
-      alert('Ошибка при печати');
+      console.error('PRINT FAILED:', error);
+      alert(`Ошибка печати: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
       setIsPrinting(false);
     }
   };

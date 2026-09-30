@@ -1,11 +1,10 @@
-import { ExportConfig, composeSheetCanvas } from './pdfExporter';
-import { exportToVectorPDF } from './vectorExporter';
+import { ExportConfig, composeSheetCanvas, exportWithFallback } from './pdfExporter';
 
 /**
- * Печать через PDF-окно (рекомендуемый способ - векторный)
+ * Печать через PDF-окно (рекомендуемый способ - векторный с fallback)
  */
-export async function printViaPdfWindow(cfg: ExportConfig): Promise<void> {
-  const pdfBytes = await exportToVectorPDF(cfg);
+export async function printViaPdfWindow(cfg: ExportConfig): Promise<{ isVector: boolean; error?: string }> {
+  const { pdfBytes, isVector, error } = await exportWithFallback(cfg);
   const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
 
@@ -19,6 +18,8 @@ export async function printViaPdfWindow(cfg: ExportConfig): Promise<void> {
   printWindow.addEventListener('afterprint', () => {
     URL.revokeObjectURL(url);
   });
+  
+  return { isVector, error };
 }
 
 /**

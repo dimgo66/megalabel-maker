@@ -32,8 +32,6 @@ export interface ExportConfig {
  * Нормализация шрифтов в SVG для совместимости с svg2pdf
  */
 function normalizeSvgFonts(svgString: string): string {
-  // Заменяем все шрифты на helvetica (поддерживается svg2pdf)
-  // Myriad Pro и другие кастомные шрифты заменяются на helvetica
   return svgString.replace(/font-family="[^"]*"/g, 'font-family="helvetica"');
 }
 
@@ -70,40 +68,68 @@ async function buildScenePdf(cfg: ExportConfig): Promise<ScenePdfResult> {
   const sceneSvg = editorCanvas.toSVG();
   const normalizedSvg = normalizeSvgFonts(sceneSvg);
   
+  // Preflight проверка
+  console.log('SVG length:', normalizedSvg.length);
+  if (!/<(rect|text|image|path)/.test(normalizedSvg)) {
+    throw new Error('canvas.toSVG() вернул пустую сцену');
+  }
+  
   // 3. Создаём временный jsPDF размером с ячейку
   const tmp = new jsPDF({
     unit: 'mm',
     format: [format.width_mm, format.height_mm],
   });
   
-  // Для круглых этикеток создаём клип
-  if (format.shape === 'circle') {
-    const w = format.width_mm;
-    const h = format.height_mm;
-    tmp.circle(w / 2, h / 2, w / 2, 'S');
-    tmp.clip();
+  // 4. ВАЖНО: Прикрепляем SVG к DOM для корректной работы svg2pdf
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;width:10px;height:10px;overflow:hidden';
+  document.body.appendChild(host);
+  
+  try {
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(normalizedSvg, 'image/svg+xml');
+    const svgEl = svgDoc.documentElement;
+    
+    // Прикрепляем к DOM
+    host.appendChild(svgEl);
+    
+    // Для круглых этикеток создаём клип
+    if (format.shape === 'circle') {
+      try {
+        const w = format.width_mm;
+        const h = format.height_mm;
+        tmp.circle(w / 2, h / 2, w / 2, 'S');
+        tmp.clip();
+      } catch (clipError) {
+        console.warn('Не удалось создать клип для круглой этикетки, продолжаем без него');
+      }
+    }
+    
+    // 5. Конвертируем SVG в PDF через svg2pdf (ОБЯЗАТЕЛЬНО с await!)
+    await svg2pdf(svgEl, tmp, {
+      x: 0,
+      y: 0,
+      width: format.width_mm,
+      height: format.height_mm,
+    });
+  } finally {
+    // Всегда удаляем хост из DOM
+    host.remove();
   }
   
-  // 4. Конвертируем SVG в PDF через svg2pdf
-  const parser = new DOMParser();
-  const svgDoc = parser.parseFromString(normalizedSvg, 'image/svg+xml');
-  const svgEl = svgDoc.documentElement;
-  
-  await svg2pdf(svgEl, tmp, {
-    x: 0,
-    y: 0,
-    width: format.width_mm,
-    height: format.height_mm,
-  });
-  
-  // 5. Восстанавливаем видимость объектов
+  // 6. Восстанавливаем видимость объектов
   pdfObjects.forEach((obj) => {
     obj.set('visible', true);
   });
   editorCanvas.renderAll();
   
-  // 6. Получаем байты временного PDF
+  // 7. Получаем байты временного PDF
   const bytes = new Uint8Array(tmp.output('arraybuffer'));
+  
+  // Preflight проверка размера
+  if (bytes.length < 800) {
+    throw new Error('Сцена пуста или слишком мала');
+  }
   
   return { bytes, placeholders };
 }
@@ -121,13 +147,26 @@ export async function exportToVectorPDF(cfg: ExportConfig): Promise<Uint8Array> 
   // 2. Создаём итоговый PDF документ
   const pdfDoc = await PDFDocument.create();
   
-  // Размеры листа A4
+  // Размеры листа A4 (без хардкода!)
   const pageWidth = orientation === 'portrait' ? 210 : 297;
   const pageHeight = orientation === 'portrait' ? 297 : 210;
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
   
   // 3. Встраиваем сцену этикетки
   const sceneEmb = (await pdfDoc.embedPdf(sceneBytes))[0];
+  
+  // Preflight проверка размеров
+  console.log('scene page:', sceneEmb.width, sceneEmb.height);
+  const expectedWidthPt = format.width_mm * 2.8346;
+  const expectedHeightPt = format.height_mm * 2.8346;
+  console.assert(
+    Math.abs(sceneEmb.width - expectedWidthPt) < 2,
+    `Ширина сцены ${sceneEmb.width} не соответствует ожидаемой ${expectedWidthPt}`
+  );
+  console.assert(
+    Math.abs(sceneEmb.height - expectedHeightPt) < 2,
+    `Высота сцены ${sceneEmb.height} не соответствует ожидаемой ${expectedHeightPt}`
+  );
   
   // 4. Кэшируем встраивания PDF источников
   const embCache: Record<string, any> = {};
@@ -139,7 +178,6 @@ export async function exportToVectorPDF(cfg: ExportConfig): Promise<Uint8Array> 
     const sourceBytes = pdfSources[srcPdfId];
     
     if (sourceBytes) {
-      const sourcePdf = await PDFDocument.load(sourceBytes);
       const emb = (await pdfDoc.embedPdf(sourceBytes, [pageNum - 1]))[0];
       embCache[key] = emb;
     }
@@ -156,6 +194,19 @@ export async function exportToVectorPDF(cfg: ExportConfig): Promise<Uint8Array> 
       // Позиция ячейки в мм (верхний левый угол)
       const x = layout.marginLeft_mm + col * (layout.cellWidth_mm + layout.gapX_mm);
       const y = layout.marginTop_mm + row * (layout.cellHeight_mm + layout.gapY_mm);
+      
+      // Preflight проверка первой ячейки
+      if (row === 0 && col === 0) {
+        const y_pdf = pageHeight - y - layout.cellHeight_mm;
+        console.assert(
+          x >= 0 && x + layout.cellWidth_mm <= pageWidth,
+          `X координата ячейки выходит за пределы страницы: ${x} + ${layout.cellWidth_mm} > ${pageWidth}`
+        );
+        console.assert(
+          y_pdf >= 0 && y_pdf + layout.cellHeight_mm <= pageHeight,
+          `Y координата ячейки выходит за пределы страницы: ${y_pdf} + ${layout.cellHeight_mm} > ${pageHeight}`
+        );
+      }
       
       // Рисуем сцену этикетки в ячейке
       // pdf-lib использует координаты от нижнего левого угла
