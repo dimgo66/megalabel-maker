@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
@@ -8,6 +9,8 @@ import { useHotkeys } from './hooks/useHotkeys';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
 import { LABEL_FORMATS } from './config/labelFormats';
 import { mmToPx } from './utils/layoutCalculator';
+import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
+import { FONT_CONFIGS } from './config/fonts';
 
 function App() {
   const {
@@ -16,7 +19,41 @@ function App() {
     editorZoom,
     markSaved,
     loadProject,
+    setLoadedGoogleFonts,
+    setLocalFonts,
+    setGoogleFontLoaded,
   } = useProjectStore();
+
+  // Восстановление шрифтов при загрузке страницы
+  useEffect(() => {
+    const restoreFonts = async () => {
+      // Восстановить Google Fonts
+      const savedGoogleFonts = getLoadedGoogleFontsFromStorage();
+      if (savedGoogleFonts.length > 0) {
+        setLoadedGoogleFonts(savedGoogleFonts);
+        // Загрузить CSS для каждого шрифта
+        for (const fontId of savedGoogleFonts) {
+          const fontConfig = FONT_CONFIGS.find(f => f.id === fontId);
+          if (fontConfig && fontConfig.googleUrl) {
+            try {
+              await loadGoogleFont(fontConfig);
+              setGoogleFontLoaded(fontId);
+            } catch (error) {
+              console.error(`Failed to restore Google Font ${fontId}:`, error);
+            }
+          }
+        }
+      }
+      
+      // Восстановить локальные шрифты из IndexedDB
+      const restoredLocalFonts = await restoreLocalFonts();
+      if (restoredLocalFonts.length > 0) {
+        setLocalFonts(restoredLocalFonts);
+      }
+    };
+    
+    restoreFonts();
+  }, []);
 
   const handleSave = () => {
     const state = useProjectStore.getState();

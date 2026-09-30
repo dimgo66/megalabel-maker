@@ -155,12 +155,30 @@ export function TextPanel() {
             onChange={(e) => handleFontFamilyChange(e.target.value)}
             className="w-full"
           >
-            <option value="Arial">Arial</option>
-            <option value="Myriad Pro">Myriad Pro</option>
-            <option value="Times New Roman">Times New Roman</option>
-            <option value="Courier New">Courier New</option>
-            <option value="Georgia">Georgia</option>
-            <option value="Verdana">Verdana</option>
+            {/* Системные шрифты */}
+            {useProjectStore.getState().getAvailableFonts()
+              .filter(f => f.loaded && f.source === 'system')
+              .map(font => (
+                <option key={font.id} value={font.name}>
+                  {font.name}
+                </option>
+              ))}
+            
+            {/* Google Fonts */}
+            {useProjectStore.getState().getAvailableFonts()
+              .filter(f => f.loaded && f.source === 'google')
+              .map(font => (
+                <option key={font.id} value={font.name}>
+                  {font.name}
+                </option>
+              ))}
+            
+            {/* Локальные шрифты */}
+            {useProjectStore.getState().localFonts.map((font, idx) => (
+              <option key={`local-${idx}`} value={font.name}>
+                {font.name} {font.weight !== 400 || font.style === 'italic' ? `(${font.weight} ${font.style})` : ''}
+              </option>
+            ))}
           </select>
         </div>
 

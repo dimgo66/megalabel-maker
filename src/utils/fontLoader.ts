@@ -1,132 +1,208 @@
-/**
- * Load Myriad Pro (or any custom) font files into the browser.
- * Uses the FontFace API to register fonts dynamically.
- */
+import { FontConfig, LocalFontInfo } from '../config/fonts';
 
-const loadedFonts = new Set<string>();
+// IndexedDB для хранения локальных шрифтов
+const DB_NAME = 'MegalabelFontsDB';
+const STORE_NAME = 'localFonts';
 
-/**
- * Detect font family name from file
- */
-function getFontFamilyFromFile(file: File): string {
-  // Extract family name from filename (remove extension, replace hyphens/underscores)
-  const name = file.name.replace(/\.(ttf|otf|woff|woff2)$/i, '');
-  // Convert "MyriadPro-Regular" -> "Myriad Pro Regular"
-  return name
-    .replace(/[-_]/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .trim() || 'Custom Font';
+// Инициализация IndexedDB
+async function initDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'name' });
+      }
+    };
+  });
 }
 
-/**
- * Determine font style/weight from filename
- */
-function getFontStyle(file: File): { weight: string; style: string } {
-  const name = file.name.toLowerCase();
+// Сохранение локального шрифта в IndexedDB
+async function saveLocalFontToDB(fontInfo: LocalFontInfo & { data: ArrayBuffer }): Promise<void> {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.put(fontInfo);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve();
+  });
+}
+
+// Загрузка всех локальных шрифтов из IndexedDB
+export async function loadLocalFontsFromDB(): Promise<(LocalFontInfo & { data: ArrayBuffer })[]> {
+  try {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([STORE_NAME], 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+  } catch (error) {
+    console.error('Failed to load fonts from IndexedDB:', error);
+    return [];
+  }
+}
+
+// Извлечение имени шрифта из имени файла
+function extractFontName(fileName: string): string {
+  // Убрать расширение
+  let name = fileName.replace(/\.(ttf|otf|woff|woff2)$/i, '');
+  // Убрать слова начертания
+  name = name.replace(/[-_]?(Bold|Italic|BoldItalic|Regular|Light|Medium|SemiBold|ExtraBold|Black|Thin|Italic)/gi, '').trim();
+  // Заменить дефисы и подчёркивания на пробелы
+  name = name.replace(/[-_]/g, ' ').trim();
+  // Убрать лишние пробелы
+  name = name.replace(/\s+/g, ' ');
+  return name || 'Custom Font';
+}
+
+// Определение начертания по имени файла
+function extractFontStyle(fileName: string): { weight: number; style: 'normal' | 'italic' } {
+  const name = fileName.toLowerCase();
   
-  let weight = '400';
-  let style = 'normal';
+  let weight = 400;
+  let style: 'normal' | 'italic' = 'normal';
   
+  // Определяем стиль
   if (name.includes('bolditalic') || name.includes('bold-italic') || name.includes('bold_italic')) {
-    weight = '700';
+    weight = 700;
+    style = 'italic';
+  } else if (name.includes('italic') || name.includes('italic')) {
+    weight = 400;
     style = 'italic';
   } else if (name.includes('bold')) {
-    weight = '700';
+    weight = 700;
     style = 'normal';
-  } else if (name.includes('lightitalic') || name.includes('light-italic')) {
-    weight = '300';
-    style = 'italic';
   } else if (name.includes('light')) {
-    weight = '300';
+    weight = 300;
     style = 'normal';
-  } else if (name.includes('mediumitalic') || name.includes('medium-italic')) {
-    weight = '500';
-    style = 'italic';
   } else if (name.includes('medium')) {
-    weight = '500';
+    weight = 500;
     style = 'normal';
   } else if (name.includes('semibold') || name.includes('semi-bold')) {
-    weight = '600';
-    style = 'normal';
-  } else if (name.includes('italic')) {
-    weight = '400';
-    style = 'italic';
-  } else if (name.includes('regular')) {
-    weight = '400';
+    weight = 600;
     style = 'normal';
   }
   
   return { weight, style };
 }
 
-/**
- * Load font files and register them with the browser
- */
-export async function loadMyriadPro(files: File[]): Promise<{ loaded: string[]; errors: string[] }> {
-  const loaded: string[] = [];
-  const errors: string[] = [];
+// Загрузка Google Font
+export async function loadGoogleFont(fontConfig: FontConfig): Promise<void> {
+  return new Promise((resolve, reject) => {
+    // Проверить, не загружен ли уже
+    if (document.querySelector(`link[href="${fontConfig.googleUrl}"]`)) {
+      resolve();
+      return;
+    }
+    
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = fontConfig.googleUrl!;
+    
+    link.onload = () => {
+      document.fonts.ready.then(() => {
+        // Сохранить в localStorage
+        const loadedFonts = JSON.parse(localStorage.getItem('loadedGoogleFonts') || '[]');
+        if (!loadedFonts.includes(fontConfig.id)) {
+          loadedFonts.push(fontConfig.id);
+          localStorage.setItem('loadedGoogleFonts', JSON.stringify(loadedFonts));
+        }
+        resolve();
+      });
+    };
+    
+    link.onerror = () => reject(new Error(`Failed to load font: ${fontConfig.name}`));
+    
+    document.head.appendChild(link);
+  });
+}
 
+// Загрузка локальных шрифтов с компьютера
+export async function loadLocalFonts(files: File[]): Promise<LocalFontInfo[]> {
+  const results: LocalFontInfo[] = [];
+  
   for (const file of files) {
     try {
-      const family = getFontFamilyFromFile(file);
-      const { weight, style } = getFontStyle(file);
-      
       const arrayBuffer = await file.arrayBuffer();
-      const fontFace = new FontFace(family, arrayBuffer, {
-        weight,
-        style,
-        display: 'swap',
+      const fontFamily = extractFontName(file.name);
+      const { weight, style } = extractFontStyle(file.name);
+      
+      const fontFace = new FontFace(fontFamily, arrayBuffer, {
+        weight: String(weight),
+        style: style,
       });
-
+      
       await fontFace.load();
       document.fonts.add(fontFace);
       
-      const fontKey = `${family} ${weight} ${style}`;
-      if (!loadedFonts.has(fontKey)) {
-        loadedFonts.add(fontKey);
-        loaded.push(family);
-      }
+      const fontInfo: LocalFontInfo = {
+        name: fontFamily,
+        weight,
+        style,
+        loaded: true,
+      };
+      
+      // Сохранить в IndexedDB
+      await saveLocalFontToDB({ ...fontInfo, data: arrayBuffer });
+      
+      results.push(fontInfo);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      errors.push(`Failed to load ${file.name}: ${message}`);
+      console.error(`Failed to load font from file ${file.name}:`, error);
     }
   }
-
-  return { loaded, errors };
+  
+  return results;
 }
 
-/**
- * Check if a specific font is available
- */
+// Восстановление локальных шрифтов из IndexedDB при загрузке страницы
+export async function restoreLocalFonts(): Promise<LocalFontInfo[]> {
+  const savedFonts = await loadLocalFontsFromDB();
+  const results: LocalFontInfo[] = [];
+  
+  for (const fontData of savedFonts) {
+    try {
+      const fontFace = new FontFace(fontData.name, fontData.data, {
+        weight: String(fontData.weight),
+        style: fontData.style,
+      });
+      
+      await fontFace.load();
+      document.fonts.add(fontFace);
+      
+      results.push({
+        name: fontData.name,
+        weight: fontData.weight,
+        style: fontData.style,
+        loaded: true,
+      });
+    } catch (error) {
+      console.error(`Failed to restore font ${fontData.name}:`, error);
+    }
+  }
+  
+  return results;
+}
+
+// Проверка, загружен ли шрифт
 export function isFontLoaded(fontFamily: string): boolean {
-  return Array.from(loadedFonts).some(key => key.startsWith(fontFamily));
+  return document.fonts.check(`16px "${fontFamily}"`);
 }
 
-/**
- * Get list of all loaded font families
- */
-export function getLoadedFontFamilies(): string[] {
-  const families = new Set<string>();
-  loadedFonts.forEach(key => {
-    const family = key.split(' ')[0];
-    families.add(family);
-  });
-  return Array.from(families);
-}
-
-/**
- * Inject a CSS @font-face rule for the loaded fonts (useful for PDF generation)
- */
-export function getFontCSSRules(): string {
-  // FontFace API fonts are already available in the document
-  // This returns a CSS string that can be used in PDF generation
-  return Array.from(loadedFonts)
-    .map(key => {
-      const parts = key.split(' ');
-      const family = parts[0];
-      const weight = parts[1] || '400';
-      const style = parts[2] || 'normal';
-      return `/* Font loaded: ${family} weight=${weight} style=${style} */`;
-    })
-    .join('\n');
+// Получение списка загруженных Google Fonts из localStorage
+export function getLoadedGoogleFontsFromStorage(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem('loadedGoogleFonts') || '[]');
+  } catch {
+    return [];
+  }
 }

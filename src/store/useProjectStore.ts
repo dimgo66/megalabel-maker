@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { LabelFormat, LabelDesign, SheetSettings } from '../types';
 import { LABEL_FORMATS } from '../config/labelFormats';
 import { createEmptyDesign, createDefaultSettings } from '../utils/projectSerializer';
+import { FontConfig, LocalFontInfo, FONT_CONFIGS } from '../config/fonts';
 
 interface ProjectState {
   // Format
@@ -19,8 +20,10 @@ interface ProjectState {
   editorZoom: number;
   previewZoom: number;
   
-  // Loaded fonts
-  loadedFonts: string[];
+  // Fonts
+  loadedGoogleFonts: string[]; // IDs загруженных Google Fonts
+  localFonts: LocalFontInfo[]; // Локальные шрифты
+  fontConfigs: FontConfig[]; // Все конфигурации шрифтов
   
   // Selected object (any to avoid fabric type issues)
   selectedObject: any;
@@ -34,9 +37,15 @@ interface ProjectState {
   resetProject: () => void;
   setEditorZoom: (zoom: number) => void;
   setPreviewZoom: (zoom: number) => void;
-  addLoadedFont: (fontName: string) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
   setSelectedObject: (obj: any) => void;
+  
+  // Font actions
+  setGoogleFontLoaded: (fontId: string) => void;
+  addLocalFont: (font: LocalFontInfo) => void;
+  setLocalFonts: (fonts: LocalFontInfo[]) => void;
+  setLoadedGoogleFonts: (fontIds: string[]) => void;
+  getAvailableFonts: () => FontConfig[];
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -55,8 +64,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   editorZoom: 2.0,
   previewZoom: 2.0,
   
-  // Loaded fonts
-  loadedFonts: [],
+  // Fonts
+  loadedGoogleFonts: [],
+  localFonts: [],
+  fontConfigs: FONT_CONFIGS,
   
   // Selected object
   selectedObject: null,
@@ -140,21 +151,47 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ previewZoom: Math.max(0.25, Math.min(3.0, zoom)) });
   },
   
-  addLoadedFont: (fontName: string) => {
-    const current = get().loadedFonts;
-    if (!current.includes(fontName)) {
-      const design = get().labelDesign;
-      set({
-        loadedFonts: [...current, fontName],
-        labelDesign: {
-          ...design,
-          metadata: {
-            ...design.metadata,
-            customFonts: [...design.metadata.customFonts, fontName],
-          },
-        },
-      });
+  // Font actions
+  setGoogleFontLoaded: (fontId: string) => {
+    const current = get().loadedGoogleFonts;
+    if (!current.includes(fontId)) {
+      set({ loadedGoogleFonts: [...current, fontId] });
     }
+  },
+  
+  addLocalFont: (font: LocalFontInfo) => {
+    const current = get().localFonts;
+    const exists = current.find(f => f.name === font.name && f.weight === font.weight && f.style === font.style);
+    if (!exists) {
+      set({ localFonts: [...current, font] });
+    }
+  },
+  
+  setLocalFonts: (fonts: LocalFontInfo[]) => {
+    set({ localFonts: fonts });
+  },
+  
+  setLoadedGoogleFonts: (fontIds: string[]) => {
+    set({ loadedGoogleFonts: fontIds });
+  },
+  
+  getAvailableFonts: () => {
+    const { fontConfigs, loadedGoogleFonts, localFonts } = get();
+    
+    return fontConfigs.map(config => {
+      if (config.source === 'system') {
+        return { ...config, loaded: true };
+      }
+      if (config.source === 'google') {
+        return { ...config, loaded: loadedGoogleFonts.includes(config.id) };
+      }
+      if (config.source === 'local') {
+        // Проверяем, загружен ли хотя бы один вариант этого шрифта
+        const isLoaded = localFonts.some(f => f.name.toLowerCase().includes(config.name.toLowerCase()));
+        return { ...config, loaded: isLoaded };
+      }
+      return config;
+    });
   },
   
   loadProject: (design: LabelDesign, settings: SheetSettings) => {
