@@ -256,12 +256,12 @@ export function TextPanel() {
 
         {/* Межстрочный интервал */}
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Межстрочный: {lineHeight.toFixed(1)}</label>
+          <label className="block text-xs text-gray-600 mb-1">Межстрочный: {lineHeight.toFixed(2)}</label>
           <input
             type="range"
-            min="0.8"
+            min="0.5"
             max="3.0"
-            step="0.1"
+            step="0.05"
             value={lineHeight}
             onChange={(e) => handleLineHeightChange(Number(e.target.value))}
             className="w-full"
@@ -270,12 +270,12 @@ export function TextPanel() {
 
         {/* Межбуквенный интервал */}
         <div>
-          <label className="block text-xs text-gray-600 mb-1">Межбуквенный: {charSpacing.toFixed(1)}</label>
+          <label className="block text-xs text-gray-600 mb-1">Межбуквенный: {charSpacing.toFixed(2)}</label>
           <input
             type="range"
             min="-2"
             max="20"
-            step="0.5"
+            step="0.1"
             value={charSpacing}
             onChange={(e) => handleCharSpacingChange(Number(e.target.value))}
             className="w-full"

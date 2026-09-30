@@ -1,12 +1,11 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { Canvas, Rect, Circle } from 'fabric';
+import { Canvas } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { mmToPx } from '../utils/layoutCalculator';
 
 export function LabelCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<Canvas | null>(null);
-  const safeAreaRef = useRef<Rect | Circle | null>(null);
 
   const {
     selectedFormat,
@@ -17,59 +16,7 @@ export function LabelCanvas() {
     setEditorZoom,
   } = useProjectStore();
 
-  // Обновление безопасной области
-  const updateSafeArea = useCallback(() => {
-    if (!fabricCanvasRef.current) return;
 
-    const canvas = fabricCanvasRef.current;
-    const displayWidth = mmToPx(selectedFormat.width_mm) * editorZoom;
-    const displayHeight = mmToPx(selectedFormat.height_mm) * editorZoom;
-    const margin = mmToPx(sheetSettings.safetyMargin_mm) * editorZoom;
-
-    // Удаляем старую безопасную область
-    if (safeAreaRef.current) {
-      canvas.remove(safeAreaRef.current);
-    }
-
-    // Создаём новую безопасную область
-    let safeArea: Rect | Circle;
-
-    if (selectedFormat.shape === 'circle') {
-      // Круглая безопасная область
-      const diameter = Math.min(displayWidth, displayHeight) - margin * 2;
-      safeArea = new Circle({
-        radius: diameter / 2,
-        left: displayWidth / 2 - diameter / 2,
-        top: displayHeight / 2 - diameter / 2,
-        fill: 'transparent',
-        stroke: '#999999',
-        strokeWidth: 1,
-        strokeDashArray: [4, 4],
-        selectable: false,
-        evented: false,
-      });
-      (safeArea as any).name = 'safeArea';
-    } else {
-      // Прямоугольная безопасная область
-      safeArea = new Rect({
-        left: margin,
-        top: margin,
-        width: displayWidth - margin * 2,
-        height: displayHeight - margin * 2,
-        fill: 'transparent',
-        stroke: '#999999',
-        strokeWidth: 1,
-        strokeDashArray: [4, 4],
-        selectable: false,
-        evented: false,
-      });
-      (safeArea as any).name = 'safeArea';
-    }
-
-    canvas.add(safeArea);
-    safeAreaRef.current = safeArea;
-    canvas.renderAll();
-  }, [selectedFormat, editorZoom, sheetSettings.safetyMargin_mm]);
 
   // Обновление размера канваса при изменении формата или зума
   const updateCanvasSize = useCallback(() => {
@@ -99,8 +46,7 @@ export function LabelCanvas() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     canvas.renderAll();
-    updateSafeArea();
-  }, [selectedFormat, editorZoom, sheetSettings.safetyMargin_mm, updateSafeArea]);
+  }, [selectedFormat, editorZoom]);
 
   // Инициализация канваса
   useEffect(() => {
@@ -163,12 +109,10 @@ export function LabelCanvas() {
       if (labelDesign.canvasJSON && Object.keys(labelDesign.canvasJSON).length > 0) {
         await canvas.loadFromJSON(labelDesign.canvasJSON as any);
         canvas.renderAll();
-        updateSafeArea();
       }
     };
-    
-    loadSavedState();
 
+    loadSavedState();
     return () => {
       canvas.dispose();
     };
@@ -223,59 +167,9 @@ export function LabelCanvas() {
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Панель управления зумом */}
-      <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
-        <span className="text-sm font-semibold text-gray-900">Редактор этикетки</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleZoomOut}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-            title="Уменьшить"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
-          <input
-            type="range"
-            min="50"
-            max="1000"
-            value={editorZoom * 100}
-            onChange={(e) => setEditorZoom(Number(e.target.value) / 100)}
-            className="w-32"
-          />
-          <button
-            onClick={handleZoomIn}
-            className="w-9 h-9 flex items-center justify-center rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-            title="Увеличить"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-          <button
-            onClick={handleFitToScreen}
-            className="px-3 h-9 bg-white border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-            title="Вписать"
-          >
-            Вписать
-          </button>
-          <span className="text-sm text-gray-600 font-medium w-14 text-right">
-            {Math.round(editorZoom * 100)}%
-          </span>
-        </div>
-      </div>
-
-      {/* Область канваса */}
-      <div className="flex-1 flex items-center justify-center overflow-auto p-8 bg-gray-100">
-        <div className="relative">
-          <canvas
-            ref={canvasRef}
-            className="border border-gray-300 shadow-xl rounded-lg"
-          />
-        </div>
-      </div>
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0"
+    />
   );
 }
