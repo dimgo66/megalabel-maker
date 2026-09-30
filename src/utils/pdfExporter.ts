@@ -252,7 +252,7 @@ export function composeSheetCanvas(
           const barX = bcX_px + (norm.leftPadMod + bar.xMod) * modulePx;
           const barY = bcY_px;
           const barW = bar.wMod * modulePx;
-          const barH = norm.barHMod * modulePx;
+          const barH = bar.hMod * modulePx;  // используем индивидуальную высоту штриха
 
           if (barW < 0.5 || barH < 0.5) continue;
 

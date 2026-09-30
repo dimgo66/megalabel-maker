@@ -32,7 +32,7 @@ export function buildBarcodeGroup(
       left: (norm.leftPadMod + b.xMod) * px,
       top: 0,
       width: b.wMod * px,  // ВАЖНО: без leftPadMod
-      height: norm.barHMod * px,
+      height: b.hMod * px,  // используем индивидуальную высоту штриха
       fill: '#000000',
       originX: 'left',
       originY: 'top',

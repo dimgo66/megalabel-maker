@@ -21,7 +21,7 @@ export function drawBarcodeVectorPDF(
     const barX = x_mm + (norm.leftPadMod + bar.xMod) * moduleMm;
     const barY = y_mm;
     const barW = bar.wMod * moduleMm;
-    const barH = norm.barHMod * moduleMm;
+    const barH = bar.hMod * moduleMm;  // используем индивидуальную высоту штриха
 
     if (barW < 0.01 || barH < 0.01) continue;
 

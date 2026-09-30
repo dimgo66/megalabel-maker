@@ -90,10 +90,35 @@ function generateEan13Bits(code: string): string {
 }
 
 /**
- * Преобразует битовую строку в массив штрихов в модулях
+ * Константы вертикальной геометрии EAN-13
  */
-function bitsToBarsModules(bits: string): Array<{ xMod: number; wMod: number }> {
-  const bars: Array<{ xMod: number; wMod: number }> = [];
+const DATA_BAR_H_MOD = 44;    // высота штрихов данных
+const GUARD_BAR_H_MOD = 53;   // высота защитных штрихов (длиннее, входят в зону цифр)
+
+/**
+ * Зоны защитных штрихов (модули символа 0..95)
+ */
+const GUARD_ZONES = [
+  [0, 3],     // start guard
+  [45, 50],   // center guard
+  [92, 95],   // end guard
+];
+
+/**
+ * Проверяет, находится ли штрих полностью в зоне защитного штриха
+ */
+function isGuardBar(xMod: number, wMod: number): boolean {
+  const endMod = xMod + wMod;
+  return GUARD_ZONES.some(([zoneStart, zoneEnd]) => {
+    return xMod >= zoneStart && endMod <= zoneEnd;
+  });
+}
+
+/**
+ * Преобразует битовую строку в массив штрихов в модулях с высотой
+ */
+function bitsToBarsModules(bits: string): Array<{ xMod: number; wMod: number; hMod: number }> {
+  const bars: Array<{ xMod: number; wMod: number; hMod: number }> = [];
   let i = 0;
 
   while (i < bits.length) {
@@ -103,7 +128,8 @@ function bitsToBarsModules(bits: string): Array<{ xMod: number; wMod: number }> 
         i++;
       }
       const length = i - start;
-      bars.push({ xMod: start, wMod: length });
+      const hMod = isGuardBar(start, length) ? GUARD_BAR_H_MOD : DATA_BAR_H_MOD;
+      bars.push({ xMod: start, wMod: length, hMod });
     } else {
       i++;
     }
@@ -148,8 +174,7 @@ export function buildEan13Norm(code: string): BarcodeNorm {
     leftPadMod: 7,        // запас под первую цифру слева
     bars,
     digits,
-    barHMod: 50,          // высота штрихов в модулях
-    digitYMod: 57,        // базовая линия цифр в модулях
+    digitYMod: 56,        // базовая линия цифр в модулях (плотнее к штрихам)
     fontMod: 9,           // кегль цифр в модулях
     pxPerModule: 4,       // пикселей на модуль при scale=1
   };
@@ -299,10 +324,17 @@ export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
   const symW = bbox.maxX - bbox.minX;
   const symH = bbox.maxY - bbox.minY;
 
+  // Константы (приблизительные, на основе анализа SVG)
+  const barHMod = symH * 0.7; // высота штрихов
+  const digitYMod = symH * 0.85; // позиция цифр
+  const fontMod = symH * 0.15; // размер шрифта
+
   // Конвертируем в модули (для ITF-14 модуль = 1 px)
+  // Все штрихи ITF-14 имеют одинаковую высоту
   const barsModules = bars.map(r => ({
     xMod: r.x - bbox.minX,
     wMod: r.width,
+    hMod: barHMod,
   }));
 
   // Позиции цифр: равномерно распределены
@@ -314,18 +346,12 @@ export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
     });
   }
 
-  // Константы (приблизительные, на основе анализа SVG)
-  const barHMod = symH * 0.7; // высота штрихов
-  const digitYMod = symH * 0.85; // позиция цифр
-  const fontMod = symH * 0.15; // размер шрифта
-
   return {
     format: 'itf14',
     modulesTotal: symW,
     leftPadMod: 0,
     bars: barsModules,
     digits,
-    barHMod,
     digitYMod,
     fontMod,
     pxPerModule: 1, // для ITF-14 модуль = 1 px

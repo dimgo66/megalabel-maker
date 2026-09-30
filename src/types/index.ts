@@ -48,10 +48,9 @@ export interface BarcodeNorm {
   format: 'ean13' | 'itf14';
   modulesTotal: number;     // EAN-13: 95. ITF-14: ширина символа в px из парсера
   leftPadMod: number;       // запас слева под первую цифру: EAN-13: 7, ITF-14: 0
-  bars: Array<{ xMod: number; wMod: number }>;      // x и ширина В МОДУЛЯХ от начала символа
+  bars: Array<{ xMod: number; wMod: number; hMod: number }>;      // x, ширина и высота В МОДУЛЯХ
   digits: Array<{ char: string; xMod: number }>;    // центры цифр В МОДУЛЯХ (первая может быть < 0)
-  barHMod: number;          // высота штрихов в модулях: EAN-13: 50
-  digitYMod: number;        // базовая линия цифр в модулях: EAN-13: 57
+  digitYMod: number;        // базовая линия цифр в модулях: EAN-13: 56
   fontMod: number;          // кегль цифр в модулях: EAN-13: 9
   pxPerModule: number;      // 4 (константа масштаба группы при scale=1)
 }
