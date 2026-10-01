@@ -83,6 +83,15 @@ const SYSTEM_FONTS: FontConfig[] = [
     cyrillic: true,
     loaded: true,
   },
+  {
+    id: 'roboto',
+    name: 'Roboto',
+    source: 'system',
+    weights: [400, 500, 700],
+    styles: ['normal', 'italic'],
+    cyrillic: true,
+    loaded: true,
+  },
 ];
 
 // Google Fonts с кириллицей
@@ -96,16 +105,6 @@ const GOOGLE_FONTS: FontConfig[] = [
     cyrillic: true,
     loaded: false,
     googleUrl: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter:ital,wght@1,400;1,500;1,600;1,700&display=swap',
-  },
-  {
-    id: 'roboto',
-    name: 'Roboto',
-    source: 'google',
-    weights: [400, 500, 700],
-    styles: ['normal', 'italic'],
-    cyrillic: true,
-    loaded: false,
-    googleUrl: 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto:ital,wght@1,400;1,500;1,700&display=swap',
   },
   {
     id: 'open-sans',

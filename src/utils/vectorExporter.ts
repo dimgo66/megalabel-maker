@@ -8,6 +8,7 @@ import { useProjectStore } from '../store/useProjectStore';
 import { loadLocalFontsFromDB } from './fontLoader';
 import { MM_PER_PX, PT_PER_MM, isEditorOnly, withHidden } from './canvasHelpers';
 import { ensureCanvasFonts } from './sheetRenderer';
+import { EMBEDDED_FONTS, FALLBACK_FAMILY, FontStyleKey } from '../config/embeddedFonts';
 
 interface Placeholder {
   srcPdfId: string;
@@ -28,13 +29,6 @@ export interface ExportConfig {
 
 /* ───────────── Шрифты для PDF (кириллица) ───────────── */
 
-const FALLBACK_FAMILY = 'Roboto';
-const FALLBACK_FILES: Array<[string, 'normal' | 'bold' | 'italic' | 'bolditalic']> = [
-  ['Roboto-Regular.ttf', 'normal'],
-  ['Roboto-Bold.ttf', 'bold'],
-  ['Roboto-Italic.ttf', 'italic'],
-  ['Roboto-BoldItalic.ttf', 'bolditalic'],
-];
 const fontCache = new Map<string, string>(); // url → base64
 
 function toBase64(buf: ArrayBuffer): string {
@@ -64,23 +58,28 @@ async function fetchFallbackFont(file: string): Promise<string> {
 }
 
 /**
- * Регистрирует в jsPDF шрифты с кириллицей: Roboto (встроен в проект) и
- * локальные TTF-шрифты пользователя. Возвращает множество зарегистрированных имён.
+ * Регистрирует в jsPDF все встроенные в приложение шрифты (Arial, Times New
+ * Roman, Roboto и т.д.) и локальные TTF-шрифты пользователя.
+ * Возвращает множество зарегистрированных имён семейств.
  */
 async function registerPdfFonts(doc: jsPDF): Promise<Set<string>> {
   const registered = new Set<string>();
 
-  for (const [file, style] of FALLBACK_FILES) {
-    doc.addFileToVFS(file, await fetchFallbackFont(file));
-    doc.addFont(file, FALLBACK_FAMILY, style);
+  for (const font of EMBEDDED_FONTS) {
+    for (const style of Object.keys(font.files) as FontStyleKey[]) {
+      const file = font.files[style]!;
+      const vfsName = `embedded-${font.family.replace(/\s+/g, '')}-${style}.ttf`;
+      doc.addFileToVFS(vfsName, await fetchFallbackFont(file));
+      doc.addFont(vfsName, font.family, style);
+    }
+    registered.add(font.family);
   }
-  registered.add(FALLBACK_FAMILY);
 
   try {
     const locals = await loadLocalFontsFromDB();
     for (const f of locals) {
       if (!f.data || !isTrueType(f.data)) continue; // OTF/CFF jsPDF не умеет
-      const style =
+      const style: FontStyleKey =
         f.weight >= 600 ? (f.style === 'italic' ? 'bolditalic' : 'bold') : f.style === 'italic' ? 'italic' : 'normal';
       const file = `local-${f.name}-${f.weight}-${f.style}.ttf`;
       doc.addFileToVFS(file, toBase64(f.data));

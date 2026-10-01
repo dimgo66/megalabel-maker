@@ -13,6 +13,7 @@ import { serializeProject, downloadProjectFile, readProjectFile } from './utils/
 import { LABEL_FORMATS, getFormatById } from './config/labelFormats';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
+import { injectEmbeddedFontFaces, ensureEmbeddedFontsLoaded } from './utils/embeddedFontLoader';
 import { FONT_CONFIGS } from './config/fonts';
 import './styles/print.css';
 
@@ -31,6 +32,11 @@ function App() {
   // Восстановление шрифтов при загрузке страницы
   useEffect(() => {
     const restoreFonts = async () => {
+      // Встроенные шрифты (Arial, Times New Roman, Roboto и др.) — первыми,
+      // чтобы canvas и PDF использовали одни и те же файлы
+      injectEmbeddedFontFaces(import.meta.env.BASE_URL);
+      await ensureEmbeddedFontsLoaded();
+
       // Восстановить Google Fonts
       const savedGoogleFonts = getLoadedGoogleFontsFromStorage();
       if (savedGoogleFonts.length > 0) {
