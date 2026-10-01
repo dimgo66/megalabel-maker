@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { LABEL_FORMATS } from '../config/labelFormats';
+import { getFormatById } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
@@ -48,7 +48,7 @@ export function Toolbar({ onPreview, onPrint, onExport }: ToolbarProps) {
 
     try {
       const project = await readProjectFile(file);
-      const format = LABEL_FORMATS.find(f => f.id === project.labelDesign.formatId);
+      const format = getFormatById(project.labelDesign.formatId);
       if (format) {
         loadProject(project.labelDesign, project.sheetSettings);
       } else {

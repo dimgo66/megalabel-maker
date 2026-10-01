@@ -3,8 +3,11 @@ import { jsPDF } from 'jspdf';
 import { svg2pdf } from 'svg2pdf.js';
 import * as fabric from 'fabric';
 import { LabelFormat } from '../types';
-import { calculateLayout } from './layoutCalculator';
+import { calculateLayout, mmToPx, gridPitch } from './layoutCalculator';
 import { useProjectStore } from '../store/useProjectStore';
+import { loadLocalFontsFromDB } from './fontLoader';
+import { MM_PER_PX, PT_PER_MM, isEditorOnly, withHidden } from './canvasHelpers';
+import { ensureCanvasFonts } from './sheetRenderer';
 
 interface Placeholder {
   srcPdfId: string;
@@ -16,11 +19,6 @@ interface Placeholder {
   angle: number;
 }
 
-interface ScenePdfResult {
-  bytes: Uint8Array;
-  placeholders: Placeholder[];
-}
-
 export interface ExportConfig {
   format: LabelFormat;
   editorCanvas: fabric.Canvas;
@@ -28,236 +26,231 @@ export interface ExportConfig {
   orientation: 'portrait' | 'landscape';
 }
 
-/**
- * Нормализация шрифтов в SVG для совместимости с svg2pdf
- */
-function normalizeSvgFonts(svgString: string): string {
-  return svgString.replace(/font-family="[^"]*"/g, 'font-family="helvetica"');
+/* ───────────── Шрифты для PDF (кириллица) ───────────── */
+
+const FALLBACK_FAMILY = 'Roboto';
+const FALLBACK_FILES: Array<[string, 'normal' | 'bold' | 'italic' | 'bolditalic']> = [
+  ['Roboto-Regular.ttf', 'normal'],
+  ['Roboto-Bold.ttf', 'bold'],
+  ['Roboto-Italic.ttf', 'italic'],
+  ['Roboto-BoldItalic.ttf', 'bolditalic'],
+];
+const fontCache = new Map<string, string>(); // url → base64
+
+function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+function isTrueType(buf: ArrayBuffer): boolean {
+  const v = new DataView(buf);
+  const tag = v.getUint32(0);
+  return tag === 0x00010000 || tag === 0x74727565; // 'true'
+}
+
+async function fetchFallbackFont(file: string): Promise<string> {
+  const url = `${import.meta.env.BASE_URL}fonts/${file}`;
+  const cached = fontCache.get(url);
+  if (cached) return cached;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Не удалось загрузить шрифт ${file} (${res.status})`);
+  const b64 = toBase64(await res.arrayBuffer());
+  fontCache.set(url, b64);
+  return b64;
 }
 
 /**
- * Построение временного PDF сцены этикетки
+ * Регистрирует в jsPDF шрифты с кириллицей: Roboto (встроен в проект) и
+ * локальные TTF-шрифты пользователя. Возвращает множество зарегистрированных имён.
  */
-async function buildScenePdf(cfg: ExportConfig): Promise<ScenePdfResult> {
+async function registerPdfFonts(doc: jsPDF): Promise<Set<string>> {
+  const registered = new Set<string>();
+
+  for (const [file, style] of FALLBACK_FILES) {
+    doc.addFileToVFS(file, await fetchFallbackFont(file));
+    doc.addFont(file, FALLBACK_FAMILY, style);
+  }
+  registered.add(FALLBACK_FAMILY);
+
+  try {
+    const locals = await loadLocalFontsFromDB();
+    for (const f of locals) {
+      if (!f.data || !isTrueType(f.data)) continue; // OTF/CFF jsPDF не умеет
+      const style =
+        f.weight >= 600 ? (f.style === 'italic' ? 'bolditalic' : 'bold') : f.style === 'italic' ? 'italic' : 'normal';
+      const file = `local-${f.name}-${f.weight}-${f.style}.ttf`;
+      doc.addFileToVFS(file, toBase64(f.data));
+      doc.addFont(file, f.name, style);
+      registered.add(f.name);
+    }
+  } catch (e) {
+    console.warn('Локальные шрифты недоступны для PDF:', e);
+  }
+  return registered;
+}
+
+/** Подставляет в SVG только зарегистрированные в PDF шрифты */
+function mapSvgFonts(svg: string, registered: Set<string>): string {
+  return svg.replace(/font-family="([^"]*)"/g, (_m, raw: string) => {
+    const first = raw
+      .split(',')[0]
+      .replace(/&quot;|&#39;|["']/g, '')
+      .trim();
+    return `font-family="${registered.has(first) ? first : FALLBACK_FAMILY}"`;
+  });
+}
+
+/* ───────────── Сцена этикетки → одностраничный PDF ───────────── */
+
+async function buildScenePdf(
+  cfg: ExportConfig
+): Promise<{ bytes: Uint8Array; placeholders: Placeholder[] }> {
   const { format, editorCanvas } = cfg;
   const placeholders: Placeholder[] = [];
-  
-  const mmPerPx = format.width_mm / editorCanvas.getWidth();
-  
-  // 1. Запоминаем и скрываем объекты с srcPdfId
-  const pdfObjects: fabric.FabricObject[] = [];
+  const baseW = mmToPx(format.width_mm);
+  const baseH = mmToPx(format.height_mm);
+
+  await ensureCanvasFonts(editorCanvas);
+
   editorCanvas.getObjects().forEach((obj: any) => {
-    if (obj.srcPdfId) {
-      pdfObjects.push(obj);
-      placeholders.push({
-        srcPdfId: obj.srcPdfId,
-        srcPdfPage: obj.srcPdfPage || 1,
-        x_mm: (obj.left || 0) * mmPerPx,
-        y_mm: (obj.top || 0) * mmPerPx,
-        w_mm: (obj.width || 0) * (obj.scaleX || 1) * mmPerPx,
-        h_mm: (obj.height || 0) * (obj.scaleY || 1) * mmPerPx,
-        angle: obj.angle || 0,
-      });
-      obj.set('visible', false);
-    }
+    if (!obj.srcPdfId || obj.visible === false) return;
+    placeholders.push({
+      srcPdfId: obj.srcPdfId,
+      srcPdfPage: obj.srcPdfPage || 1,
+      x_mm: (obj.left || 0) * MM_PER_PX,
+      y_mm: (obj.top || 0) * MM_PER_PX,
+      w_mm: (obj.width || 0) * (obj.scaleX || 1) * MM_PER_PX,
+      h_mm: (obj.height || 0) * (obj.scaleY || 1) * MM_PER_PX,
+      angle: obj.angle || 0,
+    });
   });
-  
-  editorCanvas.renderAll();
-  
-  // 2. Экспортируем сцену в SVG
-  const sceneSvg = editorCanvas.toSVG();
-  const normalizedSvg = normalizeSvgFonts(sceneSvg);
-  
-  // Preflight проверка
-  console.log('SVG length:', normalizedSvg.length);
-  if (!/<(rect|text|image|path)/.test(normalizedSvg)) {
-    throw new Error('canvas.toSVG() вернул пустую сцену');
-  }
-  
-  // 3. Создаём временный jsPDF размером с ячейку
+
+  // Объекты-PDF рисуются отдельно (векторно), поэтому в сцене их скрываем
+  const sceneSvg = await withHidden(
+    editorCanvas,
+    (o) => !!o.srcPdfId || isEditorOnly(o),
+    () =>
+      editorCanvas.toSVG({
+        width: `${baseW}px`,
+        height: `${baseH}px`,
+        viewBox: { x: 0, y: 0, width: baseW, height: baseH },
+      })
+  );
+
   const tmp = new jsPDF({
     unit: 'mm',
     format: [format.width_mm, format.height_mm],
+    orientation: format.width_mm > format.height_mm ? 'landscape' : 'portrait',
+    compress: true,
   });
-  
-  // 4. ВАЖНО: Прикрепляем SVG к DOM для корректной работы svg2pdf
+  const registered = await registerPdfFonts(tmp);
+  const svgText = mapSvgFonts(sceneSvg, registered);
+
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-10000px;top:0;width:10px;height:10px;overflow:hidden';
   document.body.appendChild(host);
-  
+
   try {
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(normalizedSvg, 'image/svg+xml');
-    const svgEl = svgDoc.documentElement;
-    
-    // Прикрепляем к DOM
+    const svgEl = new DOMParser().parseFromString(svgText, 'image/svg+xml').documentElement;
+    if (svgEl.nodeName.toLowerCase() !== 'svg') throw new Error('Некорректный SVG сцены');
     host.appendChild(svgEl);
-    
-    // Для круглых этикеток создаём клип
+
     if (format.shape === 'circle') {
-      try {
-        const w = format.width_mm;
-        const h = format.height_mm;
-        tmp.circle(w / 2, h / 2, w / 2, 'S');
-        tmp.clip();
-      } catch (clipError) {
-        console.warn('Не удалось создать клип для круглой этикетки, продолжаем без него');
-      }
+      const d = Math.min(format.width_mm, format.height_mm);
+      tmp.circle(format.width_mm / 2, format.height_mm / 2, d / 2, null as any);
+      tmp.clip();
+      tmp.discardPath();
     }
-    
-    // 5. Конвертируем SVG в PDF через svg2pdf (ОБЯЗАТЕЛЬНО с await!)
-    await svg2pdf(svgEl, tmp, {
-      x: 0,
-      y: 0,
-      width: format.width_mm,
-      height: format.height_mm,
-    });
+
+    await svg2pdf(svgEl, tmp, { x: 0, y: 0, width: format.width_mm, height: format.height_mm });
   } finally {
-    // Всегда удаляем хост из DOM
     host.remove();
   }
-  
-  // 6. Восстанавливаем видимость объектов
-  pdfObjects.forEach((obj) => {
-    obj.set('visible', true);
-  });
-  editorCanvas.renderAll();
-  
-  // 7. Получаем байты временного PDF
+
   const bytes = new Uint8Array(tmp.output('arraybuffer'));
-  
-  // Preflight проверка размера
-  if (bytes.length < 800) {
-    throw new Error('Сцена пуста или слишком мала');
-  }
-  
+  if (bytes.length < 800) throw new Error('Сцена пуста или слишком мала');
   return { bytes, placeholders };
 }
 
-/**
- * Экспорт в векторный PDF с использованием pdf-lib
- */
+/* ───────────── Итоговый лист A4 (векторный) ───────────── */
+
 export async function exportToVectorPDF(cfg: ExportConfig): Promise<Uint8Array> {
   const { format, orientation } = cfg;
   const { pdfSources } = useProjectStore.getState();
-  
-  // 1. Строим сцену этикетки
+
   const { bytes: sceneBytes, placeholders } = await buildScenePdf(cfg);
-  
-  // 2. Создаём итоговый PDF документ
+
   const pdfDoc = await PDFDocument.create();
-  
-  // Размеры листа A4 (без хардкода!)
-  const pageWidth = orientation === 'portrait' ? 210 : 297;
-  const pageHeight = orientation === 'portrait' ? 297 : 210;
-  const page = pdfDoc.addPage([pageWidth, pageHeight]);
-  
-  // 3. Встраиваем сцену этикетки
+  const pageW = orientation === 'portrait' ? 210 : 297; // мм
+  const pageH = orientation === 'portrait' ? 297 : 210;
+  const page = pdfDoc.addPage([pageW * PT_PER_MM, pageH * PT_PER_MM]); // pdf-lib работает в pt
+
   const sceneEmb = (await pdfDoc.embedPdf(sceneBytes))[0];
-  
-  // Preflight проверка размеров
-  console.log('scene page:', sceneEmb.width, sceneEmb.height);
-  const expectedWidthPt = format.width_mm * 2.8346;
-  const expectedHeightPt = format.height_mm * 2.8346;
-  console.assert(
-    Math.abs(sceneEmb.width - expectedWidthPt) < 2,
-    `Ширина сцены ${sceneEmb.width} не соответствует ожидаемой ${expectedWidthPt}`
-  );
-  console.assert(
-    Math.abs(sceneEmb.height - expectedHeightPt) < 2,
-    `Высота сцены ${sceneEmb.height} не соответствует ожидаемой ${expectedHeightPt}`
-  );
-  
-  // 4. Кэшируем встраивания PDF источников
-  const embCache: Record<string, any> = {};
-  const uniquePdfIds = new Set(placeholders.map(ph => `${ph.srcPdfId}_${ph.srcPdfPage}`));
-  
-  for (const key of uniquePdfIds) {
-    const [srcPdfId, pageStr] = key.split('_');
-    const pageNum = parseInt(pageStr);
-    const sourceBytes = pdfSources[srcPdfId];
-    
-    if (sourceBytes) {
-      const emb = (await pdfDoc.embedPdf(sourceBytes, [pageNum - 1]))[0];
-      embCache[key] = emb;
-    }
+  const expW = format.width_mm * PT_PER_MM;
+  const expH = format.height_mm * PT_PER_MM;
+  if (Math.abs(sceneEmb.width - expW) > 2 || Math.abs(sceneEmb.height - expH) > 2) {
+    throw new Error(
+      `Размер сцены ${sceneEmb.width.toFixed(1)}×${sceneEmb.height.toFixed(1)} pt, ожидалось ${expW.toFixed(1)}×${expH.toFixed(1)}`
+    );
   }
-  
-  // 5. Рассчитываем раскладку и рисуем ячейки
-  const layout = calculateLayout(format);
-  
+
+  // Встраиваем исходные PDF-страницы (один раз на пару id+страница)
+  const embCache = new Map<string, Awaited<ReturnType<typeof pdfDoc.embedPdf>>[number]>();
+  for (const ph of placeholders) {
+    const key = `${ph.srcPdfId}|${ph.srcPdfPage}`;
+    if (embCache.has(key)) continue;
+    const src = pdfSources[ph.srcPdfId];
+    if (src) embCache.set(key, (await pdfDoc.embedPdf(src, [ph.srcPdfPage - 1]))[0]);
+  }
+
+  const layout = calculateLayout(format, orientation);
+  const { pitchX_mm, pitchY_mm } = gridPitch(format, layout);
+  let index = 0;
   for (let row = 0; row < layout.rows; row++) {
     for (let col = 0; col < layout.cols; col++) {
-      const cellIndex = row * layout.cols + col;
-      if (cellIndex >= format.count) break;
-      
-      // Позиция ячейки в мм (верхний левый угол)
-      const x = layout.marginLeft_mm + col * (layout.cellWidth_mm + layout.gapX_mm);
-      const y = layout.marginTop_mm + row * (layout.cellHeight_mm + layout.gapY_mm);
-      
-      // Preflight проверка первой ячейки
-      if (row === 0 && col === 0) {
-        const y_pdf = pageHeight - y - layout.cellHeight_mm;
-        console.assert(
-          x >= 0 && x + layout.cellWidth_mm <= pageWidth,
-          `X координата ячейки выходит за пределы страницы: ${x} + ${layout.cellWidth_mm} > ${pageWidth}`
-        );
-        console.assert(
-          y_pdf >= 0 && y_pdf + layout.cellHeight_mm <= pageHeight,
-          `Y координата ячейки выходит за пределы страницы: ${y_pdf} + ${layout.cellHeight_mm} > ${pageHeight}`
-        );
-      }
-      
-      // Рисуем сцену этикетки в ячейке
-      // pdf-lib использует координаты от нижнего левого угла
+      if (index++ >= format.count) break;
+
+      // позиция ячейки в мм от края листа: поле + шаг × индекс
+      const x = layout.marginLeft_mm + col * pitchX_mm;
+      const y = layout.marginTop_mm + row * pitchY_mm;
+
       page.drawPage(sceneEmb, {
-        x,
-        y: pageHeight - y - layout.cellHeight_mm,
-        width: layout.cellWidth_mm,
-        height: layout.cellHeight_mm,
+        x: x * PT_PER_MM,
+        y: (pageH - y - layout.cellHeight_mm) * PT_PER_MM,
+        width: layout.cellWidth_mm * PT_PER_MM,
+        height: layout.cellHeight_mm * PT_PER_MM,
       });
-      
-      // Рисуем вставки PDF в запомненные позиции
+
       for (const ph of placeholders) {
-        const key = `${ph.srcPdfId}_${ph.srcPdfPage}`;
-        const emb = embCache[key];
-        
-        if (emb) {
-          page.drawPage(emb, {
-            x: x + ph.x_mm,
-            y: pageHeight - (y + ph.y_mm + ph.h_mm),
-            width: ph.w_mm,
-            height: ph.h_mm,
-            rotate: degrees(ph.angle),
-          });
-        }
+        const emb = embCache.get(`${ph.srcPdfId}|${ph.srcPdfPage}`);
+        if (!emb) continue;
+        // fabric вращает по часовой вокруг левого верхнего угла, pdf-lib — против часовой вокруг левого нижнего
+        const th = (ph.angle * Math.PI) / 180;
+        const blX = x + ph.x_mm - ph.h_mm * Math.sin(th);
+        const blY = y + ph.y_mm + ph.h_mm * Math.cos(th);
+        page.drawPage(emb, {
+          x: blX * PT_PER_MM,
+          y: (pageH - blY) * PT_PER_MM,
+          width: ph.w_mm * PT_PER_MM,
+          height: ph.h_mm * PT_PER_MM,
+          rotate: degrees(-ph.angle),
+        });
       }
     }
   }
-  
-  // 6. Сохраняем итоговый PDF
+
   return await pdfDoc.save();
 }
 
-/**
- * Проверка наличия всех PDF источников
- */
+/** Проверка наличия исходных PDF для вставок */
 export function checkPdfSources(canvas: fabric.Canvas): { missing: string[]; total: number } {
   const { pdfSources } = useProjectStore.getState();
-  const pdfIds = new Set<string>();
-  
-  canvas.getObjects().forEach((obj: any) => {
-    if (obj.srcPdfId) {
-      pdfIds.add(obj.srcPdfId);
-    }
-  });
-  
-  const missing: string[] = [];
-  pdfIds.forEach(id => {
-    if (!pdfSources[id]) {
-      missing.push(id);
-    }
-  });
-  
-  return { missing: Array.from(missing), total: pdfIds.size };
+  const ids = new Set<string>();
+  canvas.getObjects().forEach((o: any) => o.srcPdfId && ids.add(o.srcPdfId));
+  const missing = Array.from(ids).filter((id) => !pdfSources[id]);
+  return { missing, total: ids.size };
 }

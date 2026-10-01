@@ -1,0 +1,66 @@
+﻿==========================================================================================
+FILE: 73572-66-7-46.doc
+  nFib=193 table=1Table wd=6203 tbl=7000
+  Plcfsed fc=5304 lcb=20
+  PlcfbteChpx fc=5324 lcb=12
+  PlcfbtePapx fc=5336 lcb=52
+  Clx fc=0 lcb=0
+  fcClx raw@0x1A2 = 71 16 00 00 15 00 00 00
+  PAPX[1Table] error: index out of range
+  PAPX via plc from WordDocument: 0 paragraphs
+  ccpText=25
+==========================================================================================
+FILE: 73642-52-5-35.doc
+  nFib=193 table=1Table wd=7227 tbl=7129
+  Plcfsed fc=5447 lcb=20
+  PlcfbteChpx fc=5467 lcb=12
+  PlcfbtePapx fc=5479 lcb=68
+  Clx fc=0 lcb=0
+  fcClx raw@0x1A2 = 0c 17 00 00 15 00 00 00
+  PAPX[1Table] error: index out of range
+  PAPX via plc from WordDocument: 0 paragraphs
+  ccpText=41
+==========================================================================================
+FILE: 73581-d-60-12.doc
+  nFib=193 table=1Table wd=7227 tbl=6996
+  Plcfsed fc=5304 lcb=20
+  PlcfbteChpx fc=5324 lcb=12
+  PlcfbtePapx fc=5336 lcb=68
+  Clx fc=0 lcb=0
+  fcClx raw@0x1A2 = 79 16 00 00 15 00 00 00
+  PAPX[1Table] error: index out of range
+  PAPX via plc from WordDocument: 0 paragraphs
+  ccpText=43
+==========================================================================================
+FILE: 73649-38-16-9.doc
+  nFib=193 table=1Table wd=12859 tbl=7217
+  Plcfsed fc=5447 lcb=20
+  PlcfbteChpx fc=5467 lcb=20
+  PlcfbtePapx fc=5487 lcb=148
+  Clx fc=0 lcb=0
+  fcClx raw@0x1A2 = 64 17 00 00 15 00 00 00
+  PAPX[1Table] error: index out of range
+  PAPX via plc from WordDocument: 0 paragraphs
+  ccpText=103
+==========================================================================================
+FILE: 73571-99-34.doc
+  nFib=193 table=1Table wd=7227 tbl=7020
+  Plcfsed fc=5304 lcb=20
+  PlcfbteChpx fc=5324 lcb=12
+  PlcfbtePapx fc=5336 lcb=68
+  Clx fc=0 lcb=0
+  fcClx raw@0x1A2 = 85 16 00 00 15 00 00 00
+  PAPX[1Table] error: index out of range
+  PAPX via plc from WordDocument: 0 paragraphs
+  ccpText=25
+==========================================================================================
+FILE: 73622-105-57.doc
+  nFib=193 table=1Table wd=5691 tbl=6992
+  Plcfsed fc=5304 lcb=20
+  PlcfbteChpx fc=5324 lcb=12
+  PlcfbtePapx fc=5336 lcb=44
+  Clx fc=0 lcb=0
+  fcClx raw@0x1A2 = 69 16 00 00 15 00 00 00
+  PAPX[1Table] error: index out of range
+  PAPX via plc from WordDocument: 0 paragraphs
+  ccpText=16

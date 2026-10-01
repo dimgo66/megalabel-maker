@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { ImageCropEditor } from './ImageCropEditor';
+import { serializeCanvas } from '../utils/canvasHelpers';
 
 export function ImageCropPanel() {
   const { selectedObject, editorCanvas } = useProjectStore();
@@ -22,7 +23,7 @@ export function ImageCropPanel() {
     setIsCropping(false);
     
     // Сохраняем изменения в store
-    const json = editorCanvas.toJSON();
+    const json = serializeCanvas(editorCanvas);
     useProjectStore.getState().setCanvasJSON(json);
   };
 

@@ -1,9 +1,12 @@
 import { create } from 'zustand';
 import * as fabric from 'fabric';
 import { LabelFormat, LabelDesign, SheetSettings } from '../types';
-import { LABEL_FORMATS } from '../config/labelFormats';
+import { LABEL_FORMATS, getFormatById } from '../config/labelFormats';
 import { createEmptyDesign, createDefaultSettings } from '../utils/projectSerializer';
 import { FontConfig, LocalFontInfo, FONT_CONFIGS } from '../config/fonts';
+import { withoutHistory } from '../utils/canvasHelpers';
+
+const EMPTY_CANVAS = { version: '7', objects: [], background: '#FFFFFF' };
 
 interface ProjectState {
   // Format
@@ -53,8 +56,8 @@ interface ProjectState {
   setEditorCanvas: (canvas: fabric.Canvas | null) => void;
   
   // Undo/Redo actions
-  undo: () => void;
-  redo: () => void;
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
   canUndo: () => boolean;
   canRedo: () => boolean;
   
@@ -71,8 +74,8 @@ interface ProjectState {
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
-  // Initial format: 18 labels (66.7×46 мм)
-  selectedFormat: LABEL_FORMATS.find(f => f.count === 18) || LABEL_FORMATS[0],
+  // Initial format: 18 labels (66.7×46 мм) — активный шаблон из docs/шаблоны
+  selectedFormat: LABEL_FORMATS.find(f => f.id === '66.7x46_18') || LABEL_FORMATS[0],
   
   // Initial empty design
   labelDesign: createEmptyDesign(LABEL_FORMATS[0].id, 'Новый проект'),
@@ -125,9 +128,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const design = get().labelDesign;
     const { history, historyIndex } = get();
     
-    // Добавляем новое состояние в историю
+    // Одинаковое состояние подряд (событие canvas + явный вызов из модалки) в историю не пишем
+    const last = history[historyIndex];
+    const unchanged = last !== undefined && JSON.stringify(last) === JSON.stringify(json);
+
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(json);
+    if (!unchanged) newHistory.push(json);
     
     // Ограничиваем историю 50 состояниями
     const maxHistory = 50;
@@ -241,7 +247,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   
   loadProject: (design: LabelDesign, settings: SheetSettings) => {
-    const format = LABEL_FORMATS.find(f => f.id === design.formatId) || LABEL_FORMATS[0];
+    const format = getFormatById(design.formatId) || LABEL_FORMATS[0];
     set({
       selectedFormat: format,
       labelDesign: design,
@@ -259,55 +265,48 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ editorCanvas: canvas });
   },
   
-  // Undo/Redo methods
-  undo: () => {
+  // Undo/Redo: loadFromJSON асинхронный (Promise), события canvas на время загрузки в историю не пишутся
+  undo: async () => {
     const { history, historyIndex, editorCanvas } = get();
-    if (historyIndex <= 0 || !editorCanvas) return;
-    
+    if (historyIndex < 0 || !editorCanvas) return;
+
     const newIndex = historyIndex - 1;
-    const prevState = history[newIndex];
-    
-    editorCanvas.loadFromJSON(prevState as any, () => {
-      editorCanvas.renderAll();
-      set({ 
-        historyIndex: newIndex,
-        labelDesign: {
-          ...get().labelDesign,
-          canvasJSON: prevState,
-        },
-      });
+    const state = newIndex >= 0 ? history[newIndex] : EMPTY_CANVAS;
+    await withoutHistory(() => editorCanvas.loadFromJSON(state as any));
+    editorCanvas.discardActiveObject();
+    editorCanvas.requestRenderAll();
+    set({
+      historyIndex: newIndex,
+      selectedObject: null,
+      labelDesign: { ...get().labelDesign, canvasJSON: state },
+      isDirty: true,
     });
   },
-  
-  redo: () => {
+
+  redo: async () => {
     const { history, historyIndex, editorCanvas } = get();
     if (historyIndex >= history.length - 1 || !editorCanvas) return;
-    
+
     const newIndex = historyIndex + 1;
-    const nextState = history[newIndex];
-    
-    editorCanvas.loadFromJSON(nextState as any, () => {
-      editorCanvas.renderAll();
-      set({ 
-        historyIndex: newIndex,
-        labelDesign: {
-          ...get().labelDesign,
-          canvasJSON: nextState,
-        },
-      });
+    const state = history[newIndex];
+    await withoutHistory(() => editorCanvas.loadFromJSON(state as any));
+    editorCanvas.discardActiveObject();
+    editorCanvas.requestRenderAll();
+    set({
+      historyIndex: newIndex,
+      selectedObject: null,
+      labelDesign: { ...get().labelDesign, canvasJSON: state },
+      isDirty: true,
     });
   },
-  
-  canUndo: () => {
-    const { historyIndex } = get();
-    return historyIndex > 0;
-  },
-  
+
+  canUndo: () => get().historyIndex >= 0,
+
   canRedo: () => {
     const { history, historyIndex } = get();
     return historyIndex < history.length - 1;
   },
-  
+
   // PDF source methods
   addPdfSource: (id: string, data: ArrayBuffer) => {
     set((state) => ({

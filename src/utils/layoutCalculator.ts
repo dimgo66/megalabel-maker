@@ -4,12 +4,87 @@ import { LabelFormat, LayoutResult } from '../types';
 const SHEET_WIDTH_MM = 210;
 const SHEET_HEIGHT_MM = 297;
 
+/** Геометрия печатного листа из .doc-шаблона (все значения в мм). */
+export interface SheetGeometry {
+  /** левое поле первой ячейки от края листа */
+  marginLeft_mm: number;
+  /** верхнее поле первой ячейки от края листа */
+  marginTop_mm: number;
+  /** число колонок */
+  cols: number;
+  /** число рядов */
+  rows: number;
+  /** ширина ячейки (сама этикетка) */
+  cellWidth_mm: number;
+  /** высота ячейки (сама этикетка) */
+  cellHeight_mm: number;
+  /** горизонтальный шаг (лево ячейки → лево следующей) */
+  pitchX_mm: number;
+  /** вертикальный шаг (верх ячейки → верх следующей) */
+  pitchY_mm: number;
+  /** свободное место справа от сетки */
+  restRight_mm: number;
+  /** свободное место снизу от сетки */
+  restBottom_mm: number;
+}
+
+/**
+ * Геометрия из .doc-шаблона: поля страницы, шаг сетки и размер ячейки.
+ * Таблица в Word начинается в левом верхнем углу printable area
+ * (отступ ячейки −0.26/−1.25 мм — артефакт отступа таблицы, игнорируем).
+ */
+export function geometryFromMargins(
+  pageLeft_mm: number,
+  pageTop_mm: number,
+  cellWidth_mm: number,
+  cellHeight_mm: number,
+  cols: number,
+  rows: number,
+  pitchX_mm: number,
+  pitchY_mm: number
+): SheetGeometry {
+  const gridW = (cols - 1) * pitchX_mm + cellWidth_mm;
+  const gridH = (rows - 1) * pitchY_mm + cellHeight_mm;
+  return {
+    marginLeft_mm: pageLeft_mm,
+    marginTop_mm: pageTop_mm,
+    cols,
+    rows,
+    cellWidth_mm,
+    cellHeight_mm,
+    pitchX_mm,
+    pitchY_mm,
+    restRight_mm: SHEET_WIDTH_MM - pageLeft_mm - gridW,
+    restBottom_mm: SHEET_HEIGHT_MM - pageTop_mm - gridH,
+  };
+}
+
 /**
  * Calculates the optimal grid layout for a given label format on A4 sheet.
  * Centers the grid with equal margins and gaps.
+ * @param format - label format configuration
+ * @param orientation - page orientation ('portrait' or 'landscape'), defaults to 'portrait'
  */
-export function calculateLayout(format: LabelFormat): LayoutResult {
-  const { width_mm, height_mm, count, shape } = format;
+export function calculateLayout(format: LabelFormat, orientation: 'portrait' | 'landscape' = 'portrait'): LayoutResult {
+  const { width_mm, height_mm, count, shape, layout: preset } = format;
+
+  // Determine sheet dimensions based on orientation
+  const sheetWidth = orientation === 'landscape' ? SHEET_HEIGHT_MM : SHEET_WIDTH_MM;
+  const sheetHeight = orientation === 'landscape' ? SHEET_WIDTH_MM : SHEET_HEIGHT_MM;
+
+  // Фиксированная геометрия из шаблона .doc (приоритет), иначе авто-раскладка
+  if (preset) {
+    return {
+      cols: preset.cols,
+      rows: preset.rows,
+      marginTop_mm: preset.marginTop_mm,
+      marginLeft_mm: preset.marginLeft_mm,
+      gapX_mm: preset.pitchX_mm - preset.cellWidth_mm,
+      gapY_mm: preset.pitchY_mm - preset.cellHeight_mm,
+      cellWidth_mm: preset.cellWidth_mm,
+      cellHeight_mm: preset.cellHeight_mm,
+    };
+  }
 
   // For circular labels, cell is a square with side = diameter
   const cellWidth_mm = shape === 'circle' ? width_mm : width_mm;
@@ -30,15 +105,15 @@ export function calculateLayout(format: LabelFormat): LayoutResult {
     const totalWidth = cols * cellWidth_mm;
     const totalHeight = rows * cellHeight_mm;
 
-    if (totalWidth > SHEET_WIDTH_MM || totalHeight > SHEET_HEIGHT_MM) {
+    if (totalWidth > sheetWidth || totalHeight > sheetHeight) {
       continue;
     }
 
     // Score: prefer layouts that are closer to square and use space efficiently
     const usedWidth = cols * cellWidth_mm;
     const usedHeight = rows * cellHeight_mm;
-    const wastedWidth = SHEET_WIDTH_MM - usedWidth;
-    const wastedHeight = SHEET_HEIGHT_MM - usedHeight;
+    const wastedWidth = sheetWidth - usedWidth;
+    const wastedHeight = sheetHeight - usedHeight;
     const score = wastedWidth + wastedHeight;
 
     if (score < bestScore) {
@@ -52,8 +127,8 @@ export function calculateLayout(format: LabelFormat): LayoutResult {
   const totalUsedWidth = bestCols * cellWidth_mm;
   const totalUsedHeight = bestRows * cellHeight_mm;
 
-  const availableGapX = SHEET_WIDTH_MM - totalUsedWidth;
-  const availableGapY = SHEET_HEIGHT_MM - totalUsedHeight;
+  const availableGapX = sheetWidth - totalUsedWidth;
+  const availableGapY = sheetHeight - totalUsedHeight;
 
   // Distribute space: margins on edges + gaps between cells
   // margin + (cols-1)*gap + margin = availableGapX
@@ -99,6 +174,19 @@ export function calculateLayout(format: LabelFormat): LayoutResult {
  */
 export function mmToPx(mm: number, dpi: number = 96): number {
   return (mm / 25.4) * dpi;
+}
+
+/** Шаг сетки: pitch из шаблона .doc или cell+gap для авто-раскладки */
+export function gridPitch(
+  format: LabelFormat,
+  layout: LayoutResult
+): { pitchX_mm: number; pitchY_mm: number } {
+  const g = format.layout;
+  if (g) return { pitchX_mm: g.pitchX_mm, pitchY_mm: g.pitchY_mm };
+  return {
+    pitchX_mm: layout.cellWidth_mm + layout.gapX_mm,
+    pitchY_mm: layout.cellHeight_mm + layout.gapY_mm,
+  };
 }
 
 /**

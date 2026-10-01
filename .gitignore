@@ -1,6 +1,9 @@
-node_modules/
-.next/
-dist/
-build/
+node_modules
+dist
+.vercel
 *.log
-.vercel/
+
+# Большие архивы и бэкапы
+*.tar.gz
+*.zip
+*.7z

@@ -10,7 +10,7 @@ import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
 import { useAutosave } from './hooks/useAutosave';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
-import { LABEL_FORMATS } from './config/labelFormats';
+import { LABEL_FORMATS, getFormatById } from './config/labelFormats';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
 import { FONT_CONFIGS } from './config/fonts';
@@ -83,7 +83,7 @@ function App() {
       
       try {
         const project = await readProjectFile(file);
-        const format = LABEL_FORMATS.find(f => f.id === project.labelDesign.formatId);
+        const format = getFormatById(project.labelDesign.formatId);
         if (format) {
           loadProject(project.labelDesign, project.sheetSettings);
         } else {

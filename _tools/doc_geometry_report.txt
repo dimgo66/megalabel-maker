@@ -1,0 +1,1378 @@
+============================================================================================================
+WORD 97-2003 (.doc)  PAGE SETUP + TABLE GRID GEOMETRY REPORT
+============================================================================================================
+Units : 1 inch = 1440 twips = 25.4 mm   ->   1 mm = 56.692913 twips
+All millimetre values are rounded to 0.01 mm.
+Method : direct OLE/WordDocument + table stream parsing (FIB, PlcfSed/SEPX,
+         Clx, PlcfBtePapx/PAPX FKP, sprmTDefTable). No Word/LibreOffice used.
+
+============================================================================================================
+PART 1 - QUICK SUMMARY (one block per file)
+============================================================================================================
+------------------------------------------------------------------------------------------------------------
+LABEL: 73581-d-60-12.doc
+  page size        : 210.01 x 297.00 mm   (11906 x 16838 tw)
+  margins L/R/T/B  : 16.70 / 16.70 / 26.71 / 0.00 mm   (947 / 947 / 1514 / 0 tw)
+  printable area   : 176.60 x 270.30 mm   (10012 x 15324 tw)
+  \x07 marks       : 42      \x0d marks: 1      ccpText: 43
+  columns          : 5
+  boundaries (from left edge of paper, mm): 16.44, 58.95, 82.96, 125.47, 149.47, 191.98
+  cell widths (mm) : 42.51, 24.01, 42.51, 24.01, 42.51
+  pitch_x          : 35.11 mm  (1990 tw)
+  columns per page : 5.03
+  rows             : 7
+  pitch_y (row h)  : 24.01 / 42.51 mm  (1361 / 2410 tw)
+  rows per page    : 11.26
+  labels per sheet : 35 (5 cols x 7 rows)
+------------------------------------------------------------------------------------------------------------
+LABEL: 73649-38-16-9.doc
+  page size        : 209.99 x 297.04 mm   (11905 x 16840 tw)
+  margins L/R/T/B  : 10.00 / 10.00 / 4.85 / 0.00 mm   (567 / 567 / 275 / 0 tw)
+  printable area   : 189.99 x 292.19 mm   (10771 x 16565 tw)
+  \x07 marks       : 102      \x0d marks: 1      ccpText: 103
+  columns          : 5
+  boundaries (from left edge of paper, mm): 9.74, 47.75, 85.76, 123.77, 161.78, 199.80
+  cell widths (mm) : 38.01, 38.01, 38.01, 38.01, 38.01
+  pitch_x          : 38.01 mm  (2155 tw)
+  columns per page : 5.00
+  rows             : 17
+  pitch_y (row h)  : 16.90 mm  (958 tw)
+  rows per page    : 17.29
+  labels per sheet : 85 (5 cols x 17 rows)
+------------------------------------------------------------------------------------------------------------
+LABEL: 73571-99-34.doc
+  page size        : 210.01 x 297.00 mm   (11906 x 16838 tw)
+  margins L/R/T/B  : 4.74 / 4.74 / 12.51 / 0.00 mm   (269 / 269 / 709 / 0 tw)
+  printable area   : 200.52 x 284.50 mm   (11368 x 16129 tw)
+  \x07 marks       : 24      \x0d marks: 1      ccpText: 25
+  columns          : 2
+  boundaries (from left edge of paper, mm): 3.49, 105.00, 206.52
+  cell widths (mm) : 101.51, 101.51
+  pitch_x          : 101.51 mm  (5755 tw)
+  columns per page : 1.98
+  rows             : 8
+  pitch_y (row h)  : 34.01 mm  (1928 tw)
+  rows per page    : 8.37
+  labels per sheet : 16 (2 cols x 8 rows)
+------------------------------------------------------------------------------------------------------------
+LABEL: 73622-105-57.doc
+  page size        : 210.01 x 297.00 mm   (11906 x 16838 tw)
+  margins L/R/T/B  : 0.00 / 0.00 / 6.00 / 0.00 mm   (0 / 0 / 340 / 0 tw)
+  printable area   : 210.01 x 291.01 mm   (11906 x 16498 tw)
+  \x07 marks       : 15      \x0d marks: 1      ccpText: 16
+  columns          : 2
+  boundaries (from left edge of paper, mm): -0.26, 104.74, 209.74
+  cell widths (mm) : 105.00, 105.00
+  pitch_x          : 105.00 mm  (5953 tw)
+  columns per page : 2.00
+  rows             : 5
+  pitch_y (row h)  : 57.01 mm  (3232 tw)
+  rows per page    : 5.10
+  labels per sheet : 10 (2 cols x 5 rows)
+------------------------------------------------------------------------------------------------------------
+LABEL: 73572-66-7-46.doc
+  page size        : 210.01 x 297.00 mm   (11906 x 16838 tw)
+  margins L/R/T/B  : 2.95 / 2.95 / 10.50 / 0.00 mm   (167 / 167 / 595 / 0 tw)
+  printable area   : 204.12 x 286.51 mm   (11572 x 16243 tw)
+  \x07 marks       : 24      \x0d marks: 1      ccpText: 25
+  columns          : 3
+  boundaries (from left edge of paper, mm): 1.94, 70.64, 139.35, 208.05
+  cell widths (mm) : 68.70, 68.70, 68.70
+  pitch_x          : 68.70 mm  (3895 tw)
+  columns per page : 2.97
+  rows             : 6
+  pitch_y (row h)  : 46.00 mm  (2608 tw)
+  rows per page    : 6.23
+  labels per sheet : 18 (3 cols x 6 rows)
+------------------------------------------------------------------------------------------------------------
+LABEL: 73642-52-5-35.doc
+  page size        : 209.99 x 296.99 mm   (11905 x 16837 tw)
+  margins L/R/T/B  : 0.00 / 0.00 / 8.50 / 0.00 mm   (0 / 0 / 482 / 0 tw)
+  printable area   : 209.99 x 288.48 mm   (11905 x 16355 tw)
+  \x07 marks       : 40      \x0d marks: 1      ccpText: 41
+  columns          : 4
+  boundaries (from left edge of paper, mm): -0.26, 52.25, 104.76, 157.27, 209.78
+  cell widths (mm) : 52.51, 52.51, 52.51, 52.51
+  pitch_x          : 52.51 mm  (2977 tw)
+  columns per page : 4.00
+  rows             : 8
+  pitch_y (row h)  : 35.01 mm  (1985 tw)
+  rows per page    : 8.24
+  labels per sheet : 32 (4 cols x 8 rows)
+
+============================================================================================================
+PART 2 - FULL DETAIL (raw structures, every sprm, validation)
+============================================================================================================
+============================================================================================================
+FILE: 73581-d-60-12.doc
+  path            : C:\Users\User\.dsh\attachments\v1\files\4f\4f1e5711bf6b2c97fc86275726f9a68e21c88d1acc52229804b4b19e6301df6e\73581-d-60-12.doc
+  OLE streams     : CompObj, DocumentSummaryInformation, SummaryInformation, 1Table, Data, WordDocument
+  WordDocument    : 7227 bytes   Table stream: 1Table (6996 bytes)
+  FIB             : wIdent=0xA5EC nFib=193 flags=0x12F0 fWhichTblStm=1
+                    csw=14 cslw=22 cbRgFcLcb=183 ccpText=43 fcMin=2048 fcMac=2091
+  fibRgFcLcb97 at 0x9A (cbRgFcLcb=183 -> 22 pairs), ccpText=43
+  fibRgFcLcb97[ 6] fcPlcfsed      fc=5304   lcb=20       (raw offset base+0x30)
+  fibRgFcLcb97[12] fcPlcfbteChpx  fc=5324   lcb=12       (raw offset base+0x60)
+  fibRgFcLcb97[13] fcPlcfbtePapx  fc=5336   lcb=68       (raw offset base+0x68)
+  fibRgFcLcb97[33] fcClx          fc=5753   lcb=21       (raw offset base+0x108)
+  fixed fcClx@0x01A2=5753 lcbClx@0x01A6=21 (cross-check)
+
+  --- SECTION PROPERTIES (SEPX / PlcfSed) ---
+  PlcfSed (pair 6, table stream): fc=5304 lcb=20 sections=1 
+  section 0: text cp 0..43  fn=62 fcSepx=7168 cb=57  fnMpr=0 fcMpr=0xFFFFFFFF
+    SEPX raw bytes (57): 09300007500400085004003a70d907f4001fb0822e20b0c64121b0b30322b0b3032390ea052490000025b0000017b0d00218b0d0020c90d002
+    decoded sprms (14) [sprm parse consumed all bytes] :
+      0x3009 spra=1 len=1   op=00           val=0        
+      0x5007 spra=2 len=2   op=0400         val=4        
+      0x5008 spra=2 len=2   op=0400         val=4        
+      0x703A spra=3 len=4   op=d907f400     val=2009     
+      0xB01F spra=5 len=2   op=822e         val=11906    sprmSXaPage        (page width)   -> 210.01 mm
+      0xB020 spra=5 len=2   op=c641         val=16838    sprmSYaPage        (page height)   -> 297.00 mm
+      0xB021 spra=5 len=2   op=b303         val=947      sprmSDxaLeft       (left margin)   -> 16.70 mm
+      0xB022 spra=5 len=2   op=b303         val=947      sprmSDxaRight      (right margin)   -> 16.70 mm
+      0x9023 spra=4 len=2   op=ea05         val=1514     sprmSDyaTop (old 8x)   -> 26.71 mm
+      0x9024 spra=4 len=2   op=0000         val=0        sprmSDyaBottom (old 8x)   -> 0.00 mm
+      0xB025 spra=5 len=2   op=0000         val=0        sprmS* 0xB025
+      0xB017 spra=5 len=2   op=d002         val=720      sprmSDyaHdrTop     (header distance from top)   -> 12.70 mm
+      0xB018 spra=5 len=2   op=d002         val=720      sprmSDyaHdrBottom  (footer distance from bottom)   -> 12.70 mm
+      0x900C spra=4 len=2   op=d002         val=720      sprmS* 0x900C
+
+  DECODED PAGE SETUP (used values):
+    page size      : W=11906 tw = 210.01 mm
+                     H=16838 tw = 297.00 mm
+    margins        : L=947 tw = 16.70 mm
+                     R=947 tw = 16.70 mm
+                     T=1514 tw = 26.71 mm
+                     B=0 tw = 0.00 mm
+    header/footer  : HdrTop=720 tw = 12.70 mm  HdrBottom=720 tw = 12.70 mm
+    printable area : W=10012 tw = 176.60 mm
+                     H=15324 tw = 270.30 mm
+
+  --- TEXT / PIECE TABLE (Clx) ---
+  Clx: fcClx=5753 lcbClx=21  pieces=1  Prc count=0
+    piece 0: cp 0..43  fc=0x001000  compressed (8-bit cp1251)  cch=43
+  main text length (ccpText)      : 43
+  extracted char count            : 43
+  \x07 (cell / row-end mark) count : 42
+  \x0d (paragraph mark) count      : 1
+  text repr                       : '\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\r'
+  non-mark characters             : 0
+
+  --- PAPX (PlcfBtePapx) ---
+  PlcfBtePapx (pair 13, table stream): fc=5336 lcb=68 n=8
+  PnFkpPapx page numbers: [6, 7, 8, 9, 10, 11, 12, 13]
+  paragraphs found: 43
+  paragraphs whose PAPX carries a sprmTDefTable (0xD608): 7
+    fc=0x805 istd=0 rowheight(0x9407)=-2410 tw (42.51 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80B istd=0 rowheight(0x9407)=-1361 tw (24.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x811 istd=0 rowheight(0x9407)=-2410 tw (42.51 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x817 istd=0 rowheight(0x9407)=-1361 tw (24.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x81D istd=0 rowheight(0x9407)=-2410 tw (42.51 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x823 istd=0 rowheight(0x9407)=-1361 tw (24.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x829 istd=0 rowheight(0x9407)=-2410 tw (42.51 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+
+  --- TABLE GRID (sprmTDefTable 0xD608) ---
+  operand length = 114 bytes ; expected 22*cItcMac+4 = 114 ; length matches: True
+  operand[0] = 0x00 (reserved/zero byte)   operand[1] = cItcMac = 5
+  raw operand: 0005f1ff5b09ac0e1618671dd12600066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000
+  cell boundaries rgdxaCenter (deltaX from left text margin):
+    b[0] = -15 tw = -0.26 mm
+    b[1] = 2395 tw = 42.25 mm
+    b[2] = 3756 tw = 66.25 mm
+    b[3] = 6166 tw = 108.76 mm
+    b[4] = 7527 tw = 132.77 mm
+    b[5] = 9937 tw = 175.28 mm
+  cell boundaries (mm from LEFT EDGE OF PAPER = left margin 16.70 mm):
+    b[0] = 16.44 mm
+    b[1] = 58.95 mm
+    b[2] = 82.96 mm
+    b[3] = 125.47 mm
+    b[4] = 149.47 mm
+    b[5] = 191.98 mm
+  cell widths from rgdxaCenter:
+    col[0] = 2410 tw = 42.51 mm
+    col[1] = 1361 tw = 24.01 mm
+    col[2] = 2410 tw = 42.51 mm
+    col[3] = 1361 tw = 24.01 mm
+    col[4] = 2410 tw = 42.51 mm
+  TC structures (20 bytes each: rgf u16 + wWidth u16 + 16 bytes):
+    TC[0] rgf=0x0600 []                             wWidth=2410 tw = 42.51 mm
+    TC[1] rgf=0x0600 []                             wWidth=1361 tw = 24.01 mm
+    TC[2] rgf=0x0600 []                             wWidth=2410 tw = 42.51 mm
+    TC[3] rgf=0x0600 []                             wWidth=1361 tw = 24.01 mm
+    TC[4] rgf=0x0600 []                             wWidth=2410 tw = 42.51 mm
+
+  --- every table-group sprm (sgc==5, i.e. 0x?6xx/0xD6xx style) found in PAPX ---
+    0x3403  x7   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (3 more identical/other operands)
+    0x3466  x7   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (3 more identical/other operands)
+    0x7479  x7   
+           op=7e120800
+           op=7e120800
+           op=7e120800
+           op=7e120800
+           ... (3 more identical/other operands)
+    0x9407  x7   sprmTDyaRowHeight  (row height; <0 == exact, >=0 == at-least)
+           op=96f6
+           op=affa
+           op=96f6
+           op=affa
+           ... (3 more identical/other operands)
+    0x9602  x7   
+           op=0f00
+           op=0f00
+           op=0f00
+           op=0f00
+           ... (3 more identical/other operands)
+    0xD608  x7   sprmTDefTable      (table grid definition)
+           op=0005f1ff5b09ac0e1618671dd12600066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000
+           op=0005f1ff5b09ac0e1618671dd12600066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000
+           op=0005f1ff5b09ac0e1618671dd12600066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000
+           op=0005f1ff5b09ac0e1618671dd12600066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000000651050000000000000000000000000000000000066a0900000000000000000000000000000000
+           ... (3 more identical/other operands)
+    0xD61A  x7   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (3 more identical/other operands)
+    0xD61B  x7   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (3 more identical/other operands)
+    0xD61C  x7   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (3 more identical/other operands)
+    0xD61D  x7   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (3 more identical/other operands)
+    0xD634  x14  sprmTInsert        (insert cells)
+           op=000105030000
+           op=00010a030f00
+           op=000105030000
+           op=00010a030f00
+           ... (10 more identical/other operands)
+    0xD670  x7   sprmTDefTableShd3 / 0xD670
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           ... (3 more identical/other operands)
+    0xF614  x7   sprmP* 0xF614
+           op=010000
+           op=010000
+           op=010000
+           op=010000
+           ... (3 more identical/other operands)
+    0xF617  x7   sprmP* 0xF617
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (3 more identical/other operands)
+    0xF661  x7   sprmP* 0xF661
+           op=03f1ff
+           op=03f1ff
+           op=03f1ff
+           op=03f1ff
+           ... (3 more identical/other operands)
+
+  --- row heights (sprmTDyaRowHeight 0x9407) ---
+    raw values (i16, negative == exact height): [-2410, -1361, -2410, -1361, -2410, -1361, -2410]
+    absolute heights (twips): [2410, 1361, 2410, 1361, 2410, 1361, 2410]
+    absolute heights (mm)   : [42.51, 24.01, 42.51, 24.01, 42.51, 24.01, 42.51]
+    distinct heights: 1361 tw = 24.01 mm, 2410 tw = 42.51 mm
+
+  --- SUMMARY ---
+    page                 : 210.01 x 297.00 mm
+    margins L/R/T/B      : 16.70 / 16.70 / 26.71 / 0.00 mm
+    printable area       : 176.60 x 270.30 mm
+    columns              : 5
+    table grid span       : 9952 tw = 175.54 mm  (sum of cell widths)
+    pitch_x (exact)       : 1990 tw = 35.11 mm  (span / columns)
+    cell widths          : 42.51 mm, 24.01 mm, 42.51 mm, 24.01 mm, 42.51 mm
+    columns per page      : printable W 176.60 mm / pitch_x 35.11 mm = 5.03
+    rows                 : 7  (from \x07 marks: 42 / (cols+1) = 7)
+    TDefTable copies found: 7 (= number of rows)
+    pitch_y (exact)       : 1361 tw = 24.01 mm = 2410 tw = 42.51 mm  <-- ROWS HAVE ALTERNATING HEIGHTS
+    rows per page         : printable H 270.30 mm / pitch_y = 11.26
+    total labels per sheet: 5 x 7 = 35
+
+  --- COMPARISON WITH FILE NAME ---
+  file name suggests: round label, diameter 60 mm, 12 per sheet
+  extracted cell width 42.51 mm / height 42.51 mm  vs  diameter 60 mm
+
+============================================================================================================
+FILE: 73649-38-16-9.doc
+  path            : C:\Users\User\.dsh\attachments\v1\files\59\593e3f89af29ee13bf75f3c81054d790046da070306d02bacdfcfaf11da8e659\73649-38-16-9.doc
+  OLE streams     : CompObj, DocumentSummaryInformation, SummaryInformation, 1Table, Data, WordDocument
+  WordDocument    : 12859 bytes   Table stream: 1Table (7217 bytes)
+  FIB             : wIdent=0xA5EC nFib=193 flags=0x12F0 fWhichTblStm=1
+                    csw=14 cslw=22 cbRgFcLcb=183 ccpText=103 fcMin=2048 fcMac=2151
+  fibRgFcLcb97 at 0x9A (cbRgFcLcb=183 -> 22 pairs), ccpText=103
+  fibRgFcLcb97[ 6] fcPlcfsed      fc=5447   lcb=20       (raw offset base+0x30)
+  fibRgFcLcb97[12] fcPlcfbteChpx  fc=5467   lcb=20       (raw offset base+0x60)
+  fibRgFcLcb97[13] fcPlcfbtePapx  fc=5487   lcb=148      (raw offset base+0x68)
+  fibRgFcLcb97[33] fcClx          fc=5988   lcb=21       (raw offset base+0x108)
+  fixed fcClx@0x01A2=5988 lcbClx@0x01A6=21 (cross-check)
+
+  --- SECTION PROPERTIES (SEPX / PlcfSed) ---
+  PlcfSed (pair 6, table stream): fc=5447 lcb=20 sections=1 
+  section 0: text cp 0..103  fn=162 fcSepx=12800 cb=57  fnMpr=0 fcMpr=0xFFFFFFFF
+    SEPX raw bytes (57): 09300007500400085004003a70b167b1001fb0812e20b0c84121b0370222b03702239013012490000025b0000017b0d00218b0d0020c90d002
+    decoded sprms (14) [sprm parse consumed all bytes] :
+      0x3009 spra=1 len=1   op=00           val=0        
+      0x5007 spra=2 len=2   op=0400         val=4        
+      0x5008 spra=2 len=2   op=0400         val=4        
+      0x703A spra=3 len=4   op=b167b100     val=26545    
+      0xB01F spra=5 len=2   op=812e         val=11905    sprmSXaPage        (page width)   -> 209.99 mm
+      0xB020 spra=5 len=2   op=c841         val=16840    sprmSYaPage        (page height)   -> 297.04 mm
+      0xB021 spra=5 len=2   op=3702         val=567      sprmSDxaLeft       (left margin)   -> 10.00 mm
+      0xB022 spra=5 len=2   op=3702         val=567      sprmSDxaRight      (right margin)   -> 10.00 mm
+      0x9023 spra=4 len=2   op=1301         val=275      sprmSDyaTop (old 8x)   -> 4.85 mm
+      0x9024 spra=4 len=2   op=0000         val=0        sprmSDyaBottom (old 8x)   -> 0.00 mm
+      0xB025 spra=5 len=2   op=0000         val=0        sprmS* 0xB025
+      0xB017 spra=5 len=2   op=d002         val=720      sprmSDyaHdrTop     (header distance from top)   -> 12.70 mm
+      0xB018 spra=5 len=2   op=d002         val=720      sprmSDyaHdrBottom  (footer distance from bottom)   -> 12.70 mm
+      0x900C spra=4 len=2   op=d002         val=720      sprmS* 0x900C
+
+  DECODED PAGE SETUP (used values):
+    page size      : W=11905 tw = 209.99 mm
+                     H=16840 tw = 297.04 mm
+    margins        : L=567 tw = 10.00 mm
+                     R=567 tw = 10.00 mm
+                     T=275 tw = 4.85 mm
+                     B=0 tw = 0.00 mm
+    header/footer  : HdrTop=720 tw = 12.70 mm  HdrBottom=720 tw = 12.70 mm
+    printable area : W=10771 tw = 189.99 mm
+                     H=16565 tw = 292.19 mm
+
+  --- TEXT / PIECE TABLE (Clx) ---
+  Clx: fcClx=5988 lcbClx=21  pieces=1  Prc count=0
+    piece 0: cp 0..103  fc=0x001000  compressed (8-bit cp1251)  cch=103
+  main text length (ccpText)      : 103
+  extracted char count            : 103
+  \x07 (cell / row-end mark) count : 102
+  \x0d (paragraph mark) count      : 1
+  text repr                       : '\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\r'
+  non-mark characters             : 0
+
+  --- PAPX (PlcfBtePapx) ---
+  PlcfBtePapx (pair 13, table stream): fc=5487 lcb=148 n=18
+  PnFkpPapx page numbers: [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24]
+  paragraphs found: 103
+  paragraphs whose PAPX carries a sprmTDefTable (0xD608): 17
+    fc=0x805 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80B istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x811 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x817 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x81D istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x823 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x829 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x82F istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x835 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x83B istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x841 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x847 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x84D istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x853 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x859 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x85F istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x865 istd=0 rowheight(0x9407)=-958 tw (16.90 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+
+  --- TABLE GRID (sprmTDefTable 0xD608) ---
+  operand length = 114 bytes ; expected 22*cItcMac+4 = 114 ; length matches: True
+  operand[0] = 0x00 (reserved/zero byte)   operand[1] = cItcMac = 5
+  raw operand: 0005f1ff5c08c71032199d21082a00066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b0800000000000000000000000000000000
+  cell boundaries rgdxaCenter (deltaX from left text margin):
+    b[0] = -15 tw = -0.26 mm
+    b[1] = 2140 tw = 37.75 mm
+    b[2] = 4295 tw = 75.76 mm
+    b[3] = 6450 tw = 113.77 mm
+    b[4] = 8605 tw = 151.78 mm
+    b[5] = 10760 tw = 189.79 mm
+  cell boundaries (mm from LEFT EDGE OF PAPER = left margin 10.00 mm):
+    b[0] = 9.74 mm
+    b[1] = 47.75 mm
+    b[2] = 85.76 mm
+    b[3] = 123.77 mm
+    b[4] = 161.78 mm
+    b[5] = 199.80 mm
+  cell widths from rgdxaCenter:
+    col[0] = 2155 tw = 38.01 mm
+    col[1] = 2155 tw = 38.01 mm
+    col[2] = 2155 tw = 38.01 mm
+    col[3] = 2155 tw = 38.01 mm
+    col[4] = 2155 tw = 38.01 mm
+  TC structures (20 bytes each: rgf u16 + wWidth u16 + 16 bytes):
+    TC[0] rgf=0x0600 []                             wWidth=2155 tw = 38.01 mm
+    TC[1] rgf=0x0600 []                             wWidth=2155 tw = 38.01 mm
+    TC[2] rgf=0x0600 []                             wWidth=2155 tw = 38.01 mm
+    TC[3] rgf=0x0600 []                             wWidth=2155 tw = 38.01 mm
+    TC[4] rgf=0x0600 []                             wWidth=2155 tw = 38.01 mm
+
+  --- every table-group sprm (sgc==5, i.e. 0x?6xx/0xD6xx style) found in PAPX ---
+    0x3403  x17  
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (13 more identical/other operands)
+    0x3466  x17  
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (13 more identical/other operands)
+    0x7479  x17  
+           op=310fd100
+           op=310fd100
+           op=310fd100
+           op=310fd100
+           ... (13 more identical/other operands)
+    0x9407  x17  sprmTDyaRowHeight  (row height; <0 == exact, >=0 == at-least)
+           op=42fc
+           op=42fc
+           op=42fc
+           op=42fc
+           ... (13 more identical/other operands)
+    0x9602  x17  
+           op=0f00
+           op=0f00
+           op=0f00
+           op=0f00
+           ... (13 more identical/other operands)
+    0xD608  x17  sprmTDefTable      (table grid definition)
+           op=0005f1ff5c08c71032199d21082a00066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b0800000000000000000000000000000000
+           op=0005f1ff5c08c71032199d21082a00066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b0800000000000000000000000000000000
+           op=0005f1ff5c08c71032199d21082a00066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b0800000000000000000000000000000000
+           op=0005f1ff5c08c71032199d21082a00066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b080000000000000000000000000000000000066b0800000000000000000000000000000000
+           ... (13 more identical/other operands)
+    0xD61A  x17  sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (13 more identical/other operands)
+    0xD61B  x17  sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (13 more identical/other operands)
+    0xD61C  x17  sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (13 more identical/other operands)
+    0xD61D  x17  sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff000000ff
+           ... (13 more identical/other operands)
+    0xD634  x34  sprmTInsert        (insert cells)
+           op=000105030000
+           op=00010a030f00
+           op=000105030000
+           op=00010a030f00
+           ... (30 more identical/other operands)
+    0xD670  x17  sprmTDefTableShd3 / 0xD670
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           ... (13 more identical/other operands)
+    0xF614  x17  sprmP* 0xF614
+           op=010000
+           op=010000
+           op=010000
+           op=010000
+           ... (13 more identical/other operands)
+    0xF617  x17  sprmP* 0xF617
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (13 more identical/other operands)
+    0xF661  x17  sprmP* 0xF661
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (13 more identical/other operands)
+
+  --- row heights (sprmTDyaRowHeight 0x9407) ---
+    raw values (i16, negative == exact height): [-958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958, -958]
+    absolute heights (twips): [958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958, 958]
+    absolute heights (mm)   : [16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9, 16.9]
+    distinct heights: 958 tw = 16.90 mm
+
+  --- SUMMARY ---
+    page                 : 209.99 x 297.04 mm
+    margins L/R/T/B      : 10.00 / 10.00 / 4.85 / 0.00 mm
+    printable area       : 189.99 x 292.19 mm
+    columns              : 5
+    table grid span       : 10775 tw = 190.06 mm  (sum of cell widths)
+    pitch_x (exact)       : 2155 tw = 38.01 mm  (span / columns)
+    cell widths          : 38.01 mm, 38.01 mm, 38.01 mm, 38.01 mm, 38.01 mm
+    columns per page      : printable W 189.99 mm / pitch_x 38.01 mm = 5.00
+    rows                 : 17  (from \x07 marks: 102 / (cols+1) = 17)
+    TDefTable copies found: 17 (= number of rows)
+    pitch_y (exact)       : 958 tw = 16.90 mm
+    rows per page         : printable H 292.19 mm / pitch_y = 17.29
+    total labels per sheet: 5 x 17 = 85
+
+  --- COMPARISON WITH FILE NAME ---
+  file name suggests: 38.16 x 9 mm (width x height)
+  extracted cell width = 38.01 mm -> difference -0.15 mm
+  extracted cell height= 16.90 mm -> difference +7.90 mm
+
+============================================================================================================
+FILE: 73571-99-34.doc
+  path            : C:\Users\User\.dsh\attachments\v1\files\5b\5b85a0c95b1a87268c2b6d40fb4322134f52d074a06330c900947cc7af7e60de\73571-99-34.doc
+  OLE streams     : CompObj, DocumentSummaryInformation, SummaryInformation, 1Table, Data, WordDocument
+  WordDocument    : 7227 bytes   Table stream: 1Table (7020 bytes)
+  FIB             : wIdent=0xA5EC nFib=193 flags=0x12F0 fWhichTblStm=1
+                    csw=14 cslw=22 cbRgFcLcb=183 ccpText=25 fcMin=2048 fcMac=2073
+  fibRgFcLcb97 at 0x9A (cbRgFcLcb=183 -> 22 pairs), ccpText=25
+  fibRgFcLcb97[ 6] fcPlcfsed      fc=5304   lcb=20       (raw offset base+0x30)
+  fibRgFcLcb97[12] fcPlcfbteChpx  fc=5324   lcb=12       (raw offset base+0x60)
+  fibRgFcLcb97[13] fcPlcfbtePapx  fc=5336   lcb=68       (raw offset base+0x68)
+  fibRgFcLcb97[33] fcClx          fc=5765   lcb=21       (raw offset base+0x108)
+  fixed fcClx@0x01A2=5765 lcbClx@0x01A6=21 (cross-check)
+
+  --- SECTION PROPERTIES (SEPX / PlcfSed) ---
+  PlcfSed (pair 6, table stream): fc=5304 lcb=20 sections=1 
+  section 0: text cp 0..25  fn=31 fcSepx=7168 cb=57  fnMpr=0 fcMpr=0xFFFFFFFF
+    SEPX raw bytes (57): 09300007500400085004003a70762e5e001fb0822e20b0c64121b00d0122b00d012390c5022490000025b0000017b0d00218b0d0020c90d002
+    decoded sprms (14) [sprm parse consumed all bytes] :
+      0x3009 spra=1 len=1   op=00           val=0        
+      0x5007 spra=2 len=2   op=0400         val=4        
+      0x5008 spra=2 len=2   op=0400         val=4        
+      0x703A spra=3 len=4   op=762e5e00     val=11894    
+      0xB01F spra=5 len=2   op=822e         val=11906    sprmSXaPage        (page width)   -> 210.01 mm
+      0xB020 spra=5 len=2   op=c641         val=16838    sprmSYaPage        (page height)   -> 297.00 mm
+      0xB021 spra=5 len=2   op=0d01         val=269      sprmSDxaLeft       (left margin)   -> 4.74 mm
+      0xB022 spra=5 len=2   op=0d01         val=269      sprmSDxaRight      (right margin)   -> 4.74 mm
+      0x9023 spra=4 len=2   op=c502         val=709      sprmSDyaTop (old 8x)   -> 12.51 mm
+      0x9024 spra=4 len=2   op=0000         val=0        sprmSDyaBottom (old 8x)   -> 0.00 mm
+      0xB025 spra=5 len=2   op=0000         val=0        sprmS* 0xB025
+      0xB017 spra=5 len=2   op=d002         val=720      sprmSDyaHdrTop     (header distance from top)   -> 12.70 mm
+      0xB018 spra=5 len=2   op=d002         val=720      sprmSDyaHdrBottom  (footer distance from bottom)   -> 12.70 mm
+      0x900C spra=4 len=2   op=d002         val=720      sprmS* 0x900C
+
+  DECODED PAGE SETUP (used values):
+    page size      : W=11906 tw = 210.01 mm
+                     H=16838 tw = 297.00 mm
+    margins        : L=269 tw = 4.74 mm
+                     R=269 tw = 4.74 mm
+                     T=709 tw = 12.51 mm
+                     B=0 tw = 0.00 mm
+    header/footer  : HdrTop=720 tw = 12.70 mm  HdrBottom=720 tw = 12.70 mm
+    printable area : W=11368 tw = 200.52 mm
+                     H=16129 tw = 284.50 mm
+
+  --- TEXT / PIECE TABLE (Clx) ---
+  Clx: fcClx=5765 lcbClx=21  pieces=1  Prc count=0
+    piece 0: cp 0..25  fc=0x001000  compressed (8-bit cp1251)  cch=25
+  main text length (ccpText)      : 25
+  extracted char count            : 25
+  \x07 (cell / row-end mark) count : 24
+  \x0d (paragraph mark) count      : 1
+  text repr                       : '\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\r'
+  non-mark characters             : 0
+
+  --- PAPX (PlcfBtePapx) ---
+  PlcfBtePapx (pair 13, table stream): fc=5336 lcb=68 n=8
+  PnFkpPapx page numbers: [6, 7, 8, 9, 10, 11, 12, 13]
+  paragraphs found: 25
+  paragraphs whose PAPX carries a sprmTDefTable (0xD608): 8
+    fc=0x802 istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x805 istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x808 istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80B istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80E istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x811 istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x814 istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x817 istd=0 rowheight(0x9407)=-1928 tw (34.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+
+  --- TABLE GRID (sprmTDefTable 0xD608) ---
+  operand length = 48 bytes ; expected 22*cItcMac+4 = 48 ; length matches: True
+  operand[0] = 0x00 (reserved/zero byte)   operand[1] = cItcMac = 2
+  raw operand: 0002b9ff3416af2c00067b160000000000000000000000000000000000067b1600000000000000000000000000000000
+  cell boundaries rgdxaCenter (deltaX from left text margin):
+    b[0] = -71 tw = -1.25 mm
+    b[1] = 5684 tw = 100.26 mm
+    b[2] = 11439 tw = 201.77 mm
+  cell boundaries (mm from LEFT EDGE OF PAPER = left margin 4.74 mm):
+    b[0] = 3.49 mm
+    b[1] = 105.00 mm
+    b[2] = 206.52 mm
+  cell widths from rgdxaCenter:
+    col[0] = 5755 tw = 101.51 mm
+    col[1] = 5755 tw = 101.51 mm
+  TC structures (20 bytes each: rgf u16 + wWidth u16 + 16 bytes):
+    TC[0] rgf=0x0600 []                             wWidth=5755 tw = 101.51 mm
+    TC[1] rgf=0x0600 []                             wWidth=5755 tw = 101.51 mm
+
+  --- every table-group sprm (sgc==5, i.e. 0x?6xx/0xD6xx style) found in PAPX ---
+    0x3403  x8   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (4 more identical/other operands)
+    0x3466  x8   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (4 more identical/other operands)
+    0x7479  x8   
+           op=d74cdf00
+           op=d74cdf00
+           op=d74cdf00
+           op=d74cdf00
+           ... (4 more identical/other operands)
+    0x9407  x8   sprmTDyaRowHeight  (row height; <0 == exact, >=0 == at-least)
+           op=78f8
+           op=78f8
+           op=78f8
+           op=78f8
+           ... (4 more identical/other operands)
+    0x9602  x8   
+           op=4700
+           op=4700
+           op=4700
+           op=4700
+           ... (4 more identical/other operands)
+    0xD608  x8   sprmTDefTable      (table grid definition)
+           op=0002b9ff3416af2c00067b160000000000000000000000000000000000067b1600000000000000000000000000000000
+           op=0002b9ff3416af2c00067b160000000000000000000000000000000000067b1600000000000000000000000000000000
+           op=0002b9ff3416af2c00067b160000000000000000000000000000000000067b1600000000000000000000000000000000
+           op=0002b9ff3416af2c00067b160000000000000000000000000000000000067b1600000000000000000000000000000000
+           ... (4 more identical/other operands)
+    0xD61A  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD61B  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD61C  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD61D  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD634  x16  sprmTInsert        (insert cells)
+           op=000105030000
+           op=00010a034700
+           op=000105030000
+           op=00010a034700
+           ... (12 more identical/other operands)
+    0xD670  x8   sprmTDefTableShd3 / 0xD670
+           op=000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000
+           ... (4 more identical/other operands)
+    0xF614  x8   sprmP* 0xF614
+           op=010000
+           op=010000
+           op=010000
+           op=010000
+           ... (4 more identical/other operands)
+    0xF617  x8   sprmP* 0xF617
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (4 more identical/other operands)
+    0xF661  x8   sprmP* 0xF661
+           op=03b9ff
+           op=03b9ff
+           op=03b9ff
+           op=03b9ff
+           ... (4 more identical/other operands)
+
+  --- row heights (sprmTDyaRowHeight 0x9407) ---
+    raw values (i16, negative == exact height): [-1928, -1928, -1928, -1928, -1928, -1928, -1928, -1928]
+    absolute heights (twips): [1928, 1928, 1928, 1928, 1928, 1928, 1928, 1928]
+    absolute heights (mm)   : [34.01, 34.01, 34.01, 34.01, 34.01, 34.01, 34.01, 34.01]
+    distinct heights: 1928 tw = 34.01 mm
+
+  --- SUMMARY ---
+    page                 : 210.01 x 297.00 mm
+    margins L/R/T/B      : 4.74 / 4.74 / 12.51 / 0.00 mm
+    printable area       : 200.52 x 284.50 mm
+    columns              : 2
+    table grid span       : 11510 tw = 203.02 mm  (sum of cell widths)
+    pitch_x (exact)       : 5755 tw = 101.51 mm  (span / columns)
+    cell widths          : 101.51 mm, 101.51 mm
+    columns per page      : printable W 200.52 mm / pitch_x 101.51 mm = 1.98
+    rows                 : 8  (from \x07 marks: 24 / (cols+1) = 8)
+    TDefTable copies found: 8 (= number of rows)
+    pitch_y (exact)       : 1928 tw = 34.01 mm
+    rows per page         : printable H 284.50 mm / pitch_y = 8.37
+    total labels per sheet: 2 x 8 = 16
+
+  --- COMPARISON WITH FILE NAME ---
+  file name suggests: 99 x 34 mm (width x height)
+  extracted cell width = 101.51 mm -> difference +2.51 mm
+  extracted cell height= 34.01 mm -> difference +0.01 mm
+
+============================================================================================================
+FILE: 73622-105-57.doc
+  path            : C:\Users\User\.dsh\attachments\v1\files\d5\d57ea8e2eb8846b50c989c295fbb93c738d5d539728659ce3e6d8c2179a964a8\73622-105-57.doc
+  OLE streams     : CompObj, DocumentSummaryInformation, SummaryInformation, 1Table, Data, WordDocument
+  WordDocument    : 5691 bytes   Table stream: 1Table (6992 bytes)
+  FIB             : wIdent=0xA5EC nFib=193 flags=0x12F0 fWhichTblStm=1
+                    csw=14 cslw=22 cbRgFcLcb=183 ccpText=16 fcMin=2048 fcMac=2064
+  fibRgFcLcb97 at 0x9A (cbRgFcLcb=183 -> 22 pairs), ccpText=16
+  fibRgFcLcb97[ 6] fcPlcfsed      fc=5304   lcb=20       (raw offset base+0x30)
+  fibRgFcLcb97[12] fcPlcfbteChpx  fc=5324   lcb=12       (raw offset base+0x60)
+  fibRgFcLcb97[13] fcPlcfbtePapx  fc=5336   lcb=44       (raw offset base+0x68)
+  fibRgFcLcb97[33] fcClx          fc=5737   lcb=21       (raw offset base+0x108)
+  fixed fcClx@0x01A2=5737 lcbClx@0x01A6=21 (cross-check)
+
+  --- SECTION PROPERTIES (SEPX / PlcfSed) ---
+  PlcfSed (pair 6, table stream): fc=5304 lcb=20 sections=1 
+  section 0: text cp 0..16  fn=72 fcSepx=5632 cb=57  fnMpr=0 fcMpr=0xFFFFFFFF
+    SEPX raw bytes (57): 09300007500400085004003a702d56c8001fb0822e20b0c64121b0000022b00000239054012490000025b0000017b0d00218b0d0020c90d002
+    decoded sprms (14) [sprm parse consumed all bytes] :
+      0x3009 spra=1 len=1   op=00           val=0        
+      0x5007 spra=2 len=2   op=0400         val=4        
+      0x5008 spra=2 len=2   op=0400         val=4        
+      0x703A spra=3 len=4   op=2d56c800     val=22061    
+      0xB01F spra=5 len=2   op=822e         val=11906    sprmSXaPage        (page width)   -> 210.01 mm
+      0xB020 spra=5 len=2   op=c641         val=16838    sprmSYaPage        (page height)   -> 297.00 mm
+      0xB021 spra=5 len=2   op=0000         val=0        sprmSDxaLeft       (left margin)   -> 0.00 mm
+      0xB022 spra=5 len=2   op=0000         val=0        sprmSDxaRight      (right margin)   -> 0.00 mm
+      0x9023 spra=4 len=2   op=5401         val=340      sprmSDyaTop (old 8x)   -> 6.00 mm
+      0x9024 spra=4 len=2   op=0000         val=0        sprmSDyaBottom (old 8x)   -> 0.00 mm
+      0xB025 spra=5 len=2   op=0000         val=0        sprmS* 0xB025
+      0xB017 spra=5 len=2   op=d002         val=720      sprmSDyaHdrTop     (header distance from top)   -> 12.70 mm
+      0xB018 spra=5 len=2   op=d002         val=720      sprmSDyaHdrBottom  (footer distance from bottom)   -> 12.70 mm
+      0x900C spra=4 len=2   op=d002         val=720      sprmS* 0x900C
+
+  DECODED PAGE SETUP (used values):
+    page size      : W=11906 tw = 210.01 mm
+                     H=16838 tw = 297.00 mm
+    margins        : L=0 tw = 0.00 mm
+                     R=0 tw = 0.00 mm
+                     T=340 tw = 6.00 mm
+                     B=0 tw = 0.00 mm
+    header/footer  : HdrTop=720 tw = 12.70 mm  HdrBottom=720 tw = 12.70 mm
+    printable area : W=11906 tw = 210.01 mm
+                     H=16498 tw = 291.01 mm
+
+  --- TEXT / PIECE TABLE (Clx) ---
+  Clx: fcClx=5737 lcbClx=21  pieces=1  Prc count=0
+    piece 0: cp 0..16  fc=0x001000  compressed (8-bit cp1251)  cch=16
+  main text length (ccpText)      : 16
+  extracted char count            : 16
+  \x07 (cell / row-end mark) count : 15
+  \x0d (paragraph mark) count      : 1
+  text repr                       : '\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\r'
+  non-mark characters             : 0
+
+  --- PAPX (PlcfBtePapx) ---
+  PlcfBtePapx (pair 13, table stream): fc=5336 lcb=44 n=5
+  PnFkpPapx page numbers: [6, 7, 8, 9, 10]
+  paragraphs found: 16
+  paragraphs whose PAPX carries a sprmTDefTable (0xD608): 5
+    fc=0x802 istd=0 rowheight(0x9407)=-3232 tw (57.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x805 istd=0 rowheight(0x9407)=-3232 tw (57.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x808 istd=0 rowheight(0x9407)=-3232 tw (57.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80B istd=0 rowheight(0x9407)=-3232 tw (57.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80E istd=0 rowheight(0x9407)=-3232 tw (57.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+
+  --- TABLE GRID (sprmTDefTable 0xD608) ---
+  operand length = 48 bytes ; expected 22*cItcMac+4 = 48 ; length matches: True
+  operand[0] = 0x00 (reserved/zero byte)   operand[1] = cItcMac = 2
+  raw operand: 0002f1ff3217732e00064117000000000000000000000000000000000006411700000000000000000000000000000000
+  cell boundaries rgdxaCenter (deltaX from left text margin):
+    b[0] = -15 tw = -0.26 mm
+    b[1] = 5938 tw = 104.74 mm
+    b[2] = 11891 tw = 209.74 mm
+  cell boundaries (mm from LEFT EDGE OF PAPER = left margin 0.00 mm):
+    b[0] = -0.26 mm
+    b[1] = 104.74 mm
+    b[2] = 209.74 mm
+  cell widths from rgdxaCenter:
+    col[0] = 5953 tw = 105.00 mm
+    col[1] = 5953 tw = 105.00 mm
+  TC structures (20 bytes each: rgf u16 + wWidth u16 + 16 bytes):
+    TC[0] rgf=0x0600 []                             wWidth=5953 tw = 105.00 mm
+    TC[1] rgf=0x0600 []                             wWidth=5953 tw = 105.00 mm
+
+  --- every table-group sprm (sgc==5, i.e. 0x?6xx/0xD6xx style) found in PAPX ---
+    0x3403  x5   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (1 more identical/other operands)
+    0x3466  x5   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (1 more identical/other operands)
+    0x7479  x5   
+           op=485d1a00
+           op=485d1a00
+           op=485d1a00
+           op=485d1a00
+           ... (1 more identical/other operands)
+    0x9407  x5   sprmTDyaRowHeight  (row height; <0 == exact, >=0 == at-least)
+           op=60f3
+           op=60f3
+           op=60f3
+           op=60f3
+           ... (1 more identical/other operands)
+    0x9602  x5   
+           op=0f00
+           op=0f00
+           op=0f00
+           op=0f00
+           ... (1 more identical/other operands)
+    0xD608  x5   sprmTDefTable      (table grid definition)
+           op=0002f1ff3217732e00064117000000000000000000000000000000000006411700000000000000000000000000000000
+           op=0002f1ff3217732e00064117000000000000000000000000000000000006411700000000000000000000000000000000
+           op=0002f1ff3217732e00064117000000000000000000000000000000000006411700000000000000000000000000000000
+           op=0002f1ff3217732e00064117000000000000000000000000000000000006411700000000000000000000000000000000
+           ... (1 more identical/other operands)
+    0xD61A  x5   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (1 more identical/other operands)
+    0xD61B  x5   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (1 more identical/other operands)
+    0xD61C  x5   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (1 more identical/other operands)
+    0xD61D  x5   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           op=000000ff000000ff
+           ... (1 more identical/other operands)
+    0xD634  x10  sprmTInsert        (insert cells)
+           op=000105030000
+           op=00010a030f00
+           op=000105030000
+           op=00010a030f00
+           ... (6 more identical/other operands)
+    0xD670  x5   sprmTDefTableShd3 / 0xD670
+           op=000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000
+           ... (1 more identical/other operands)
+    0xF614  x5   sprmP* 0xF614
+           op=010000
+           op=010000
+           op=010000
+           op=010000
+           ... (1 more identical/other operands)
+    0xF617  x5   sprmP* 0xF617
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (1 more identical/other operands)
+    0xF661  x5   sprmP* 0xF661
+           op=03f1ff
+           op=03f1ff
+           op=03f1ff
+           op=03f1ff
+           ... (1 more identical/other operands)
+
+  --- row heights (sprmTDyaRowHeight 0x9407) ---
+    raw values (i16, negative == exact height): [-3232, -3232, -3232, -3232, -3232]
+    absolute heights (twips): [3232, 3232, 3232, 3232, 3232]
+    absolute heights (mm)   : [57.01, 57.01, 57.01, 57.01, 57.01]
+    distinct heights: 3232 tw = 57.01 mm
+
+  --- SUMMARY ---
+    page                 : 210.01 x 297.00 mm
+    margins L/R/T/B      : 0.00 / 0.00 / 6.00 / 0.00 mm
+    printable area       : 210.01 x 291.01 mm
+    columns              : 2
+    table grid span       : 11906 tw = 210.01 mm  (sum of cell widths)
+    pitch_x (exact)       : 5953 tw = 105.00 mm  (span / columns)
+    cell widths          : 105.00 mm, 105.00 mm
+    columns per page      : printable W 210.01 mm / pitch_x 105.00 mm = 2.00
+    rows                 : 5  (from \x07 marks: 15 / (cols+1) = 5)
+    TDefTable copies found: 5 (= number of rows)
+    pitch_y (exact)       : 3232 tw = 57.01 mm
+    rows per page         : printable H 291.01 mm / pitch_y = 5.10
+    total labels per sheet: 2 x 5 = 10
+
+  --- COMPARISON WITH FILE NAME ---
+  file name suggests: 105 x 57 mm (width x height)
+  extracted cell width = 105.00 mm -> difference +0.00 mm
+  extracted cell height= 57.01 mm -> difference +0.01 mm
+
+============================================================================================================
+FILE: 73572-66-7-46.doc
+  path            : C:\Users\User\.dsh\attachments\v1\files\2e\2ec7f8d37660d634646fc2f08ecb7fadc51614c1d4bcb7b07f6518f4b0fb3e5c\73572-66-7-46.doc
+  OLE streams     : CompObj, DocumentSummaryInformation, SummaryInformation, 1Table, Data, WordDocument
+  WordDocument    : 6203 bytes   Table stream: 1Table (7000 bytes)
+  FIB             : wIdent=0xA5EC nFib=193 flags=0x12F0 fWhichTblStm=1
+                    csw=14 cslw=22 cbRgFcLcb=183 ccpText=25 fcMin=2048 fcMac=2073
+  fibRgFcLcb97 at 0x9A (cbRgFcLcb=183 -> 22 pairs), ccpText=25
+  fibRgFcLcb97[ 6] fcPlcfsed      fc=5304   lcb=20       (raw offset base+0x30)
+  fibRgFcLcb97[12] fcPlcfbteChpx  fc=5324   lcb=12       (raw offset base+0x60)
+  fibRgFcLcb97[13] fcPlcfbtePapx  fc=5336   lcb=52       (raw offset base+0x68)
+  fibRgFcLcb97[33] fcClx          fc=5745   lcb=21       (raw offset base+0x108)
+  fixed fcClx@0x01A2=5745 lcbClx@0x01A6=21 (cross-check)
+
+  --- SECTION PROPERTIES (SEPX / PlcfSed) ---
+  PlcfSed (pair 6, table stream): fc=5304 lcb=20 sections=1 
+  section 0: text cp 0..25  fn=31 fcSepx=6144 cb=57  fnMpr=0 fcMpr=0xFFFFFFFF
+    SEPX raw bytes (57): 09300007500400085004003a70327bef001fb0822e20b0c64121b0a70022b0a700239053022490000025b0000017b0d00218b0d0020c90d002
+    decoded sprms (14) [sprm parse consumed all bytes] :
+      0x3009 spra=1 len=1   op=00           val=0        
+      0x5007 spra=2 len=2   op=0400         val=4        
+      0x5008 spra=2 len=2   op=0400         val=4        
+      0x703A spra=3 len=4   op=327bef00     val=31538    
+      0xB01F spra=5 len=2   op=822e         val=11906    sprmSXaPage        (page width)   -> 210.01 mm
+      0xB020 spra=5 len=2   op=c641         val=16838    sprmSYaPage        (page height)   -> 297.00 mm
+      0xB021 spra=5 len=2   op=a700         val=167      sprmSDxaLeft       (left margin)   -> 2.95 mm
+      0xB022 spra=5 len=2   op=a700         val=167      sprmSDxaRight      (right margin)   -> 2.95 mm
+      0x9023 spra=4 len=2   op=5302         val=595      sprmSDyaTop (old 8x)   -> 10.50 mm
+      0x9024 spra=4 len=2   op=0000         val=0        sprmSDyaBottom (old 8x)   -> 0.00 mm
+      0xB025 spra=5 len=2   op=0000         val=0        sprmS* 0xB025
+      0xB017 spra=5 len=2   op=d002         val=720      sprmSDyaHdrTop     (header distance from top)   -> 12.70 mm
+      0xB018 spra=5 len=2   op=d002         val=720      sprmSDyaHdrBottom  (footer distance from bottom)   -> 12.70 mm
+      0x900C spra=4 len=2   op=d002         val=720      sprmS* 0x900C
+
+  DECODED PAGE SETUP (used values):
+    page size      : W=11906 tw = 210.01 mm
+                     H=16838 tw = 297.00 mm
+    margins        : L=167 tw = 2.95 mm
+                     R=167 tw = 2.95 mm
+                     T=595 tw = 10.50 mm
+                     B=0 tw = 0.00 mm
+    header/footer  : HdrTop=720 tw = 12.70 mm  HdrBottom=720 tw = 12.70 mm
+    printable area : W=11572 tw = 204.12 mm
+                     H=16243 tw = 286.51 mm
+
+  --- TEXT / PIECE TABLE (Clx) ---
+  Clx: fcClx=5745 lcbClx=21  pieces=1  Prc count=0
+    piece 0: cp 0..25  fc=0x001000  compressed (8-bit cp1251)  cch=25
+  main text length (ccpText)      : 25
+  extracted char count            : 25
+  \x07 (cell / row-end mark) count : 24
+  \x0d (paragraph mark) count      : 1
+  text repr                       : '\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\r'
+  non-mark characters             : 0
+
+  --- PAPX (PlcfBtePapx) ---
+  PlcfBtePapx (pair 13, table stream): fc=5336 lcb=52 n=6
+  PnFkpPapx page numbers: [6, 7, 8, 9, 10, 11]
+  paragraphs found: 25
+  paragraphs whose PAPX carries a sprmTDefTable (0xD608): 6
+    fc=0x803 istd=0 rowheight(0x9407)=-2608 tw (46.00 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x807 istd=0 rowheight(0x9407)=-2608 tw (46.00 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80B istd=0 rowheight(0x9407)=-2608 tw (46.00 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80F istd=0 rowheight(0x9407)=-2608 tw (46.00 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x813 istd=0 rowheight(0x9407)=-2608 tw (46.00 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x817 istd=0 rowheight(0x9407)=-2608 tw (46.00 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+
+  --- TABLE GRID (sprmTDefTable 0xD608) ---
+  operand length = 70 bytes ; expected 22*cItcMac+4 = 70 ; length matches: True
+  operand[0] = 0x00 (reserved/zero byte)   operand[1] = cItcMac = 3
+  raw operand: 0003c7fffe0e351e6c2d0006370f000000000000000000000000000000000006370f000000000000000000000000000000000006370f00000000000000000000000000000000
+  cell boundaries rgdxaCenter (deltaX from left text margin):
+    b[0] = -57 tw = -1.01 mm
+    b[1] = 3838 tw = 67.70 mm
+    b[2] = 7733 tw = 136.40 mm
+    b[3] = 11628 tw = 205.10 mm
+  cell boundaries (mm from LEFT EDGE OF PAPER = left margin 2.95 mm):
+    b[0] = 1.94 mm
+    b[1] = 70.64 mm
+    b[2] = 139.35 mm
+    b[3] = 208.05 mm
+  cell widths from rgdxaCenter:
+    col[0] = 3895 tw = 68.70 mm
+    col[1] = 3895 tw = 68.70 mm
+    col[2] = 3895 tw = 68.70 mm
+  TC structures (20 bytes each: rgf u16 + wWidth u16 + 16 bytes):
+    TC[0] rgf=0x0600 []                             wWidth=3895 tw = 68.70 mm
+    TC[1] rgf=0x0600 []                             wWidth=3895 tw = 68.70 mm
+    TC[2] rgf=0x0600 []                             wWidth=3895 tw = 68.70 mm
+
+  --- every table-group sprm (sgc==5, i.e. 0x?6xx/0xD6xx style) found in PAPX ---
+    0x3403  x6   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (2 more identical/other operands)
+    0x3466  x6   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (2 more identical/other operands)
+    0x7479  x6   
+           op=13627500
+           op=13627500
+           op=13627500
+           op=13627500
+           ... (2 more identical/other operands)
+    0x9407  x6   sprmTDyaRowHeight  (row height; <0 == exact, >=0 == at-least)
+           op=d0f5
+           op=d0f5
+           op=d0f5
+           op=d0f5
+           ... (2 more identical/other operands)
+    0x9602  x6   
+           op=3900
+           op=3900
+           op=3900
+           op=3900
+           ... (2 more identical/other operands)
+    0xD608  x6   sprmTDefTable      (table grid definition)
+           op=0003c7fffe0e351e6c2d0006370f000000000000000000000000000000000006370f000000000000000000000000000000000006370f00000000000000000000000000000000
+           op=0003c7fffe0e351e6c2d0006370f000000000000000000000000000000000006370f000000000000000000000000000000000006370f00000000000000000000000000000000
+           op=0003c7fffe0e351e6c2d0006370f000000000000000000000000000000000006370f000000000000000000000000000000000006370f00000000000000000000000000000000
+           op=0003c7fffe0e351e6c2d0006370f000000000000000000000000000000000006370f000000000000000000000000000000000006370f00000000000000000000000000000000
+           ... (2 more identical/other operands)
+    0xD61A  x6   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           ... (2 more identical/other operands)
+    0xD61B  x6   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           ... (2 more identical/other operands)
+    0xD61C  x6   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           ... (2 more identical/other operands)
+    0xD61D  x6   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           op=000000ff000000ff000000ff
+           ... (2 more identical/other operands)
+    0xD634  x12  sprmTInsert        (insert cells)
+           op=000105030000
+           op=00010a033900
+           op=000105030000
+           op=00010a033900
+           ... (8 more identical/other operands)
+    0xD670  x6   sprmTDefTableShd3 / 0xD670
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           ... (2 more identical/other operands)
+    0xF614  x6   sprmP* 0xF614
+           op=010000
+           op=010000
+           op=010000
+           op=010000
+           ... (2 more identical/other operands)
+    0xF617  x6   sprmP* 0xF617
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (2 more identical/other operands)
+    0xF661  x6   sprmP* 0xF661
+           op=03c7ff
+           op=03c7ff
+           op=03c7ff
+           op=03c7ff
+           ... (2 more identical/other operands)
+
+  --- row heights (sprmTDyaRowHeight 0x9407) ---
+    raw values (i16, negative == exact height): [-2608, -2608, -2608, -2608, -2608, -2608]
+    absolute heights (twips): [2608, 2608, 2608, 2608, 2608, 2608]
+    absolute heights (mm)   : [46.0, 46.0, 46.0, 46.0, 46.0, 46.0]
+    distinct heights: 2608 tw = 46.00 mm
+
+  --- SUMMARY ---
+    page                 : 210.01 x 297.00 mm
+    margins L/R/T/B      : 2.95 / 2.95 / 10.50 / 0.00 mm
+    printable area       : 204.12 x 286.51 mm
+    columns              : 3
+    table grid span       : 11685 tw = 206.11 mm  (sum of cell widths)
+    pitch_x (exact)       : 3895 tw = 68.70 mm  (span / columns)
+    cell widths          : 68.70 mm, 68.70 mm, 68.70 mm
+    columns per page      : printable W 204.12 mm / pitch_x 68.70 mm = 2.97
+    rows                 : 6  (from \x07 marks: 24 / (cols+1) = 6)
+    TDefTable copies found: 6 (= number of rows)
+    pitch_y (exact)       : 2608 tw = 46.00 mm
+    rows per page         : printable H 286.51 mm / pitch_y = 6.23
+    total labels per sheet: 3 x 6 = 18
+
+  --- COMPARISON WITH FILE NAME ---
+  file name suggests: 66.7 x 46 mm (width x height)
+  extracted cell width = 68.70 mm -> difference +2.00 mm
+  extracted cell height= 46.00 mm -> difference +0.00 mm
+
+============================================================================================================
+FILE: 73642-52-5-35.doc
+  path            : C:\Users\User\.dsh\attachments\v1\files\4b\4bbfadcf1167d000266956dd6d15eef15c6faae2c8e93dd83e43dc34cf8b6016\73642-52-5-35.doc
+  OLE streams     : CompObj, DocumentSummaryInformation, SummaryInformation, 1Table, Data, WordDocument
+  WordDocument    : 7227 bytes   Table stream: 1Table (7129 bytes)
+  FIB             : wIdent=0xA5EC nFib=193 flags=0x12F0 fWhichTblStm=1
+                    csw=14 cslw=22 cbRgFcLcb=183 ccpText=41 fcMin=2048 fcMac=2089
+  fibRgFcLcb97 at 0x9A (cbRgFcLcb=183 -> 22 pairs), ccpText=41
+  fibRgFcLcb97[ 6] fcPlcfsed      fc=5447   lcb=20       (raw offset base+0x30)
+  fibRgFcLcb97[12] fcPlcfbteChpx  fc=5467   lcb=12       (raw offset base+0x60)
+  fibRgFcLcb97[13] fcPlcfbtePapx  fc=5479   lcb=68       (raw offset base+0x68)
+  fibRgFcLcb97[33] fcClx          fc=5900   lcb=21       (raw offset base+0x108)
+  fixed fcClx@0x01A2=5900 lcbClx@0x01A6=21 (cross-check)
+
+  --- SECTION PROPERTIES (SEPX / PlcfSed) ---
+  PlcfSed (pair 6, table stream): fc=5447 lcb=20 sections=1 
+  section 0: text cp 0..41  fn=127 fcSepx=7168 cb=57  fnMpr=0 fcMpr=0xFFFFFFFF
+    SEPX raw bytes (57): 09300007500400085004003a70950b3c001fb0812e20b0c54121b0000022b000002390e2012490000025b0000017b0d00218b0d0020c90d002
+    decoded sprms (14) [sprm parse consumed all bytes] :
+      0x3009 spra=1 len=1   op=00           val=0        
+      0x5007 spra=2 len=2   op=0400         val=4        
+      0x5008 spra=2 len=2   op=0400         val=4        
+      0x703A spra=3 len=4   op=950b3c00     val=2965     
+      0xB01F spra=5 len=2   op=812e         val=11905    sprmSXaPage        (page width)   -> 209.99 mm
+      0xB020 spra=5 len=2   op=c541         val=16837    sprmSYaPage        (page height)   -> 296.99 mm
+      0xB021 spra=5 len=2   op=0000         val=0        sprmSDxaLeft       (left margin)   -> 0.00 mm
+      0xB022 spra=5 len=2   op=0000         val=0        sprmSDxaRight      (right margin)   -> 0.00 mm
+      0x9023 spra=4 len=2   op=e201         val=482      sprmSDyaTop (old 8x)   -> 8.50 mm
+      0x9024 spra=4 len=2   op=0000         val=0        sprmSDyaBottom (old 8x)   -> 0.00 mm
+      0xB025 spra=5 len=2   op=0000         val=0        sprmS* 0xB025
+      0xB017 spra=5 len=2   op=d002         val=720      sprmSDyaHdrTop     (header distance from top)   -> 12.70 mm
+      0xB018 spra=5 len=2   op=d002         val=720      sprmSDyaHdrBottom  (footer distance from bottom)   -> 12.70 mm
+      0x900C spra=4 len=2   op=d002         val=720      sprmS* 0x900C
+
+  DECODED PAGE SETUP (used values):
+    page size      : W=11905 tw = 209.99 mm
+                     H=16837 tw = 296.99 mm
+    margins        : L=0 tw = 0.00 mm
+                     R=0 tw = 0.00 mm
+                     T=482 tw = 8.50 mm
+                     B=0 tw = 0.00 mm
+    header/footer  : HdrTop=720 tw = 12.70 mm  HdrBottom=720 tw = 12.70 mm
+    printable area : W=11905 tw = 209.99 mm
+                     H=16355 tw = 288.48 mm
+
+  --- TEXT / PIECE TABLE (Clx) ---
+  Clx: fcClx=5900 lcbClx=21  pieces=1  Prc count=0
+    piece 0: cp 0..41  fc=0x001000  compressed (8-bit cp1251)  cch=41
+  main text length (ccpText)      : 41
+  extracted char count            : 41
+  \x07 (cell / row-end mark) count : 40
+  \x0d (paragraph mark) count      : 1
+  text repr                       : '\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\x07\r'
+  non-mark characters             : 0
+
+  --- PAPX (PlcfBtePapx) ---
+  PlcfBtePapx (pair 13, table stream): fc=5479 lcb=68 n=8
+  PnFkpPapx page numbers: [6, 7, 8, 9, 10, 11, 12, 13]
+  paragraphs found: 41
+  paragraphs whose PAPX carries a sprmTDefTable (0xD608): 8
+    fc=0x804 istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x809 istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x80E istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x813 istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x818 istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x81D istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x822 istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+    fc=0x827 istd=0 rowheight(0x9407)=-1985 tw (35.01 mm) exact sprmcodes=646B 2416 2417 6649 9602 3403 9407 D608 F614 F617 D61A D61B D61C D61D D634 D634 F661 3466 D670 7479
+
+  --- TABLE GRID (sprmTDefTable 0xD608) ---
+  operand length = 92 bytes ; expected 22*cItcMac+4 = 92 ; length matches: True
+  operand[0] = 0x00 (reserved/zero byte)   operand[1] = cItcMac = 4
+  raw operand: 0004f1ff920b3317d422752e0006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b00000000000000000000000000000000
+  cell boundaries rgdxaCenter (deltaX from left text margin):
+    b[0] = -15 tw = -0.26 mm
+    b[1] = 2962 tw = 52.25 mm
+    b[2] = 5939 tw = 104.76 mm
+    b[3] = 8916 tw = 157.27 mm
+    b[4] = 11893 tw = 209.78 mm
+  cell boundaries (mm from LEFT EDGE OF PAPER = left margin 0.00 mm):
+    b[0] = -0.26 mm
+    b[1] = 52.25 mm
+    b[2] = 104.76 mm
+    b[3] = 157.27 mm
+    b[4] = 209.78 mm
+  cell widths from rgdxaCenter:
+    col[0] = 2977 tw = 52.51 mm
+    col[1] = 2977 tw = 52.51 mm
+    col[2] = 2977 tw = 52.51 mm
+    col[3] = 2977 tw = 52.51 mm
+  TC structures (20 bytes each: rgf u16 + wWidth u16 + 16 bytes):
+    TC[0] rgf=0x0600 []                             wWidth=2977 tw = 52.51 mm
+    TC[1] rgf=0x0600 []                             wWidth=2977 tw = 52.51 mm
+    TC[2] rgf=0x0600 []                             wWidth=2977 tw = 52.51 mm
+    TC[3] rgf=0x0600 []                             wWidth=2977 tw = 52.51 mm
+
+  --- every table-group sprm (sgc==5, i.e. 0x?6xx/0xD6xx style) found in PAPX ---
+    0x3403  x8   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (4 more identical/other operands)
+    0x3466  x8   
+           op=01
+           op=01
+           op=01
+           op=01
+           ... (4 more identical/other operands)
+    0x7479  x8   
+           op=8b561800
+           op=8b561800
+           op=8b561800
+           op=8b561800
+           ... (4 more identical/other operands)
+    0x9407  x8   sprmTDyaRowHeight  (row height; <0 == exact, >=0 == at-least)
+           op=3ff8
+           op=3ff8
+           op=3ff8
+           op=3ff8
+           ... (4 more identical/other operands)
+    0x9602  x8   
+           op=0f00
+           op=0f00
+           op=0f00
+           op=0f00
+           ... (4 more identical/other operands)
+    0xD608  x8   sprmTDefTable      (table grid definition)
+           op=0004f1ff920b3317d422752e0006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b00000000000000000000000000000000
+           op=0004f1ff920b3317d422752e0006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b00000000000000000000000000000000
+           op=0004f1ff920b3317d422752e0006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b00000000000000000000000000000000
+           op=0004f1ff920b3317d422752e0006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b000000000000000000000000000000000006a10b00000000000000000000000000000000
+           ... (4 more identical/other operands)
+    0xD61A  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD61B  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD61C  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD61D  x8   sprmTDxaGapHalf / border-related
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           op=000000ff000000ff000000ff000000ff
+           ... (4 more identical/other operands)
+    0xD634  x16  sprmTInsert        (insert cells)
+           op=000105030000
+           op=00010a030f00
+           op=000105030000
+           op=00010a030f00
+           ... (12 more identical/other operands)
+    0xD670  x8   sprmTDefTableShd3 / 0xD670
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           op=000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000000000ff000000ff0000
+           ... (4 more identical/other operands)
+    0xF614  x8   sprmP* 0xF614
+           op=010000
+           op=010000
+           op=010000
+           op=010000
+           ... (4 more identical/other operands)
+    0xF617  x8   sprmP* 0xF617
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (4 more identical/other operands)
+    0xF661  x8   sprmP* 0xF661
+           op=030000
+           op=030000
+           op=030000
+           op=030000
+           ... (4 more identical/other operands)
+
+  --- row heights (sprmTDyaRowHeight 0x9407) ---
+    raw values (i16, negative == exact height): [-1985, -1985, -1985, -1985, -1985, -1985, -1985, -1985]
+    absolute heights (twips): [1985, 1985, 1985, 1985, 1985, 1985, 1985, 1985]
+    absolute heights (mm)   : [35.01, 35.01, 35.01, 35.01, 35.01, 35.01, 35.01, 35.01]
+    distinct heights: 1985 tw = 35.01 mm
+
+  --- SUMMARY ---
+    page                 : 209.99 x 296.99 mm
+    margins L/R/T/B      : 0.00 / 0.00 / 8.50 / 0.00 mm
+    printable area       : 209.99 x 288.48 mm
+    columns              : 4
+    table grid span       : 11908 tw = 210.04 mm  (sum of cell widths)
+    pitch_x (exact)       : 2977 tw = 52.51 mm  (span / columns)
+    cell widths          : 52.51 mm, 52.51 mm, 52.51 mm, 52.51 mm
+    columns per page      : printable W 209.99 mm / pitch_x 52.51 mm = 4.00
+    rows                 : 8  (from \x07 marks: 40 / (cols+1) = 8)
+    TDefTable copies found: 8 (= number of rows)
+    pitch_y (exact)       : 1985 tw = 35.01 mm
+    rows per page         : printable H 288.48 mm / pitch_y = 8.24
+    total labels per sheet: 4 x 8 = 32
+
+  --- COMPARISON WITH FILE NAME ---
+  file name suggests: 52.5 x 35 mm (width x height)
+  extracted cell width = 52.51 mm -> difference +0.01 mm
+  extracted cell height= 35.01 mm -> difference +0.01 mm

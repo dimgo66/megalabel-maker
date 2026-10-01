@@ -3,7 +3,9 @@ import { Canvas } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { mmToPx } from '../utils/layoutCalculator';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
+import { BARCODE_NORM_VERSION } from '../utils/barcodeGenerator';
 import { BarcodeNorm } from '../types';
+import { serializeCanvas, isHistorySuspended, withoutHistory } from '../utils/canvasHelpers';
 
 export function LabelCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,42 +38,23 @@ export function LabelCanvas() {
 
 
 
-  // Обновление размера канваса при изменении формата или зума
+  // Размер и зум: сцена всегда в базовых координатах (96 dpi), масштаб — через setZoom.
+  // Retina-масштабирование fabric делает сам.
   const updateCanvasSize = useCallback(() => {
-    if (!fabricCanvasRef.current) return;
-
     const canvas = fabricCanvasRef.current;
-    const displayWidth = mmToPx(selectedFormat.width_mm) * editorZoom;
-    const displayHeight = mmToPx(selectedFormat.height_mm) * editorZoom;
+    if (!canvas) return;
 
-    // Для Retina дисплеев
-    const dpr = window.devicePixelRatio || 1;
-
-    // Устанавливаем физический размер (device pixels)
     canvas.setDimensions({
-      width: displayWidth * dpr,
-      height: displayHeight * dpr,
-    }, { cssOnly: false });
+      width: mmToPx(selectedFormat.width_mm) * editorZoom,
+      height: mmToPx(selectedFormat.height_mm) * editorZoom,
+    });
+    canvas.setZoom(editorZoom);
 
-    // Устанавливаем CSS размер (logical pixels)
     if (canvas.wrapperEl) {
-      canvas.wrapperEl.style.width = `${displayWidth}px`;
-      canvas.wrapperEl.style.height = `${displayHeight}px`;
-      
-      // Для круглых этикеток применяем clip-path
-      if (selectedFormat.shape === 'circle') {
-        canvas.wrapperEl.style.borderRadius = '50%';
-        canvas.wrapperEl.style.overflow = 'hidden';
-      } else {
-        canvas.wrapperEl.style.borderRadius = '0';
-      }
+      canvas.wrapperEl.style.borderRadius = selectedFormat.shape === 'circle' ? '50%' : '0';
+      canvas.wrapperEl.style.overflow = selectedFormat.shape === 'circle' ? 'hidden' : '';
     }
-
-    // Масштабируем контекст для Retina
-    const ctx = canvas.getContext();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    canvas.renderAll();
+    canvas.requestRenderAll();
   }, [selectedFormat, editorZoom]);
 
   // Инициализация канваса
@@ -93,28 +76,8 @@ export function LabelCanvas() {
 
     // Обработчики событий для сохранения состояния
     const handleModification = () => {
-      if (!fabricCanvasRef.current) return;
-      const json = canvas.toJSON();
-      // Убираем safeArea из сериализации
-      let objects = json.objects?.filter((obj: any) => obj.name !== 'safeArea');
-      
-      // Добавляем кастомные свойства штрихкода в JSON
-      if (objects) {
-        objects = objects.map((obj: any) => {
-          if (obj.barcodeNorm) {
-            return {
-              ...obj,
-              barcodeFormat: obj.barcodeFormat,
-              barcodeValue: obj.barcodeValue,
-              barcodeNorm: obj.barcodeNorm, // ЕДИНЫЙ источник истины
-            };
-          }
-          return obj;
-        });
-      }
-      
-      json.objects = objects;
-      setCanvasJSON(json);
+      if (!fabricCanvasRef.current || isHistorySuspended()) return;
+      setCanvasJSON(serializeCanvas(canvas));
     };
 
     canvas.on('object:added', handleModification);
@@ -150,14 +113,17 @@ export function LabelCanvas() {
     });
 
     // Загрузка сохранённого состояния с миграцией штрих-кодов
+    let disposed = false;
     const loadSavedState = async () => {
       if (labelDesign.canvasJSON && Object.keys(labelDesign.canvasJSON).length > 0) {
-        await canvas.loadFromJSON(labelDesign.canvasJSON as any);
+        await withoutHistory(() => canvas.loadFromJSON(labelDesign.canvasJSON as any));
+        if (disposed) return;
         
-        // Миграция: пересоздаём старые штрих-коды (без barcodeNorm) через фабрику
+        // Миграция: пересоздаём старые штрих-коды (без barcodeNorm или с устаревшей геометрией)
         const objects = canvas.getObjects();
         const oldBarcodeObjects = objects.filter((obj: any) => 
-          obj.barcodeValue && obj.barcodeFormat && !obj.barcodeNorm
+          obj.barcodeValue && obj.barcodeFormat &&
+          (!obj.barcodeNorm || obj.barcodeNorm.version !== BARCODE_NORM_VERSION)
         );
         
         if (oldBarcodeObjects.length > 0) {
@@ -201,6 +167,7 @@ export function LabelCanvas() {
 
     loadSavedState();
     return () => {
+      disposed = true;
       canvas.dispose();
       setEditorCanvas(null);
     };

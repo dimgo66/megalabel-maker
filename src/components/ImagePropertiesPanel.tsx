@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { ImageCropEditor } from './ImageCropEditor';
+import { serializeCanvas, sceneWidth, sceneHeight } from '../utils/canvasHelpers';
 
 export function ImagePropertiesPanel() {
   const { selectedObject, editorCanvas } = useProjectStore();
@@ -101,8 +102,8 @@ export function ImagePropertiesPanel() {
     if (!canvas) return;
 
     // Масштабируем на весь размер канваса
-    const canvasWidth = canvas.getWidth();
-    const canvasHeight = canvas.getHeight();
+    const canvasWidth = sceneWidth(canvas);
+    const canvasHeight = sceneHeight(canvas);
     const imgWidth = img.width || 1;
     const imgHeight = img.height || 1;
 
@@ -257,7 +258,7 @@ export function ImagePropertiesPanel() {
         onApply={(cropped) => {
           setShowCropEditor(false);
           // Сохраняем изменения в store
-          const json = editorCanvas.toJSON();
+          const json = serializeCanvas(editorCanvas);
           useProjectStore.getState().setCanvasJSON(json);
         }}
         onCancel={() => setShowCropEditor(false)}

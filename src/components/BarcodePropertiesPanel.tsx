@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/useProjectStore';
 import { BarcodeModal } from './BarcodeModal';
 import { BarcodeFormat } from '../types';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
+import { serializeCanvas } from '../utils/canvasHelpers';
 
 export function BarcodePropertiesPanel() {
   const { selectedObject, editorCanvas } = useProjectStore();
@@ -92,7 +93,7 @@ export function BarcodePropertiesPanel() {
       editorCanvas.renderAll();
       
       // Сохраняем изменения
-      const json = editorCanvas.toJSON();
+      const json = serializeCanvas(editorCanvas);
       if (json.objects) {
         json.objects = json.objects.map((obj: any) => {
           if (obj.barcodeFormat) {
@@ -100,7 +101,6 @@ export function BarcodePropertiesPanel() {
               ...obj,
               barcodeFormat: obj.barcodeFormat,
               barcodeValue: obj.barcodeValue,
-              barcodeBars: obj.barcodeBars,
               barcodeSVG: obj.barcodeSVG,
               barcodeTextYFrac: obj.barcodeTextYFrac,
               barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
@@ -151,7 +151,7 @@ export function BarcodePropertiesPanel() {
             <div className="flex justify-between items-center">
               <span className="text-xs text-gray-600">Штрихов:</span>
               <span className="text-sm font-medium text-gray-900">
-                {barcodeData.barcodeBars?.length || 0}
+                {barcodeData.barcodeNorm?.bars?.length || 0}
               </span>
             </div>
           </div>

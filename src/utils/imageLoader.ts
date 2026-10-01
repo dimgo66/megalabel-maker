@@ -1,5 +1,6 @@
 import * as fabric from 'fabric';
 import { loadPdfAsImage } from './pdfImageLoader';
+import { sceneWidth, sceneHeight } from './canvasHelpers';
 
 /**
  * Загрузка растрового изображения (PNG, JPG, WebP, BMP, GIF)
@@ -114,8 +115,8 @@ export function fitImageToCanvas(
   canvas: fabric.Canvas,
   maxPercent: number = 90
 ): void {
-  const canvasWidth = canvas.getWidth();
-  const canvasHeight = canvas.getHeight();
+  const canvasWidth = sceneWidth(canvas);
+  const canvasHeight = sceneHeight(canvas);
   
   const imgWidth = image.width || 1;
   const imgHeight = image.height || 1;
@@ -180,8 +181,8 @@ export async function handleFileUpload(
       fitImageToCanvas(fabricObject, canvas);
     } else if (fabricObject instanceof fabric.Group) {
       // Для SVG групп тоже масштабируем
-      const canvasWidth = canvas.getWidth();
-      const canvasHeight = canvas.getHeight();
+      const canvasWidth = sceneWidth(canvas);
+      const canvasHeight = sceneHeight(canvas);
       const groupWidth = fabricObject.width || 1;
       const groupHeight = fabricObject.height || 1;
       

@@ -90,10 +90,20 @@ function generateEan13Bits(code: string): string {
 }
 
 /**
+ * Версия геометрии штрих-кода. Увеличивать при изменении высот штрихов/цифр,
+ * чтобы старые проекты пересоздавались при загрузке.
+ */
+export const BARCODE_NORM_VERSION = 2;
+
+/**
  * Константы вертикальной геометрии EAN-13
  */
 const DATA_BAR_H_MOD = 44;    // высота штрихов данных
-const GUARD_BAR_H_MOD = 53;   // высота защитных штрихов (до середины цифр)
+const DIGIT_Y_MOD = 55;       // базовая линия цифр (низ текста)
+const FONT_MOD = 8.5;         // кегль цифр
+// Выступающие вниз защитные штрихи опускаются чуть выше середины высоты цифр
+// (зона цифр: DIGIT_Y_MOD - FONT_MOD ..= DIGIT_Y_MOD).
+const GUARD_BAR_H_MOD = DIGIT_Y_MOD - FONT_MOD / 2 - 0.75; // ≈ 50.0
 
 /**
  * Зоны защитных штрихов (модули символа 0..95)
@@ -174,9 +184,10 @@ export function buildEan13Norm(code: string): BarcodeNorm {
     leftPadMod: 8,        // увеличен запас под первую цифру слева
     bars,
     digits,
-    digitYMod: 55,        // ряд цифр чуть выше, не касается безопасного поля
-    fontMod: 8.5,         // ряд цифр чуть мельче, аккуратнее
-    pxPerModule: 4,       // пикселей на модуль при scale=1
+    digitYMod: DIGIT_Y_MOD,  // базовая линия цифр
+    fontMod: FONT_MOD,       // кегль цифр
+    pxPerModule: 4,          // пикселей на модуль при scale=1
+    version: BARCODE_NORM_VERSION,
   };
 }
 
@@ -355,6 +366,7 @@ export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
     digitYMod,
     fontMod,
     pxPerModule: 1, // для ITF-14 модуль = 1 px
+    version: BARCODE_NORM_VERSION,
   };
 }
 

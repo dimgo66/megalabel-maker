@@ -1,81 +1,68 @@
 import * as fabric from 'fabric';
 import { LabelFormat } from '../types';
+import { mmToPx } from './layoutCalculator';
+import { isEditorOnly, withHidden } from './canvasHelpers';
+
+const MAX_PIXELS = 16_000_000; // Safari iOS режет canvas около 16.7 МП
+const MAX_SIDE = 16384;
+
+/** Загружает все шрифты, используемые на canvas, и пересчитывает текст */
+export async function ensureCanvasFonts(canvas: fabric.Canvas): Promise<void> {
+  const fonts = new Set<string>();
+  canvas.getObjects().forEach((o: any) => {
+    if (o.fontFamily) fonts.add(o.fontFamily);
+  });
+  await Promise.all(
+    Array.from(fonts).map((f) => document.fonts.load(`16px "${f}"`).catch(() => [])
+    )
+  );
+  canvas.getObjects().forEach((o: any) => {
+    if (o.fontFamily) {
+      o.dirty = true;
+      o.initDimensions?.();
+    }
+  });
+}
 
 /**
- * Рендер этикетки на заданном DPI с автокапом памяти
- * @param editorCanvas - канвас редактора
- * @param format - формат этикетки
- * @param targetDpi - целевой DPI (по умолчанию 1200)
- * @returns dataURL PNG изображения
+ * Растровый рендер этикетки на заданном DPI с капом по памяти.
+ * Не зависит от зума редактора: размеры берутся из формата, а не из canvas.
  */
 export async function renderLabelAtDpi(
   editorCanvas: fabric.Canvas,
   format: LabelFormat,
-  targetDpi: number = 1200
+  targetDpi: number = 300
 ): Promise<string> {
-  // Ждём готовности всех шрифтов
-  await document.fonts.ready;
+  await ensureCanvasFonts(editorCanvas);
 
-  // Вычисляем желаемые размеры в пикселях
-  const wishW_px = (format.width_mm / 25.4) * targetDpi;
-  const wishH_px = (format.height_mm / 25.4) * targetDpi;
+  const baseW = mmToPx(format.width_mm);
+  const baseH = mmToPx(format.height_mm);
+  const w_in = format.width_mm / 25.4;
+  const h_in = format.height_mm / 25.4;
 
-  // КАП памяти: если изображение превышает 60 мегапикселей, снижаем DPI
-  const MAX_PIXELS = 60_000_000; // 60 MP
   let dpi = targetDpi;
+  if (w_in * dpi * h_in * dpi > MAX_PIXELS) dpi = Math.floor(Math.sqrt(MAX_PIXELS / (w_in * h_in)));
+  if (Math.max(w_in, h_in) * dpi > MAX_SIDE) dpi = Math.floor(MAX_SIDE / Math.max(w_in, h_in));
+  if (dpi < targetDpi) console.warn(`DPI снижен ${targetDpi} → ${dpi} (лимит памяти canvas)`);
 
-  if (wishW_px * wishH_px > MAX_PIXELS) {
-    const w_in = format.width_mm / 25.4;
-    const h_in = format.height_mm / 25.4;
-    dpi = Math.floor(Math.sqrt(MAX_PIXELS / (w_in * h_in)));
-    console.warn(
-      `${targetDpi} DPI превышает 60MP для формата ${format.id} → снижаем до ${dpi} DPI`
-    );
-  }
-
-  // Вычисляем множитель для canvas.toDataURL
-  const canvasWidthPx = editorCanvas.getWidth();
-  const targetWidthPx = (format.width_mm / 25.4) * dpi;
-  const multiplier = targetWidthPx / canvasWidthPx;
-
-  // Временно скрываем штрих-коды для рендера растра
-  const barcodeObjects: fabric.FabricObject[] = [];
-  editorCanvas.getObjects().forEach((obj: any) => {
-    if (obj.barcodeNorm) {
-      barcodeObjects.push(obj);
-      obj.set('visible', false);
-    }
-  });
-
-  // Для круглых этикеток временно убираем фон
+  const multiplier = (w_in * dpi) / baseW;
   const originalBg = editorCanvas.backgroundColor;
-  if (format.shape === 'circle') {
-    editorCanvas.backgroundColor = 'transparent';
-  }
+  if (format.shape === 'circle') editorCanvas.backgroundColor = 'transparent';
 
-  editorCanvas.renderAll();
-
-  // Генерируем dataURL
-  const dataURL = editorCanvas.toDataURL({
-    format: 'png',
-    multiplier,
-    left: 0,
-    top: 0,
-    width: canvasWidthPx,
-    height: editorCanvas.getHeight(),
-  });
-
-  // Восстанавливаем видимость штрих-кодов
-  barcodeObjects.forEach((obj) => {
-    obj.set('visible', true);
-  });
-
-  // Восстанавливаем фон
-  if (format.shape === 'circle') {
+  try {
+    return await withHidden(editorCanvas, isEditorOnly, () =>
+      editorCanvas.toDataURL({
+        format: 'png',
+        multiplier,
+        left: 0,
+        top: 0,
+        width: baseW,
+        height: baseH,
+        enableRetinaScaling: false,
+      })
+    );
+  } finally {
     editorCanvas.backgroundColor = originalBg;
+    editorCanvas.requestRenderAll();
   }
-
-  editorCanvas.renderAll();
-
-  return dataURL;
 }

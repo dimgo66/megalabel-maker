@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
+import { sceneWidth, sceneHeight } from '../utils/canvasHelpers';
 
 interface ImageCropEditorProps {
   image: fabric.FabricImage;
@@ -25,8 +26,8 @@ export function ImageCropEditor({ image, canvas, onApply, onCancel }: ImageCropE
     const overlayRect = new fabric.Rect({
       left: 0,
       top: 0,
-      width: canvas.getWidth(),
-      height: canvas.getHeight(),
+      width: sceneWidth(canvas),
+      height: sceneHeight(canvas),
       fill: 'rgba(0, 0, 0, 0.3)',
       selectable: false,
       evented: false,

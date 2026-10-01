@@ -1,3 +1,5 @@
+import { SheetGeometry } from '../utils/layoutCalculator';
+
 export interface LabelFormat {
   id: string;
   name: string;
@@ -5,6 +7,8 @@ export interface LabelFormat {
   height_mm: number;
   count: number;
   shape: 'rect' | 'circle';
+  /** Точная раскладка листа из .doc-шаблона (мм от края листа). Без неё — авто-раскладка. */
+  layout?: SheetGeometry;
 }
 
 export interface LayoutResult {
@@ -53,6 +57,7 @@ export interface BarcodeNorm {
   digitYMod: number;        // базовая линия цифр в модулях: EAN-13: 56
   fontMod: number;          // кегль цифр в модулях: EAN-13: 9
   pxPerModule: number;      // 4 (константа масштаба группы при scale=1)
+  version?: number;         // версия геометрии; устаревшие нормы пересоздаются при загрузке
 }
 
 export type BarcodeFormat = 'ean13' | 'itf14';

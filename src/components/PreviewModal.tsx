@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { calculateLayout, mmToPx } from '../utils/layoutCalculator';
+import { calculateLayout, mmToPx, gridPitch } from '../utils/layoutCalculator';
+import { sceneWidth, sceneHeight } from '../utils/canvasHelpers';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -38,8 +39,8 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
       multiplier: 2,
       left: 0,
       top: 0,
-      width: editorCanvas.getWidth(),
-      height: editorCanvas.getHeight(),
+      width: sceneWidth(editorCanvas),
+      height: sceneHeight(editorCanvas),
     });
 
     setCachedDataURL(dataURL);
@@ -91,13 +92,14 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
       
       // Рендерим каждую ячейку
       let index = 0;
+      const { pitchX_mm, pitchY_mm } = gridPitch(selectedFormat, layout);
       for (let row = 0; row < layout.rows; row++) {
         for (let col = 0; col < layout.cols; col++) {
           if (index >= selectedFormat.count) break;
 
-          // Позиция ячейки в мм
-          const x_mm = layout.marginLeft_mm + col * (layout.cellWidth_mm + layout.gapX_mm);
-          const y_mm = layout.marginTop_mm + row * (layout.cellHeight_mm + layout.gapY_mm);
+          // Позиция ячейки в мм от края листа (шаг × индекс + поле)
+          const x_mm = layout.marginLeft_mm + col * pitchX_mm;
+          const y_mm = layout.marginTop_mm + row * pitchY_mm;
 
           // Конвертируем в пиксели
           const x_px = mmToPx(x_mm) * previewZoom;
@@ -240,6 +242,9 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
             </span>
             <span className="text-sm text-gray-400">
               {selectedFormat.count} этикеток, {selectedFormat.width_mm}×{selectedFormat.height_mm} мм каждая
+              {selectedFormat.layout && (
+                <> • поля: {selectedFormat.layout.marginLeft_mm.toFixed(1)}×{selectedFormat.layout.marginTop_mm.toFixed(1)} мм</>
+              )}
             </span>
           </div>
           

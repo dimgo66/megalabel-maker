@@ -6,6 +6,7 @@ import {
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 import { BarcodeFormat } from '../types';
 import * as fabric from 'fabric';
+import { serializeCanvas, sceneWidth, sceneHeight } from '../utils/canvasHelpers';
 import { useProjectStore } from '../store/useProjectStore';
 
 interface BarcodeModalProps {
@@ -92,8 +93,8 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
         console.log('handleAdd: штрихкод обновлён');
       } else if (editorCanvas) {
         // Центрируем новый штрихкод
-        const canvasWidth = editorCanvas.getWidth();
-        const canvasHeight = editorCanvas.getHeight();
+        const canvasWidth = sceneWidth(editorCanvas);
+        const canvasHeight = sceneHeight(editorCanvas);
         
         // Масштабируем для вписывания
         const groupWidth = group.width || 1;
@@ -120,7 +121,7 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
       }
       
       // Сохраняем изменения
-      const json = editorCanvas.toJSON();
+      const json = serializeCanvas(editorCanvas);
       
       // Добавляем кастомные свойства штрихкода в JSON вручную
       if (json.objects) {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { LabelFormat } from '../types';
 import { LABEL_FORMATS } from '../config/labelFormats';
 import { calculateLayout } from '../utils/layoutCalculator';
+import { gridPitch } from '../utils/layoutCalculator';
 
 interface FormatSelectorProps {
   selectedFormat: LabelFormat;
@@ -16,18 +17,16 @@ interface FormatGroup {
 function groupFormats(formats: LabelFormat[]): FormatGroup[] {
   const groups: FormatGroup[] = [
     { label: '1–4 на листе', formats: [] },
-    { label: '6–16 на листе', formats: [] },
-    { label: '18–40 на листе', formats: [] },
-    { label: '42–85 на листе', formats: [] },
-    { label: '100+ на листе', formats: [] },
+    { label: '5–16 на листе', formats: [] },
+    { label: '17–40 на листе', formats: [] },
+    { label: '41+ на листе', formats: [] },
   ];
 
   formats.forEach(format => {
     if (format.count <= 4) groups[0].formats.push(format);
     else if (format.count <= 16) groups[1].formats.push(format);
     else if (format.count <= 40) groups[2].formats.push(format);
-    else if (format.count <= 85) groups[3].formats.push(format);
-    else groups[4].formats.push(format);
+    else groups[3].formats.push(format);
   });
 
   return groups.filter(g => g.formats.length > 0);
@@ -35,6 +34,10 @@ function groupFormats(formats: LabelFormat[]): FormatGroup[] {
 
 function FormatThumbnail({ format }: { format: LabelFormat }) {
   const layout = calculateLayout(format);
+  const { pitchX, pitchY } = (() => {
+    const p = gridPitch(format, layout);
+    return { pitchX: p.pitchX_mm, pitchY: p.pitchY_mm };
+  })();
   const svgWidth = 80;
   const svgHeight = 113;
   const padding = 4;
@@ -42,19 +45,21 @@ function FormatThumbnail({ format }: { format: LabelFormat }) {
   const availW = svgWidth - padding * 2;
   const availH = svgHeight - padding * 2;
   
-  const cellW = availW / layout.cols;
-  const cellH = availH / layout.rows;
+  // Миниатюра = лист A4 в масштабе (пропорции раскладки сохраняются)
+  const k = Math.min(availW / 210, availH / 297);
+  const cellW = layout.cellWidth_mm * k;
+  const cellH = layout.cellHeight_mm * k;
 
   return (
     <svg width={svgWidth} height={svgHeight} className="border border-gray-200 rounded bg-gray-50">
-      {Array.from({ length: layout.rows * layout.cols }).map((_, idx) => {
+      {Array.from({ length: Math.min(layout.rows * layout.cols, format.count) }).map((_, idx) => {
         const col = idx % layout.cols;
         const row = Math.floor(idx / layout.cols);
-        const x = padding + col * cellW;
-        const y = padding + row * cellH;
+        const x = padding + layout.marginLeft_mm * k + col * pitchX * k;
+        const y = padding + layout.marginTop_mm * k + row * pitchY * k;
 
         if (format.shape === 'circle') {
-          const r = Math.min(cellW, cellH) / 2 - 1.5;
+          const r = Math.min(cellW, cellH) / 2;
           return (
             <circle
               key={idx}
@@ -71,10 +76,10 @@ function FormatThumbnail({ format }: { format: LabelFormat }) {
         return (
           <rect
             key={idx}
-            x={x + 1}
-            y={y + 1}
-            width={cellW - 2}
-            height={cellH - 2}
+            x={x}
+            y={y}
+            width={cellW}
+            height={cellH}
             fill="none"
             stroke="#9CA3AF"
             strokeWidth="1"
