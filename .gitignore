@@ -7,3 +7,6 @@ dist
 *.tar.gz
 *.zip
 *.7z
+
+# Сгенерированные дампы бандла
+_tools/dist_safety.txt
