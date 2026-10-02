@@ -216,7 +216,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
   
   setEditorZoom: (zoom: number) => {
-    set({ editorZoom: Math.max(0.5, Math.min(10.0, zoom)) });
+    const DEFAULT_ZOOM = 2.0;
+    set({ editorZoom: Math.max(DEFAULT_ZOOM, Math.min(10.0, zoom)) });
   },
   
   setPreviewZoom: (zoom: number) => {

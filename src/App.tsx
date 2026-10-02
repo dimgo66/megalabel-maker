@@ -20,12 +20,19 @@ function App() {
     selectedFormat,
     sheetSettings,
     editorZoom,
+    setEditorZoom,
     markSaved,
     loadProject,
     setLoadedGoogleFonts,
     setLocalFonts,
     setGoogleFontLoaded,
   } = useProjectStore();
+
+  const DEFAULT_ZOOM = 2.0;
+  const zoomPercent = Math.round((editorZoom / DEFAULT_ZOOM) * 100);
+
+  const handleZoomIn = () => setEditorZoom(Math.min(10.0, editorZoom + 0.5));
+  const handleZoomReset = () => setEditorZoom(DEFAULT_ZOOM);
 
   // Восстановление шрифтов при загрузке страницы
   useEffect(() => {
@@ -133,22 +140,45 @@ function App() {
           {/* Canvas header */}
           <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
             <span className="text-sm font-semibold text-gray-900">Редактор этикетки</span>
-            {selectedFormat.shape === 'circle' && (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
-                ⚪ Круг
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {selectedFormat.shape === 'circle' && (
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
+                  ⚪ Круг
+                </span>
+              )}
+              {/* Zoom controls */}
+              <div className="flex items-center gap-1 ml-2">
+                <span className="text-xs text-gray-500 mr-1 select-none">Масштаб:</span>
+                <button
+                  onClick={handleZoomReset}
+                  disabled={editorZoom === DEFAULT_ZOOM}
+                  title="Сбросить масштаб (100%)"
+                  className="text-xs px-2 py-1 rounded border border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors font-mono"
+                >
+                  {zoomPercent}%
+                </button>
+                <button
+                  onClick={handleZoomIn}
+                  disabled={editorZoom >= 10.0}
+                  title="Увеличить (Ctrl+колесо мыши)"
+                  className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-base leading-none"
+                >
+                  +
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Canvas area with safety margins overlay */}
           <div className="flex-1 flex items-center justify-center overflow-auto p-8">
             <div
-              className={`bg-white shadow-xl flex items-center justify-center relative overflow-hidden ${
+              className={`bg-white shadow-xl flex items-center justify-center relative overflow-hidden shrink-0 ${
                 selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg border border-gray-300'
               }`}
               style={{
                 width: `${mmToPx(selectedFormat.width_mm) * editorZoom}px`,
                 height: `${mmToPx(selectedFormat.height_mm) * editorZoom}px`,
+                flexShrink: 0,
                 ...(selectedFormat.shape === 'circle' ? { boxShadow: '0 0 0 2px #d1d5db, 0 10px 15px -3px rgba(0, 0, 0, 0.1)' } : {}),
               }}
             >

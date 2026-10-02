@@ -234,6 +234,7 @@ export function LabelCanvas() {
     const canvas = fabricCanvasRef.current;
     if (!canvas) return;
 
+    const DEFAULT_ZOOM = 2.0;
     const handleWheel = (opt: any) => {
       const e = opt.e as WheelEvent;
       if (e.ctrlKey) {
@@ -242,8 +243,10 @@ export function LabelCanvas() {
         let newZoom = editorZoom;
         
         if (delta > 0) {
-          newZoom = Math.max(0.5, editorZoom - 0.1);
+          // Уменьшение — не ниже дефолта
+          newZoom = Math.max(DEFAULT_ZOOM, editorZoom - 0.1);
         } else {
+          // Увеличение — до 10x
           newZoom = Math.min(10.0, editorZoom + 0.1);
         }
         

@@ -30,7 +30,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
     const cfg: ExportConfig = {
       format: selectedFormat,
       editorCanvas,
-      dpi: 150, // Среднее разрешение для чёткого превью
+      dpi: 300, // Достаточно для чёткого предпросмотра при увеличении
       orientation: sheetSettings.orientation,
     };
 
@@ -38,7 +38,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
 
     const generatePreview = async () => {
       try {
-        const canvas = await composeSheetCanvas(cfg, 150);
+        const canvas = await composeSheetCanvas(cfg, 300);
         if (!cancelled) {
           setPreviewUrl(canvas.toDataURL('image/png'));
         }
@@ -314,6 +314,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
                 width: `${(naturalSize?.w || 794) * zoom}px`,
                 height: 'auto',
                 maxWidth: 'none',
+                imageRendering: zoom > 1 ? 'crisp-edges' : 'auto',
               }}
             />
           )}
