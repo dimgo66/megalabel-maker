@@ -12,7 +12,6 @@ export function LeftPanel() {
     localFonts,
     setGoogleFontLoaded,
     addLocalFont,
-    getAvailableFonts,
   } = useProjectStore();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -70,9 +69,7 @@ export function LeftPanel() {
     canvas.renderAll();
   };
 
-  const systemFonts = fontConfigs.filter(f => f.source === 'system');
   const googleFonts = fontConfigs.filter(f => f.source === 'google');
-  const availableFonts = getAvailableFonts();
 
   return (
     <div className="w-[260px] bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
@@ -124,20 +121,6 @@ export function LeftPanel() {
 
       {/* Fonts section */}
       <div className="p-4 flex-1">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Шрифты</h4>
-        
-        {/* System fonts */}
-        <div className="mb-4">
-          <div className="text-xs font-medium text-gray-600 mb-2">Системные</div>
-          <div className="space-y-1">
-            {systemFonts.map(font => (
-              <div key={font.id} className="text-sm text-gray-700 px-2 py-1">
-                {font.name}
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Google Fonts */}
         <div className="mb-4">
           <div className="text-xs font-medium text-gray-600 mb-2">Кириллические (Google Fonts)</div>

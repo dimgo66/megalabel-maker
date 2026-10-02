@@ -42,6 +42,9 @@ interface ProjectState {
   // PDF sources (исходные байты загруженных PDF для векторного экспорта)
   pdfSources: Record<string, ArrayBuffer>;
   
+  // Счётчик внешних загрузок проекта (loadProject/resetProject) — триггер перезагрузки канваса
+  loadRevision: number;
+  
   // Actions
   setSelectedFormat: (format: LabelFormat) => void;
   setCanvasJSON: (json: object) => void;
@@ -106,6 +109,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   // PDF sources
   pdfSources: {},
+  
+  // Счётчик внешних загрузок проекта
+  loadRevision: 0,
   
   // Actions
   setSelectedFormat: (format: LabelFormat) => {
@@ -192,6 +198,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       labelDesign: createEmptyDesign(format.id, 'Новый проект'),
       projectName: 'Новый проект',
       isDirty: false,
+      history: [],
+      historyIndex: -1,
+      selectedObject: null,
+      // Сигнал LabelCanvas очистить канвас
+      loadRevision: get().loadRevision + 1,
     });
   },
   
@@ -254,6 +265,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       sheetSettings: settings,
       projectName: design.metadata.name,
       isDirty: false,
+      // Загруженный проект — это другое состояние: сбрасываем историю и выделение
+      history: [],
+      historyIndex: -1,
+      selectedObject: null,
+      // Сигнал LabelCanvas перезагрузить канвас из canvasJSON
+      loadRevision: get().loadRevision + 1,
     });
   },
   

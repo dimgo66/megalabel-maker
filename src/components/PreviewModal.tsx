@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
-import { calculateLayout, mmToPx, gridPitch } from '../utils/layoutCalculator';
-import { sceneWidth, sceneHeight } from '../utils/canvasHelpers';
+import { composeSheetCanvas, ExportConfig, exportWithFallback } from '../utils/pdfExporter';
+import { checkPdfSources } from '../utils/vectorExporter';
+import { printViaPdfWindow } from '../utils/printManager';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -9,176 +11,71 @@ interface PreviewModalProps {
 }
 
 export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
-  const {
-    selectedFormat,
-    previewZoom,
-    setPreviewZoom,
-    editorCanvas,
-    labelDesign,
-  } = useProjectStore();
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const { selectedFormat, sheetSettings, editorCanvas, projectName } = useProjectStore();
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [cachedDataURL, setCachedDataURL] = useState<string | null>(null);
-  const [isRendering, setIsRendering] = useState(false);
-  const [autoUpdate, setAutoUpdate] = useState(true);
-  const [updateCounter, setUpdateCounter] = useState(0);
 
-  const layout = calculateLayout(selectedFormat);
-
-  // Кэширование dataURL этикетки
+  // Генерируем превью при открытии
   useEffect(() => {
     if (!isOpen || !editorCanvas) {
-      setCachedDataURL(null);
+      setPreviewUrl('');
       return;
     }
 
-    // Генерируем dataURL с множителем 2 для качества
-    const dataURL = editorCanvas.toDataURL({
-      format: 'png',
-      multiplier: 2,
-      left: 0,
-      top: 0,
-      width: sceneWidth(editorCanvas),
-      height: sceneHeight(editorCanvas),
-    });
+    const cfg: ExportConfig = {
+      format: selectedFormat,
+      editorCanvas,
+      dpi: 96, // Низкое разрешение для быстрого превью
+      orientation: sheetSettings.orientation,
+    };
 
-    setCachedDataURL(dataURL);
-  }, [isOpen, editorCanvas, labelDesign.canvasJSON, updateCounter]);
+    let cancelled = false;
 
-  // Рендеринг листа предпросмотра
-  const renderSheet = useCallback(() => {
-    if (!isOpen) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas || !cachedDataURL) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    setIsRendering(true);
-
-    // Размеры листа A4 в пикселях с учётом зума
-    const sheetWidth_px = mmToPx(210) * previewZoom;
-    const sheetHeight_px = mmToPx(297) * previewZoom;
-
-    // Устанавливаем размер canvas
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = sheetWidth_px * dpr;
-    canvas.height = sheetHeight_px * dpr;
-    canvas.style.width = `${sheetWidth_px}px`;
-    canvas.style.height = `${sheetHeight_px}px`;
-
-    // Масштабируем контекст для Retina
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    // Белый фон листа
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, sheetWidth_px, sheetHeight_px);
-
-    // Рамка листа
-    ctx.strokeStyle = '#CCCCCC';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
-    ctx.strokeRect(0, 0, sheetWidth_px, sheetHeight_px);
-
-    // Загружаем изображение этикетки
-    const labelImg = new Image();
-    labelImg.src = cachedDataURL;
-    
-    labelImg.onload = async () => {
-      // Ждём полной загрузки изображения
-      await labelImg.decode();
-      
-      // Рендерим каждую ячейку
-      let index = 0;
-      const { pitchX_mm, pitchY_mm } = gridPitch(selectedFormat, layout);
-      for (let row = 0; row < layout.rows; row++) {
-        for (let col = 0; col < layout.cols; col++) {
-          if (index >= selectedFormat.count) break;
-
-          // Позиция ячейки в мм от края листа (шаг × индекс + поле)
-          const x_mm = layout.marginLeft_mm + col * pitchX_mm;
-          const y_mm = layout.marginTop_mm + row * pitchY_mm;
-
-          // Конвертируем в пиксели
-          const x_px = mmToPx(x_mm) * previewZoom;
-          const y_px = mmToPx(y_mm) * previewZoom;
-          const cellW_px = mmToPx(layout.cellWidth_mm) * previewZoom;
-          const cellH_px = mmToPx(layout.cellHeight_mm) * previewZoom;
-
-          // Для круглых этикеток: круглый clipPath
-          if (selectedFormat.shape === 'circle') {
-            ctx.save();
-            ctx.beginPath();
-            const radius = Math.min(cellW_px, cellH_px) / 2;
-            ctx.arc(x_px + cellW_px / 2, y_px + cellH_px / 2, radius, 0, Math.PI * 2);
-            ctx.clip();
-          }
-
-          // Рисуем содержимое этикетки
-          ctx.drawImage(labelImg, x_px, y_px, cellW_px, cellH_px);
-
-          // Восстанавливаем контекст для круглых
-          if (selectedFormat.shape === 'circle') {
-            ctx.restore();
-          }
-
-          // Рамка ячейки (пунктирная)
-          ctx.strokeStyle = '#999999';
-          ctx.lineWidth = 0.5;
-          ctx.setLineDash([4, 4]);
-          ctx.strokeRect(x_px, y_px, cellW_px, cellH_px);
-
-          index++;
+    const generatePreview = async () => {
+      try {
+        const canvas = await composeSheetCanvas(cfg, 96);
+        if (!cancelled) {
+          setPreviewUrl(canvas.toDataURL('image/png'));
         }
+      } catch (error) {
+        console.error('Ошибка генерации превью:', error);
       }
-
-      setIsRendering(false);
     };
-    
-    labelImg.onerror = () => {
-      console.error('Ошибка загрузки изображения для превью');
-      setIsRendering(false);
+
+    generatePreview();
+    return () => {
+      cancelled = true;
     };
-  }, [isOpen, cachedDataURL, previewZoom, layout, selectedFormat]);
+  }, [isOpen, editorCanvas, selectedFormat, sheetSettings.orientation]);
 
-  // Автообновление с дебаунсом
-  useEffect(() => {
-    if (!isOpen || !autoUpdate) return;
-
-    const timeoutId = setTimeout(() => {
-      renderSheet();
-    }, 500); // Дебаунс 500мс
-
-    return () => clearTimeout(timeoutId);
-  }, [isOpen, autoUpdate, renderSheet]);
-
-  // Ручное обновление
-  const handleManualUpdate = () => {
-    setUpdateCounter(prev => prev + 1);
-  };
-
-  // Автоматическое вписывание при открытии
-  useEffect(() => {
-    if (!isOpen) return;
-
+  // Автоматическое вписывание после загрузки изображения
+  const handleFitToScreen = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !naturalSize) return;
 
-    const containerWidth = container.clientWidth - 32;
-    const containerHeight = container.clientHeight - 32;
+    const { w: nw, h: nh } = naturalSize;
+    if (!nw || !nh) return;
 
-    const sheetWidth = mmToPx(210);
-    const sheetHeight = mmToPx(297);
+    const cw = container.clientWidth - 48;
+    const ch = container.clientHeight - 48;
+    if (cw <= 0 || ch <= 0) return;
 
-    const zoomX = containerWidth / sheetWidth;
-    const zoomY = containerHeight / sheetHeight;
-    const fitZoom = Math.min(zoomX, zoomY);
+    const fitZoom = Math.min(cw / nw, ch / nh);
+    const clamped = Math.max(0.1, Math.min(3.0, fitZoom));
+    setZoom(clamped);
+  }, [naturalSize]);
 
-    const clampedZoom = Math.max(0.25, Math.min(4.0, fitZoom));
-    setPreviewZoom(clampedZoom);
-  }, [isOpen]);
+  // Автоматически вписываем при первой загрузке изображения
+  useEffect(() => {
+    if (naturalSize && isOpen) {
+      handleFitToScreen();
+    }
+  }, [naturalSize, isOpen, handleFitToScreen]);
 
   // Закрытие по Esc
   useEffect(() => {
@@ -194,41 +91,136 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
     return () => window.removeEventListener('keydown', handleEsc);
   }, [isOpen, onClose]);
 
-  // Обработчики зума
   const handleZoomIn = () => {
-    setPreviewZoom(Math.min(4.0, previewZoom + 0.25));
+    setZoom((prev) => Math.min(3.0, prev + 0.1));
   };
 
   const handleZoomOut = () => {
-    setPreviewZoom(Math.max(0.25, previewZoom - 0.25));
+    setZoom((prev) => Math.max(0.1, prev - 0.1));
   };
 
-  const handleFitToScreen = () => {
-    const container = containerRef.current;
-    if (!container) return;
+  const handleZoomSlider = (value: number) => {
+    setZoom(Math.max(0.1, Math.min(3.0, value)));
+  };
 
-    const containerWidth = container.clientWidth - 32;
-    const containerHeight = container.clientHeight - 32;
+  /** Проверка PDF-источников: спрашиваем разрешение, если вектор невозможен */
+  const confirmPdfSources = (canvas: fabric.Canvas): boolean => {
+    const { missing, total } = checkPdfSources(canvas);
+    if (missing.length > 0 && total > 0) {
+      return confirm(
+        `PDF-источники не прикреплены в этой сессии (${missing.length} из ${total}).\n\n` +
+        `В PDF они уйдут растром. Загрузите исходники повторно для векторного экспорта.\n\n` +
+        `Продолжить?`
+      );
+    }
+    return true;
+  };
 
-    const sheetWidth = mmToPx(210);
-    const sheetHeight = mmToPx(297);
+  const handleExport = async () => {
+    if (!editorCanvas) return;
 
-    const zoomX = containerWidth / sheetWidth;
-    const zoomY = containerHeight / sheetHeight;
-    const fitZoom = Math.min(zoomX, zoomY);
+    setIsExporting(true);
+    setProgress(10);
 
-    const clampedZoom = Math.max(0.25, Math.min(4.0, fitZoom));
-    setPreviewZoom(clampedZoom);
+    try {
+      const cfg: ExportConfig = {
+        format: selectedFormat,
+        editorCanvas,
+        dpi: 1200, // Высокое разрешение для экспорта
+        orientation: sheetSettings.orientation,
+      };
+
+      setProgress(30);
+
+      if (!confirmPdfSources(editorCanvas)) {
+        setIsExporting(false);
+        setProgress(0);
+        return;
+      }
+
+      setProgress(50);
+
+      const { pdfBytes, isVector, error } = await exportWithFallback(cfg);
+
+      setProgress(80);
+
+      // Генерируем имя файла
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `${projectName || 'label'}_${selectedFormat.id}_${date}.pdf`;
+
+      setProgress(100);
+
+      // Создаём Blob и скачиваем
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      // Показываем уведомление о результате
+      if (!isVector && error) {
+        alert(`Векторный экспорт недоступен: ${error}\n\nСохранено растром.`);
+      }
+
+      setTimeout(() => {
+        setIsExporting(false);
+        setProgress(0);
+      }, 500);
+    } catch (error) {
+      console.error('EXPORT FAILED:', error);
+      alert(`Ошибка экспорта: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+      setIsExporting(false);
+      setProgress(0);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!editorCanvas) return;
+
+    setIsPrinting(true);
+
+    try {
+      const cfg: ExportConfig = {
+        format: selectedFormat,
+        editorCanvas,
+        dpi: 1200, // Высокое разрешение для печати
+        orientation: sheetSettings.orientation,
+      };
+
+      if (!confirmPdfSources(editorCanvas)) {
+        setIsPrinting(false);
+        return;
+      }
+
+      const { isVector, error } = await printViaPdfWindow(cfg);
+
+      // Показываем уведомление о результате
+      if (!isVector && error) {
+        alert(`Векторная печать недоступна: ${error}\n\nПечать растром.`);
+      }
+
+      setTimeout(() => {
+        setIsPrinting(false);
+      }, 1000);
+    } catch (error) {
+      console.error('PRINT FAILED:', error);
+      alert(`Ошибка печати: ${error instanceof Error ? error.message : 'Неизвестная ошибка'}`);
+      setIsPrinting(false);
+    }
   };
 
   if (!isOpen) return null;
 
+  const isLoading = !previewUrl;
+
   return (
-    <div 
+    <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       onClick={onClose}
     >
-      <div 
+      <div
         className="bg-white rounded-2xl shadow-2xl flex flex-col"
         style={{ width: '90vw', height: '90vh' }}
         onClick={(e) => e.stopPropagation()}
@@ -236,41 +228,19 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
         {/* Header */}
         <div className="h-16 border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-gray-900">Предпросмотр листа</span>
+            <span className="text-lg font-semibold text-gray-900">Предпросмотр</span>
             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
               {selectedFormat.name}
             </span>
             <span className="text-sm text-gray-400">
               {selectedFormat.count} этикеток, {selectedFormat.width_mm}×{selectedFormat.height_mm} мм каждая
-              {selectedFormat.layout && (
-                <> • поля: {selectedFormat.layout.marginLeft_mm.toFixed(1)}×{selectedFormat.layout.marginTop_mm.toFixed(1)} мм</>
-              )}
+              {' · '}
+              {sheetSettings.orientation === 'portrait' ? 'Книжная' : 'Альбомная'}
             </span>
           </div>
-          
+
           <div className="flex items-center gap-4">
-            {/* Автообновление */}
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={autoUpdate}
-                onChange={(e) => setAutoUpdate(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm text-gray-700">Автообновление</span>
-            </label>
-
-            {/* Ручное обновление */}
-            {!autoUpdate && (
-              <button
-                onClick={handleManualUpdate}
-                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm text-blue-700 transition-colors"
-              >
-                🔄 Обновить
-              </button>
-            )}
-
-            {/* Зум */}
+            {/* Масштаб */}
             <div className="flex items-center gap-2">
               <button
                 onClick={handleZoomOut}
@@ -283,11 +253,12 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
               </button>
               <input
                 type="range"
-                min="25"
-                max="400"
-                value={previewZoom * 100}
-                onChange={(e) => setPreviewZoom(Number(e.target.value) / 100)}
+                min="10"
+                max="300"
+                value={Math.round(zoom * 100)}
+                onChange={(e) => handleZoomSlider(Number(e.target.value) / 100)}
                 className="w-32"
+                title="Масштаб"
               />
               <button
                 onClick={handleZoomIn}
@@ -301,12 +272,12 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
               <button
                 onClick={handleFitToScreen}
                 className="px-3 h-9 bg-white border border-gray-300 rounded-lg text-xs text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium"
-                title="Вписать"
+                title="Вписать в экран"
               >
                 Вписать
               </button>
               <span className="text-sm text-gray-600 font-medium w-14 text-right">
-                {Math.round(previewZoom * 100)}%
+                {Math.round(zoom * 100)}%
               </span>
             </div>
 
@@ -324,19 +295,88 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
         </div>
 
         {/* Preview area */}
-        <div ref={containerRef} className="flex-1 overflow-hidden flex items-center justify-center bg-gray-100 p-4 relative">
-          {isRendering && (
-            <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <div className="text-sm text-gray-600">Обновление предпросмотра...</div>
+        <div ref={containerRef} className="flex-1 overflow-auto bg-gray-100 p-6 relative flex items-center justify-center">
+          {isLoading ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <div className="text-sm text-gray-600">Генерация предпросмотра...</div>
+            </div>
+          ) : (
+            <img
+              src={previewUrl}
+              alt="Предпросмотр листа"
+              onLoad={(e) => {
+                const img = e.currentTarget;
+                setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+              }}
+              className="border border-gray-300 shadow-lg bg-white"
+              style={{
+                width: `${(naturalSize?.w || 794) * zoom}px`,
+                height: 'auto',
+                maxWidth: 'none',
+              }}
+            />
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="h-20 border-t border-gray-200 flex items-center px-6 gap-4 shrink-0">
+          {/* Progress */}
+          {(isExporting || isPrinting) && (
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${isExporting ? progress : 60}%` }}
+                />
               </div>
+              <span className="text-sm text-gray-600 whitespace-nowrap">
+                {isExporting ? `Экспорт... ${progress}%` : 'Печать...'}
+              </span>
             </div>
           )}
-          <canvas
-            ref={canvasRef}
-            className="border border-gray-300 shadow-lg"
-          />
+
+          <div className="flex-1" />
+
+          {/* Print button */}
+          <button
+            onClick={handlePrint}
+            disabled={isPrinting || isExporting}
+            className="btn btn-secondary flex items-center justify-center gap-2 min-w-[140px]"
+            title="Печать листа (Ctrl+P)"
+          >
+            {isPrinting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
+                <span>Печать...</span>
+              </>
+            ) : (
+              <>
+                <span>🖨️</span>
+                <span>Печать</span>
+              </>
+            )}
+          </button>
+
+          {/* Export PDF button */}
+          <button
+            onClick={handleExport}
+            disabled={isExporting || isPrinting}
+            className="btn btn-primary flex items-center justify-center gap-2 min-w-[160px]"
+            title="Скачать PDF"
+          >
+            {isExporting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                <span>Экспорт...</span>
+              </>
+            ) : (
+              <>
+                <span>📄</span>
+                <span>Скачать PDF</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

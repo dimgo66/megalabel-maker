@@ -7,7 +7,6 @@ import { LayersPanel } from './LayersPanel';
 
 export function RightPanel() {
   const {
-    selectedFormat,
     sheetSettings,
     setSheetSettings,
   } = useProjectStore();
@@ -37,31 +36,6 @@ export function RightPanel() {
 
       {/* Layers panel */}
       <LayersPanel canvas={(window as any).__fabricCanvas} />
-
-      {/* Format section */}
-      <div className="p-4 border-b border-gray-200">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Формат</h4>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Размер этикетки:</span>
-            <span className="text-sm font-medium text-gray-900">
-              {selectedFormat.width_mm}×{selectedFormat.height_mm} мм
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Количество на листе:</span>
-            <span className="text-sm font-medium text-gray-900">{selectedFormat.count} шт</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Форма:</span>
-            <span className="text-sm font-medium text-gray-900">
-              {selectedFormat.shape === 'circle' ? '⚪ Круг' : '▭ Прямоугольник'}
-            </span>
-          </div>
-        </div>
-      </div>
-
-
 
       {/* Safety margin section */}
       <div className="p-4">

@@ -8,11 +8,9 @@ import { LabelFormat } from '../types';
 
 interface ToolbarProps {
   onPreview?: () => void;
-  onPrint?: () => void;
-  onExport?: () => void;
 }
 
-export function Toolbar({ onPreview, onPrint, onExport }: ToolbarProps) {
+export function Toolbar({ onPreview }: ToolbarProps) {
   const {
     projectName,
     selectedFormat,
@@ -134,30 +132,10 @@ export function Toolbar({ onPreview, onPrint, onExport }: ToolbarProps) {
       <button
         onClick={onPreview}
         className="btn btn-secondary flex items-center gap-2"
-        title="Предпросмотр листа (Ctrl+Shift+P)"
+        title="Предпросмотр листа, печать и сохранение PDF (Ctrl+Shift+P)"
       >
         <span>👁</span>
         <span>Предпросмотр</span>
-      </button>
-
-      {/* Print button */}
-      <button
-        onClick={onPrint}
-        className="btn btn-secondary flex items-center gap-2"
-        title="Печать (Ctrl+P)"
-      >
-        <span>🖨️</span>
-        <span>Печать</span>
-      </button>
-
-      {/* Export PDF button */}
-      <button
-        onClick={onExport}
-        className="btn btn-secondary flex items-center gap-2"
-        title="Экспорт в PDF (Ctrl+Shift+E)"
-      >
-        <span>📄</span>
-        <span>PDF</span>
       </button>
 
       {/* Spacer */}

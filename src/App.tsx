@@ -4,8 +4,6 @@ import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
 import { LabelCanvas } from './components/LabelCanvas';
 import { PreviewModal } from './components/PreviewModal';
-import { ExportModal } from './components/ExportModal';
-import { PrintModal } from './components/PrintModal';
 import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
 import { useAutosave } from './hooks/useAutosave';
@@ -104,14 +102,6 @@ function App() {
 
   const { undo, redo } = useProjectStore();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [isPrintOpen, setIsPrintOpen] = useState(false);
-  const [showModuleGrid, setShowModuleGrid] = useState(false);
-
-  // Экспортируем состояние для доступа из LabelCanvas
-  useEffect(() => {
-    (window as any).__showModuleGrid = showModuleGrid;
-  }, [showModuleGrid]);
 
   const { showRestoreBanner, restoreAutosave, discardAutosave } = useAutosave();
 
@@ -120,18 +110,17 @@ function App() {
     onLoad: handleLoad,
     onUndo: undo,
     onRedo: redo,
+    // Ctrl+Shift+P, Ctrl+P, Ctrl+Shift+E — все открывают единый предпросмотр
     onPreview: () => setIsPreviewOpen(prev => !prev),
-    onPrint: () => setIsPrintOpen(true),
-    onExport: () => setIsExportOpen(true),
+    onPrint: () => setIsPreviewOpen(true),
+    onExport: () => setIsPreviewOpen(true),
   });
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Toolbar */}
-      <Toolbar 
+      <Toolbar
         onPreview={() => setIsPreviewOpen(true)}
-        onPrint={() => setIsPrintOpen(true)}
-        onExport={() => setIsExportOpen(true)}
       />
 
       {/* Main content area */}
@@ -144,26 +133,11 @@ function App() {
           {/* Canvas header */}
           <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
             <span className="text-sm font-semibold text-gray-900">Редактор этикетки</span>
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showModuleGrid}
-                  onChange={(e) => setShowModuleGrid(e.target.checked)}
-                  className="rounded"
-                />
-                <span>🔍 Сетка модулей</span>
-              </label>
-              <div className="h-4 w-px bg-gray-300"></div>
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                {selectedFormat.width_mm}×{selectedFormat.height_mm} мм
+            {selectedFormat.shape === 'circle' && (
+              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
+                ⚪ Круг
               </span>
-              {selectedFormat.shape === 'circle' && (
-                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
-                  ⚪ Круг
-                </span>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Canvas area with safety margins overlay */}
@@ -250,22 +224,10 @@ function App() {
         <RightPanel />
       </div>
 
-      {/* Preview Modal */}
-      <PreviewModal 
-        isOpen={isPreviewOpen} 
-        onClose={() => setIsPreviewOpen(false)} 
-      />
-
-      {/* Export Modal */}
-      <ExportModal 
-        isOpen={isExportOpen} 
-        onClose={() => setIsExportOpen(false)} 
-      />
-
-      {/* Print Modal */}
-      <PrintModal 
-        isOpen={isPrintOpen} 
-        onClose={() => setIsPrintOpen(false)} 
+      {/* Preview Modal (предпросмотр + печать + сохранение PDF) */}
+      <PreviewModal
+        isOpen={isPreviewOpen}
+        onClose={() => setIsPreviewOpen(false)}
       />
 
       {/* Autosave Restore Banner */}

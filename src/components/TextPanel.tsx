@@ -11,7 +11,6 @@ export function TextPanel() {
   const [fontStyle, setFontStyle] = useState('normal');
   const [textAlign, setTextAlign] = useState('left');
   const [lineHeight, setLineHeight] = useState(1.2);
-  const [charSpacing, setCharSpacing] = useState(0);
   const [angle, setAngle] = useState(0);
   const [hasSelection, setHasSelection] = useState(false);
 
@@ -25,11 +24,6 @@ export function TextPanel() {
       setFontStyle(selectedObject.fontStyle || 'normal');
       setTextAlign(selectedObject.textAlign || 'left');
       setLineHeight(selectedObject.lineHeight || 1.2);
-      
-      // charSpacing в Fabric.js измеряется в тысячных долях
-      const storedSpacing = selectedObject.charSpacing || 0;
-      setCharSpacing(storedSpacing / 1000);
-      
       setAngle(selectedObject.angle || 0);
       
       // Проверяем наличие выделения
@@ -109,12 +103,6 @@ export function TextPanel() {
   const handleLineHeightChange = (value: number) => {
     setLineHeight(value);
     updateObject('lineHeight', value);
-  };
-
-  const handleCharSpacingChange = (value: number) => {
-    setCharSpacing(value);
-    // В Fabric.js charSpacing измеряется в тысячных долях
-    updateObject('charSpacing', value * 1000);
   };
 
   const handleAngleChange = (value: number) => {
@@ -282,20 +270,6 @@ export function TextPanel() {
             step="0.05"
             value={lineHeight}
             onChange={(e) => handleLineHeightChange(Number(e.target.value))}
-            className="w-full"
-          />
-        </div>
-
-        {/* Межбуквенный интервал */}
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Межбуквенный: {charSpacing.toFixed(2)}</label>
-          <input
-            type="range"
-            min="-2"
-            max="20"
-            step="0.1"
-            value={charSpacing}
-            onChange={(e) => handleCharSpacingChange(Number(e.target.value))}
             className="w-full"
           />
         </div>
