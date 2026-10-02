@@ -326,7 +326,13 @@ export function parseBarcodeBarsFromSVG(svgString: string): {
  * Строит BarcodeNorm для ITF-14 из SVG
  * Все значения в модулях (px для ITF-14)
  */
-export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
+export function buildItf14Norm(
+  svgString: string,
+  code: string,
+  _digitPositions: Array<{ char: string; x: number; y: number }>,
+  textY: number,
+  fontSize: number,
+): BarcodeNorm {
   if (code.length !== 14 || !/^\d{14}$/.test(code)) {
     throw new Error('ITF-14 код должен содержать ровно 14 цифр');
   }
@@ -335,27 +341,34 @@ export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
   const symW = bbox.maxX - bbox.minX;
   const symH = bbox.maxY - bbox.minY;
 
-  // Константы (приблизительные, на основе анализа SVG)
-  const barHMod = symH * 0.7; // высота штрихов
-  const digitYMod = symH * 0.85; // позиция цифр
-  const fontMod = symH * 0.15; // размер шрифта
+  const fontMod = fontSize;
+  const barHMod = symH * 0.85;  // высота штрихов — 85% высоты SVG
 
-  // Конвертируем в модули (для ITF-14 модуль = 1 px)
-  // Все штрихи ITF-14 имеют одинаковую высоту
   const barsModules = bars.map(r => ({
     xMod: r.x - bbox.minX,
     wMod: r.width,
     hMod: barHMod,
   }));
 
-  // Позиции цифр: равномерно распределены
-  const digits = [];
-  for (let i = 0; i < 14; i++) {
-    digits.push({
-      char: code[i],
-      xMod: (i + 0.5) * symW / 14,
-    });
+  const ITF_MODULES = 77;
+  const START_MODS = 4;
+  const PAIR_MODS = 10;
+  const modW = symW / ITF_MODULES;
+  const charHalfSpan = modW * 2.2;
+
+  const digits: Array<{ char: string; xMod: number }> = [];
+
+  for (let pair = 0; pair < 7; pair++) {
+    const pairCenterPx = (START_MODS + pair * PAIR_MODS + PAIR_MODS / 2) * modW;
+    const leftChar  = code[pair * 2];
+    const rightChar = code[pair * 2 + 1];
+    digits.push({ char: leftChar,  xMod: pairCenterPx - charHalfSpan });
+    digits.push({ char: rightChar, xMod: pairCenterPx + charHalfSpan });
   }
+
+  // digitYMod = низ штрихов + зазор 2px + высота шрифта
+  // originY: 'bottom' в fabric, поэтому это базовая линия (низ) текста
+  const digitYMod = barHMod + fontMod * 1.6; // зазор ~0.6×fontSize между штрихами и цифрами
 
   return {
     format: 'itf14',
@@ -365,56 +378,52 @@ export function buildItf14Norm(svgString: string, code: string): BarcodeNorm {
     digits,
     digitYMod,
     fontMod,
-    pxPerModule: 1, // для ITF-14 модуль = 1 px
+    pxPerModule: 1,
     version: BARCODE_NORM_VERSION,
   };
 }
 
 /**
- * Удаляет текст из SVG и возвращает информацию о позиции текста
+ * Результат парсинга текста из SVG штрих-кода
  */
-export function stripTextFromSVG(svgString: string): {
-  svgNoText: string;
-  textYFrac: number;
-  fontSizeFrac: number;
-} {
+export interface BarcodeTextInfo {
+  textY: number;         // базовая линия текста (y)
+  fontSize: number;      // размер шрифта
+  digitPositions: Array<{ char: string; x: number; y: number }>;
+}
+
+/**
+ * Извлекает только метрики текста из SVG (y, fontSize).
+ * Позиции цифр ITF-14 вычисляются детерминированно в buildItf14Norm,
+ * поэтому здесь достаточно лишь удалить <text> из SVG.
+ */
+export function extractDigitPositions(svgString: string): BarcodeTextInfo {
   const parser = new DOMParser();
   const doc = parser.parseFromString(svgString, 'image/svg+xml');
   const svg = doc.querySelector('svg');
 
   if (!svg) {
-    return {
-      svgNoText: svgString,
-      textYFrac: 0.95,
-      fontSizeFrac: 0.16,
-    };
+    return { textY: 0, fontSize: 16, digitPositions: [] };
   }
 
-  // Получаем viewBox
-  const viewBox = svg.getAttribute('viewBox');
-  const [, , , vbH] = viewBox ? viewBox.split(' ').map(parseFloat) : [0, 0, 100, 100];
-
-  // Находим все <text> элементы
   const textElements = Array.from(doc.querySelectorAll('text'));
 
-  let textYFrac = 0.95;
-  let fontSizeFrac = 0.16;
+  let textY = 0;
+  let fontSize = 16;
 
   if (textElements.length > 0) {
     const firstText = textElements[0];
     const y = parseFloat(firstText.getAttribute('y') || '0');
-    const fontSize = parseFloat(firstText.getAttribute('font-size') || '16');
-
-    textYFrac = y / vbH;
-    fontSizeFrac = fontSize / vbH;
+    const fs = parseFloat(firstText.getAttribute('font-size') || '16');
+    if (!isNaN(y)) textY = y;
+    if (!isNaN(fs) && fs > 0) fontSize = fs;
   }
 
-  // Удаляем все <text> элементы
+  // Удаляем все <text> — цифры рисуем самостоятельно
   textElements.forEach(el => el.remove());
 
-  const svgNoText = svg.outerHTML;
-
-  return { svgNoText, textYFrac, fontSizeFrac };
+  // Возвращаем пустой массив позиций: buildItf14Norm вычислит их детерминированно
+  return { textY, fontSize, digitPositions: [] };
 }
 
 /**

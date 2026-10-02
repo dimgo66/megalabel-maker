@@ -21,6 +21,16 @@ export interface LocalFontInfo {
 // Системные шрифты (доступны сразу)
 const SYSTEM_FONTS: FontConfig[] = [
   {
+    id: 'roboto-condensed',
+    name: 'Roboto Condensed',
+    source: 'system',
+    weights: [400, 700],
+    styles: ['normal', 'italic'],
+    cyrillic: true,
+    loaded: true,
+    recommended: true,
+  },
+  {
     id: 'arial',
     name: 'Arial',
     source: 'system',

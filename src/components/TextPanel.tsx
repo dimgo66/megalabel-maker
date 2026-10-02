@@ -6,7 +6,7 @@ export function TextPanel() {
   const { selectedObject } = useProjectStore();
   const [text, setText] = useState('');
   const [fontSize, setFontSize] = useState(14);
-  const [fontFamily, setFontFamily] = useState('Arial');
+  const [fontFamily, setFontFamily] = useState('Roboto Condensed');
   const [fontWeight, setFontWeight] = useState('normal');
   const [fontStyle, setFontStyle] = useState('normal');
   const [textAlign, setTextAlign] = useState('left');
@@ -19,7 +19,7 @@ export function TextPanel() {
     if (selectedObject && (selectedObject.type === 'i-text' || selectedObject.type === 'textbox')) {
       setText(selectedObject.text || '');
       setFontSize(selectedObject.fontSize || 14);
-      setFontFamily(selectedObject.fontFamily || 'Arial');
+      setFontFamily(selectedObject.fontFamily || 'Roboto Condensed');
       setFontWeight(selectedObject.fontWeight || 'normal');
       setFontStyle(selectedObject.fontStyle || 'normal');
       setTextAlign(selectedObject.textAlign || 'left');

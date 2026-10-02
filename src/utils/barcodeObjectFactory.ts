@@ -1,6 +1,6 @@
 import * as fabric from 'fabric';
 import { BarcodeNorm, BarcodeFormat } from '../types';
-import { buildEan13Norm, buildItf14Norm, generateBarcodeSVG, stripTextFromSVG } from './barcodeGenerator';
+import { buildEan13Norm, buildItf14Norm, generateBarcodeSVG, extractDigitPositions } from './barcodeGenerator';
 
 /**
  * Фабрика для создания векторного объекта штрих-кода из BarcodeNorm
@@ -18,10 +18,10 @@ export function buildBarcodeGroup(
     // EAN-13: детерминированная генерация по стандарту
     norm = buildEan13Norm(code);
   } else {
-    // ITF-14: генерируем SVG через JsBarcode, парсим с учётом transform
+    // ITF-14: генерируем SVG через JsBarcode, извлекаем позиции цифр до удаления текста
     const svg = generateBarcodeSVG(code, format, options);
-    const { svgNoText } = stripTextFromSVG(svg);
-    norm = buildItf14Norm(svgNoText, code);
+    const { digitPositions, textY, fontSize } = extractDigitPositions(svg);
+    norm = buildItf14Norm(svg, code, digitPositions, textY, fontSize);
   }
 
   const px = norm.pxPerModule;

@@ -61,7 +61,7 @@ export function LeftPanel() {
       top: 100,
       fill: '#000000',
       fontSize: 24,
-      fontFamily: 'Arial',
+      fontFamily: 'Roboto Condensed',
     });
 
     canvas.add(text);

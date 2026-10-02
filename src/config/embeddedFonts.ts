@@ -89,10 +89,19 @@ export const EMBEDDED_FONTS: EmbeddedFont[] = [
       bolditalic: 'Roboto-BoldItalic.ttf',
     },
   },
+  {
+    family: 'Roboto Condensed',
+    files: {
+      normal: 'RobotoCondensed-Regular.ttf',
+      bold: 'RobotoCondensed-Bold.ttf',
+      italic: 'RobotoCondensed-Italic.ttf',
+      bolditalic: 'RobotoCondensed-BoldItalic.ttf',
+    },
+  },
 ];
 
 /** Шрифт fallback для неизвестных семейств (всегда встроен) */
-export const FALLBACK_FAMILY = 'Roboto';
+export const FALLBACK_FAMILY = 'Roboto Condensed';
 
 /** Переводит ключ начертания в CSS weight/style */
 export function styleToCss(style: FontStyleKey): { weight: string; style: string } {

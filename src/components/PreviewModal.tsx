@@ -30,7 +30,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
     const cfg: ExportConfig = {
       format: selectedFormat,
       editorCanvas,
-      dpi: 96, // Низкое разрешение для быстрого превью
+      dpi: 150, // Среднее разрешение для чёткого превью
       orientation: sheetSettings.orientation,
     };
 
@@ -38,7 +38,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
 
     const generatePreview = async () => {
       try {
-        const canvas = await composeSheetCanvas(cfg, 96);
+        const canvas = await composeSheetCanvas(cfg, 150);
         if (!cancelled) {
           setPreviewUrl(canvas.toDataURL('image/png'));
         }
