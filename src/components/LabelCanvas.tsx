@@ -118,14 +118,42 @@ export function LabelCanvas() {
     // Сохраняем canvas в store для предпросмотра
     setEditorCanvas(canvas);
 
+    // Нормализация масштаба текстового объекта: переносим scaleX/scaleY в fontSize
+    const normalizeTextScale = (obj: any) => {
+      if (obj.type !== 'i-text' && obj.type !== 'textbox') return;
+      const scaleX = obj.scaleX ?? 1;
+      const scaleY = obj.scaleY ?? 1;
+      // Если масштаб не единичный — нормализуем
+      if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) {
+        const scale = (scaleX + scaleY) / 2;
+        const newFontSize = Math.round((obj.fontSize ?? 14) * scale);
+        obj.set({
+          fontSize: newFontSize,
+          scaleX: 1,
+          scaleY: 1,
+        });
+        obj.setCoords();
+      }
+    };
+
     // Обработчики событий для сохранения состояния
-    const handleModification = () => {
+    const handleModification = (e?: any) => {
       if (!fabricCanvasRef.current || isHistorySuspended()) return;
+      const target = e?.target;
+      if (target) {
+        useProjectStore.getState().setSelectedObject(target);
+      }
       setCanvasJSON(serializeCanvas(canvas));
     };
 
     canvas.on('object:added', handleModification);
-    canvas.on('object:modified', handleModification);
+    canvas.on('object:modified', (e: any) => {
+      if (e.target) normalizeTextScale(e.target);
+      // bumpObjectRevision вызываем ВСЕГДА (не зависит от istHistorySuspended)
+      // чтобы TextPanel всегда обновлялся
+      useProjectStore.getState().bumpObjectRevision();
+      handleModification(e);
+    });
     canvas.on('object:removed', handleModification);
 
     // Обработчик выбора объекта

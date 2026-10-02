@@ -32,6 +32,10 @@ interface ProjectState {
   // Selected object (any to avoid fabric type issues)
   selectedObject: any;
   
+  // Счётчик изменений выбранного объекта (инкрементируется при object:modified)
+  // Нужен т.к. selectedObject — мутабельная ссылка и Zustand не замечает изменений свойств
+  objectRevision: number;
+  
   // Editor canvas reference
   editorCanvas: fabric.Canvas | null;
   
@@ -56,6 +60,7 @@ interface ProjectState {
   setPreviewZoom: (zoom: number) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
   setSelectedObject: (obj: any) => void;
+  bumpObjectRevision: () => void;
   setEditorCanvas: (canvas: fabric.Canvas | null) => void;
   
   // Undo/Redo actions
@@ -76,12 +81,15 @@ interface ProjectState {
   getPdfSource: (id: string) => ArrayBuffer | undefined;
 }
 
+// Default initial format (both selectedFormat and labelDesign.formatId must match)
+const DEFAULT_FORMAT = LABEL_FORMATS.find(f => f.id === '66.7x46_18') || LABEL_FORMATS[0];
+
 export const useProjectStore = create<ProjectState>((set, get) => ({
   // Initial format: 18 labels (66.7×46 мм) — активный шаблон из docs/шаблоны
-  selectedFormat: LABEL_FORMATS.find(f => f.id === '66.7x46_18') || LABEL_FORMATS[0],
+  selectedFormat: DEFAULT_FORMAT,
   
-  // Initial empty design
-  labelDesign: createEmptyDesign(LABEL_FORMATS[0].id, 'Новый проект'),
+  // Initial empty design — formatId ДОЛЖЕН совпадать с selectedFormat.id!
+  labelDesign: createEmptyDesign(DEFAULT_FORMAT.id, 'Новый проект'),
   
   // Default sheet settings
   sheetSettings: createDefaultSettings(),
@@ -99,6 +107,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   // Selected object
   selectedObject: null,
+  objectRevision: 0,
   
   // Editor canvas reference
   editorCanvas: null,
@@ -276,6 +285,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   setSelectedObject: (obj: any) => {
     set({ selectedObject: obj });
+  },
+  
+  bumpObjectRevision: () => {
+    set((state) => ({ objectRevision: state.objectRevision + 1 }));
   },
   
   setEditorCanvas: (canvas: fabric.Canvas | null) => {
