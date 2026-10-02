@@ -9,10 +9,52 @@ export function TextPanel() {
   const [fontFamily, setFontFamily] = useState('Roboto Condensed');
   const [fontWeight, setFontWeight] = useState('normal');
   const [fontStyle, setFontStyle] = useState('normal');
+  const [underline, setUnderline] = useState(false);
+  const [textTransform, setTextTransform] = useState<'none' | 'uppercase' | 'lowercase'>('none');
   const [textAlign, setTextAlign] = useState('left');
   const [lineHeight, setLineHeight] = useState(1.2);
   const [angle, setAngle] = useState(0);
   const [hasSelection, setHasSelection] = useState(false);
+  const [showSpecialChars, setShowSpecialChars] = useState(false);
+
+  const SPECIAL_CHARS = [
+    { label: '©', title: 'Copyright' },
+    { label: '®', title: 'Registered' },
+    { label: '™', title: 'Trademark' },
+    { label: '°', title: 'Градус' },
+    { label: '±', title: 'Плюс-минус' },
+    { label: '×', title: 'Умножение' },
+    { label: '÷', title: 'Деление' },
+    { label: '≈', title: 'Приблизительно' },
+    { label: '≠', title: 'Не равно' },
+    { label: '≤', title: 'Меньше или равно' },
+    { label: '≥', title: 'Больше или равно' },
+    { label: '½', title: 'Одна вторая' },
+    { label: '¼', title: 'Одна четверть' },
+    { label: '¾', title: 'Три четверти' },
+    { label: '№', title: 'Номер' },
+    { label: '§', title: 'Параграф' },
+    { label: '•', title: 'Точка-маркер' },
+    { label: '→', title: 'Стрелка вправо' },
+    { label: '←', title: 'Стрелка влево' },
+    { label: '↑', title: 'Стрелка вверх' },
+    { label: '↓', title: 'Стрелка вниз' },
+    { label: '↔', title: 'Стрелка в обе стороны' },
+    { label: '★', title: 'Звезда' },
+    { label: '☆', title: 'Звезда (контур)' },
+    { label: '✓', title: 'Галочка' },
+    { label: '✗', title: 'Крестик' },
+    { label: '♻', title: 'Переработка' },
+    { label: '⚠', title: 'Предупреждение' },
+    { label: '€', title: 'Евро' },
+    { label: '£', title: 'Фунт' },
+    { label: '¥', title: 'Йена' },
+    { label: '₽', title: 'Рубль' },
+    { label: '—', title: 'Тире' },
+    { label: '–', title: 'Короткое тире' },
+    { label: '«', title: 'Кавычка открывающая' },
+    { label: '»', title: 'Кавычка закрывающая' },
+  ];
 
   // Синхронизация с выбранным объектом (при смене объекта или objectRevision)
   useEffect(() => {
@@ -22,6 +64,8 @@ export function TextPanel() {
       setFontFamily(selectedObject.fontFamily || 'Roboto Condensed');
       setFontWeight(selectedObject.fontWeight || 'normal');
       setFontStyle(selectedObject.fontStyle || 'normal');
+      setUnderline(!!(selectedObject as any).underline);
+      setTextTransform(((selectedObject as any).textTransform || 'none') as 'none' | 'uppercase' | 'lowercase');
       setTextAlign(selectedObject.textAlign || 'left');
       setLineHeight(selectedObject.lineHeight || 1.2);
       setAngle(selectedObject.angle || 0);
@@ -62,6 +106,8 @@ export function TextPanel() {
       setFontFamily(obj.fontFamily || 'Roboto Condensed');
       setFontWeight(obj.fontWeight || 'normal');
       setFontStyle(obj.fontStyle || 'normal');
+      setUnderline(!!(obj as any).underline);
+      setTextTransform(((obj as any).textTransform || 'none') as 'none' | 'uppercase' | 'lowercase');
       setTextAlign(obj.textAlign || 'left');
       setLineHeight(obj.lineHeight || 1.2);
     };
@@ -137,6 +183,81 @@ export function TextPanel() {
     const newStyle = fontStyle === 'normal' ? 'italic' : 'normal';
     setFontStyle(newStyle);
     applyStyleToSelection('fontStyle', newStyle);
+  };
+
+  const handleUnderlineChange = () => {
+    const newUnderline = !underline;
+    setUnderline(newUnderline);
+    applyStyleToSelection('underline', newUnderline);
+  };
+
+  const handleTextTransformChange = (transform: 'none' | 'uppercase' | 'lowercase') => {
+    if (!selectedObject) return;
+    const obj = selectedObject as IText & { _originalText?: string };
+
+    const selStart = obj.selectionStart ?? 0;
+    const selEnd = obj.selectionEnd ?? 0;
+    const hasSelection = selStart !== selEnd;
+    const currentText = obj.text || '';
+
+    if (hasSelection) {
+      // Применяем только к выделенному фрагменту
+      const before = currentText.slice(0, selStart);
+      const selected = currentText.slice(selStart, selEnd);
+      const after = currentText.slice(selEnd);
+
+      const transformedSlice =
+        transform === 'uppercase'
+          ? selected.toUpperCase()
+          : transform === 'lowercase'
+            ? selected.toLowerCase()
+            : selected;
+
+      const newText = before + transformedSlice + after;
+      obj.set('text', newText);
+      // Восстанавливаем выделение после изменения
+      obj.selectionStart = selStart;
+      obj.selectionEnd = selEnd;
+      setText(newText);
+      // Не меняем состояние textTransform — оно отражает режим всего объекта
+    } else {
+      // Применяем ко всему тексту
+      const newTransform = textTransform === transform ? 'none' : transform;
+      setTextTransform(newTransform);
+
+      if (newTransform !== 'none') {
+        if (!obj._originalText) obj._originalText = currentText;
+      }
+      const source = obj._originalText || currentText;
+      const displayText =
+        newTransform === 'uppercase'
+          ? source.toUpperCase()
+          : newTransform === 'lowercase'
+            ? source.toLowerCase()
+            : source;
+
+      obj.set('text', displayText);
+      setText(displayText);
+    }
+
+    obj.setCoords();
+    obj.canvas?.renderAll();
+    obj.fire('modified');
+  };
+
+  const handleInsertSpecialChar = (char: string) => {
+    if (!selectedObject) return;
+    const obj = selectedObject as IText;
+    const start = obj.selectionStart ?? (obj.text?.length ?? 0);
+    const currentText = obj.text || '';
+    const newText = currentText.slice(0, start) + char + currentText.slice(obj.selectionEnd ?? start);
+    obj.set('text', newText);
+    setText(newText);
+    obj.selectionStart = start + char.length;
+    obj.selectionEnd = start + char.length;
+    obj.setCoords();
+    obj.canvas?.renderAll();
+    obj.fire('modified');
   };
 
   const handleTextAlignChange = (align: string) => {
@@ -277,6 +398,61 @@ export function TextPanel() {
             >
               I
             </button>
+            <button
+              onClick={handleUnderlineChange}
+              aria-label="Подчёркивание"
+              aria-pressed={underline}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm underline transition-all duration-200 ${
+                underline
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              U
+            </button>
+          </div>
+
+          {/* Регистр */}
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => handleTextTransformChange('uppercase')}
+              aria-label="Прописные"
+              aria-pressed={textTransform === 'uppercase'}
+              title="Все прописные (UPPERCASE)"
+              className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 ${
+                textTransform === 'uppercase'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              AA
+            </button>
+            <button
+              onClick={() => handleTextTransformChange('lowercase')}
+              aria-label="Строчные"
+              aria-pressed={textTransform === 'lowercase'}
+              title="Все строчные (lowercase)"
+              className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 ${
+                textTransform === 'lowercase'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              aa
+            </button>
+            <button
+              onClick={() => handleTextTransformChange('none')}
+              aria-label="Как есть"
+              aria-pressed={textTransform === 'none'}
+              title="Без изменения регистра"
+              className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-200 ${
+                textTransform === 'none'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Aa
+            </button>
           </div>
         </div>
 
@@ -337,6 +513,34 @@ export function TextPanel() {
             onChange={(e) => handleLineHeightChange(Number(e.target.value))}
             className="w-full"
           />
+        </div>
+
+        {/* Спецсимволы */}
+        <div>
+          <button
+            onClick={() => setShowSpecialChars(!showSpecialChars)}
+            className={`w-full text-left text-xs font-semibold uppercase tracking-wide mb-2 px-2 py-1.5 rounded-lg transition-all duration-200 ${
+              showSpecialChars
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            {showSpecialChars ? '▾' : '▸'} Спецсимволы
+          </button>
+          {showSpecialChars && (
+            <div className="grid grid-cols-6 gap-1">
+              {SPECIAL_CHARS.map((sc) => (
+                <button
+                  key={sc.label}
+                  title={sc.title}
+                  onClick={() => handleInsertSpecialChar(sc.label)}
+                  className="flex items-center justify-center h-8 w-full rounded-md text-sm bg-gray-100 hover:bg-blue-100 hover:text-blue-700 transition-all duration-150 font-mono"
+                >
+                  {sc.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Поворот */}

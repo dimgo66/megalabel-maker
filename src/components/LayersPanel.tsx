@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import * as fabric from 'fabric';
+import { useProjectStore } from '../store/useProjectStore';
 
 interface LayersPanelProps {
   canvas: fabric.Canvas | null;
 }
 
 interface LayerItem {
-  id: string;
+  index: number;      // индекс в canvas.getObjects()
   name: string;
   type: 'text' | 'image' | 'group' | 'other';
   visible: boolean;
@@ -16,37 +17,28 @@ interface LayerItem {
 
 export function LayersPanel({ canvas }: LayersPanelProps) {
   const [layers, setLayers] = useState<LayerItem[]>([]);
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+
+  // selectedObject из store — прямая ссылка на fabric-объект
+  const selectedObject = useProjectStore((s) => s.selectedObject);
+
+  /** Перестраивает список слоёв по текущему состоянию холста */
+  const buildLayers = (c: fabric.Canvas): LayerItem[] => {
+    return [...c.getObjects()]
+      .reverse()
+      .map((obj, revIdx) => ({
+        index: revIdx,
+        name: (obj as any).name || getDefaultName(obj, c.getObjects().indexOf(obj)),
+        type: getObjectType(obj),
+        visible: obj.visible !== false,
+        locked: (obj as any).locked || false,
+        object: obj,
+      }));
+  };
 
   useEffect(() => {
     if (!canvas) return;
 
-    const updateLayers = () => {
-      const objects = canvas.getObjects();
-      const newLayers: LayerItem[] = objects.map((obj, index) => {
-        const id = (obj as any).id || `obj_${index}`;
-        const name = (obj as any).name || getDefaultName(obj, index);
-        const type = getObjectType(obj);
-        
-        return {
-          id,
-          name,
-          type,
-          visible: obj.visible !== false,
-          locked: (obj as any).locked || false,
-          object: obj
-        };
-      });
-      
-      setLayers(newLayers.reverse()); // Верхний слой первый
-      
-      const activeObject = canvas.getActiveObject();
-      if (activeObject) {
-        setSelectedLayerId((activeObject as any).id || null);
-      } else {
-        setSelectedLayerId(null);
-      }
-    };
+    const updateLayers = () => setLayers(buildLayers(canvas));
 
     updateLayers();
 
@@ -72,56 +64,63 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
     const typeNames: Record<string, string> = {
       text: 'Текст',
       image: 'Изображение',
-      group: 'Группа',
-      other: 'Объект'
+      group: 'Штрих-код',
+      other: 'Объект',
     };
     return `${typeNames[type] || 'Объект'} ${index + 1}`;
   };
 
   const getObjectType = (obj: fabric.FabricObject): 'text' | 'image' | 'group' | 'other' => {
-    if (obj instanceof fabric.IText || obj instanceof fabric.Textbox) {
-      return 'text';
-    } else if (obj instanceof fabric.FabricImage) {
-      return 'image';
-    } else if (obj instanceof fabric.Group) {
-      return 'group';
-    }
+    if (obj instanceof fabric.IText || obj instanceof fabric.Textbox) return 'text';
+    if (obj instanceof fabric.FabricImage) return 'image';
+    if (obj instanceof fabric.Group) return 'group';
     return 'other';
   };
 
-  const getTypeIcon = (type: string): string => {
+  const getTypeIcon = (type: string, obj: fabric.FabricObject): string => {
+    // Штрих-код — группа с barcodeValue
+    if (type === 'group' && (obj as any).barcodeValue) return '▦';
     const icons: Record<string, string> = {
-      text: '📝',
-      image: '🖼️',
-      group: '📦',
-      other: '⚪'
+      text: '𝐓',
+      image: '🖼',
+      group: '▣',
+      other: '◉',
     };
-    return icons[type] || '⚪';
+    return icons[type] || '◉';
   };
 
   const handleLayerClick = (layer: LayerItem) => {
     if (!canvas) return;
     canvas.setActiveObject(layer.object);
     canvas.renderAll();
-    setSelectedLayerId(layer.id);
+    useProjectStore.getState().setSelectedObject(layer.object);
   };
 
   const handleMoveUp = (layer: LayerItem) => {
     if (!canvas) return;
     canvas.bringObjectForward(layer.object);
     canvas.renderAll();
+    // fabric не генерирует событие при смене z-порядка — обновляем вручную
+    setLayers(buildLayers(canvas));
   };
 
   const handleMoveDown = (layer: LayerItem) => {
     if (!canvas) return;
     canvas.sendObjectBackwards(layer.object);
     canvas.renderAll();
+    setLayers(buildLayers(canvas));
   };
 
   const handleToggleVisibility = (layer: LayerItem) => {
     if (!canvas) return;
     layer.object.set('visible', !layer.visible);
     canvas.renderAll();
+    // Форсируем ре-рендер панели
+    setLayers((prev) =>
+      prev.map((l) =>
+        l.object === layer.object ? { ...l, visible: !layer.visible } : l
+      )
+    );
   };
 
   const handleToggleLock = (layer: LayerItem) => {
@@ -131,9 +130,14 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
     layer.object.set({
       selectable: !isLocked,
       evented: !isLocked,
-      hasControls: !isLocked
+      hasControls: !isLocked,
     });
     canvas.renderAll();
+    setLayers((prev) =>
+      prev.map((l) =>
+        l.object === layer.object ? { ...l, locked: isLocked } : l
+      )
+    );
   };
 
   const handleDelete = (layer: LayerItem) => {
@@ -151,82 +155,89 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
   }
 
   return (
-    <div className="p-4">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+    <div className="p-3">
+      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
         Слои ({layers.length})
       </h4>
       <div className="space-y-1">
-        {layers.map((layer) => (
-          <div
-            key={layer.id}
-            onClick={() => handleLayerClick(layer)}
-            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-              selectedLayerId === layer.id
-                ? 'bg-blue-50 border border-blue-200'
-                : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-            }`}
-          >
-            <span className="text-sm">{getTypeIcon(layer.type)}</span>
-            <span className="flex-1 text-sm text-gray-700 truncate">{layer.name}</span>
-            
-            <div className="flex items-center gap-1">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMoveUp(layer);
-                }}
-                className="w-6 h-6 flex items-center justify-center text-xs hover:bg-gray-200 rounded"
-                title="Переместить вверх"
-              >
-                ↑
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMoveDown(layer);
-                }}
-                className="w-6 h-6 flex items-center justify-center text-xs hover:bg-gray-200 rounded"
-                title="Переместить вниз"
-              >
-                ↓
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleVisibility(layer);
-                }}
-                className={`w-6 h-6 flex items-center justify-center text-xs rounded ${
-                  layer.visible ? 'hover:bg-gray-200' : 'bg-gray-300'
+        {layers.map((layer, i) => {
+          const isSelected = selectedObject === layer.object;
+          return (
+            <div
+              key={i}
+              onClick={() => handleLayerClick(layer)}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
+                isSelected
+                  ? 'bg-blue-50 border border-blue-400 shadow-sm'
+                  : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
+              }`}
+            >
+              {/* Цветной индикатор выделения */}
+              <div
+                className={`w-1.5 h-5 rounded-full shrink-0 transition-colors ${
+                  isSelected ? 'bg-blue-500' : 'bg-gray-200'
                 }`}
-                title={layer.visible ? 'Скрыть' : 'Показать'}
-              >
-                {layer.visible ? '👁' : '🚫'}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleLock(layer);
-                }}
-                className={`w-6 h-6 flex items-center justify-center text-xs rounded ${
-                  layer.locked ? 'bg-yellow-100' : 'hover:bg-gray-200'
+              />
+
+              {/* Иконка типа */}
+              <span
+                className={`text-sm font-mono w-4 text-center shrink-0 ${
+                  isSelected ? 'text-blue-600' : 'text-gray-400'
                 }`}
-                title={layer.locked ? 'Разблокировать' : 'Заблокировать'}
               >
-                {layer.locked ? '🔒' : '🔓'}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDelete(layer);
-                }}
-                className="w-6 h-6 flex items-center justify-center text-xs hover:bg-red-100 rounded"
-                title="Удалить"
+                {getTypeIcon(layer.type, layer.object)}
+              </span>
+
+              {/* Название */}
+              <span
+                className={`flex-1 text-xs truncate ${
+                  isSelected ? 'text-blue-800 font-semibold' : 'text-gray-700'
+                } ${!layer.visible ? 'opacity-40 line-through' : ''}`}
               >
-                🗑️
-              </button>
+                {layer.name}
+              </span>
+
+              {/* Кнопки управления */}
+              <div className="flex items-center gap-0.5 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleMoveUp(layer); }}
+                  className="w-5 h-5 flex items-center justify-center text-xs hover:bg-gray-200 rounded text-gray-500"
+                  title="Переместить вверх"
+                >↑</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleMoveDown(layer); }}
+                  className="w-5 h-5 flex items-center justify-center text-xs hover:bg-gray-200 rounded text-gray-500"
+                  title="Переместить вниз"
+                >↓</button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleToggleVisibility(layer); }}
+                  className={`w-5 h-5 flex items-center justify-center text-xs rounded ${
+                    layer.visible ? 'hover:bg-gray-200 text-gray-500' : 'bg-gray-200 text-gray-400'
+                  }`}
+                  title={layer.visible ? 'Скрыть' : 'Показать'}
+                >
+                  {layer.visible ? '👁' : '🚫'}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleToggleLock(layer); }}
+                  className={`w-5 h-5 flex items-center justify-center text-xs rounded ${
+                    layer.locked ? 'bg-yellow-100 text-yellow-600' : 'hover:bg-gray-200 text-gray-500'
+                  }`}
+                  title={layer.locked ? 'Разблокировать' : 'Заблокировать'}
+                >
+                  {layer.locked ? '🔒' : '🔓'}
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(layer); }}
+                  className="w-5 h-5 flex items-center justify-center text-xs hover:bg-red-100 rounded text-gray-500 hover:text-red-600"
+                  title="Удалить"
+                >✕</button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

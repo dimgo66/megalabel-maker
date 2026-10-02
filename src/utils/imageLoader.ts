@@ -199,6 +199,14 @@ export async function handleFileUpload(
       });
     }
     
+    // Оставляем только угловые точки масштабирования (без средних ml/mr/mt/mb)
+    fabricObject.setControlsVisibility({
+      ml: false,
+      mr: false,
+      mt: false,
+      mb: false,
+    });
+
     // Добавляем на канвас
     canvas.add(fabricObject);
     canvas.setActiveObject(fabricObject);

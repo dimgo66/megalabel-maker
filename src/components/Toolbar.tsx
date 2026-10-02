@@ -1,10 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { getFormatById } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
 import { UndoRedoButtons } from './UndoRedoButtons';
 import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
 import { LabelFormat } from '../types';
+import { HelpModal } from './HelpModal';
 
 interface ToolbarProps {
   onPreview?: () => void;
@@ -20,6 +21,8 @@ export function Toolbar({ onPreview }: ToolbarProps) {
     loadProject,
     markSaved,
   } = useProjectStore();
+
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,6 +69,7 @@ export function Toolbar({ onPreview }: ToolbarProps) {
   };
 
   return (
+    <>
     <div className="h-16 bg-white border-b border-gray-200 flex items-center px-6 gap-4 shrink-0 shadow-sm">
       {/* Logo */}
       <div className="flex items-center gap-2">
@@ -83,7 +87,7 @@ export function Toolbar({ onPreview }: ToolbarProps) {
         type="text"
         value={projectName}
         onChange={(e) => setProjectName(e.target.value)}
-        className="w-[200px] px-3 py-2 bg-transparent border border-transparent rounded-lg text-sm text-gray-900 placeholder-gray-400 hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
+        className="w-[400px] px-3 py-2 bg-transparent border border-transparent rounded-lg text-sm text-gray-900 placeholder-gray-400 hover:border-gray-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200"
         placeholder="Без названия"
       />
 
@@ -141,6 +145,15 @@ export function Toolbar({ onPreview }: ToolbarProps) {
       {/* Spacer */}
       <div className="flex-1" />
 
+      {/* Help button */}
+      <button
+        onClick={() => setIsHelpOpen(true)}
+        className="btn-icon"
+        title="Справка"
+      >
+        <span className="text-base font-bold text-gray-500">?</span>
+      </button>
+
       {/* Save status indicator */}
       <div className="flex items-center gap-2">
         {isDirty ? (
@@ -160,5 +173,9 @@ export function Toolbar({ onPreview }: ToolbarProps) {
 
 
     </div>
+
+      {/* Help Modal */}
+      <HelpModal isOpen={isHelpOpen} onClose={() => setIsHelpOpen(false)} />
+    </>
   );
 }

@@ -64,6 +64,14 @@ export function LeftPanel() {
       fontFamily: 'Roboto Condensed',
     });
 
+    // Оставляем только угловые точки масштабирования (без средних ml/mr/mt/mb)
+    text.setControlsVisibility({
+      ml: false,
+      mr: false,
+      mt: false,
+      mb: false,
+    });
+
     canvas.add(text);
     canvas.setActiveObject(text);
     canvas.renderAll();
