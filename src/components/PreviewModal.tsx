@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/useProjectStore';
 import { composeSheetCanvas, ExportConfig, exportWithFallback } from '../utils/pdfExporter';
 import { checkPdfSources } from '../utils/vectorExporter';
 import { printViaPdfWindow } from '../utils/printManager';
+import { calculateLayout, gridPitch } from '../utils/layoutCalculator';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -51,7 +52,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
     return () => {
       cancelled = true;
     };
-  }, [isOpen, editorCanvas, selectedFormat, sheetSettings.orientation]);
+  }, [isOpen, editorCanvas, selectedFormat, sheetSettings.orientation, projectName]);
 
   // Автоматическое вписывание после загрузки изображения
   const handleFitToScreen = useCallback(() => {
@@ -215,6 +216,51 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
 
   const isLoading = !previewUrl;
 
+  // ── Маска безопасных полей поверх листа ──────────────────────────────────
+  // Превью — это готовый растр листа A4, поэтому оверлей редактора сюда не
+  // попадает. Строим SVG-маску в координатах листа (мм) и накладываем её
+  // ровно на изображение: у каждой этикетки всё, что вне безопасной зоны,
+  // перекрывается (fill-rule="evenodd": внешний контур минус внутренний).
+  const sheetW_mm = sheetSettings.orientation === 'portrait' ? 210 : 297;
+  const sheetH_mm = sheetSettings.orientation === 'portrait' ? 297 : 210;
+  const showSafety = sheetSettings.safetyMargin_mm > 0;
+  const previewLayout = calculateLayout(selectedFormat, sheetSettings.orientation);
+  const previewPitch = gridPitch(selectedFormat, previewLayout);
+  const previewDisplayW = (naturalSize?.w || 794) * zoom;
+
+  // Патчи безопасных полей (по одному на этикетку) в мм-координатах листа
+  const safetyCells: { d: string }[] = [];
+  if (showSafety) {
+    const m = sheetSettings.safetyMargin_mm;
+    const cw = previewLayout.cellWidth_mm;
+    const ch = previewLayout.cellHeight_mm;
+    let idx = 0;
+    for (let row = 0; row < previewLayout.rows; row++) {
+      for (let col = 0; col < previewLayout.cols; col++) {
+        if (idx++ >= selectedFormat.count) break;
+        const x = previewLayout.marginLeft_mm + col * previewPitch.pitchX_mm;
+        const y = previewLayout.marginTop_mm + row * previewPitch.pitchY_mm;
+
+        if (selectedFormat.shape === 'circle') {
+          const R = Math.min(cw, ch) / 2;
+          const r = Math.max(0, R - m);
+          const cx = x + cw / 2;
+          const cy = y + ch / 2;
+          // Внешний круг (по часовой) + внутренний (против) → маска-кольцо
+          const outer = `M ${cx - R} ${cy} a ${R} ${R} 0 1 0 ${2 * R} 0 a ${R} ${R} 0 1 0 ${-2 * R} 0 Z`;
+          const inner = `M ${cx - r} ${cy} a ${r} ${r} 0 1 1 ${2 * r} 0 a ${r} ${r} 0 1 1 ${-2 * r} 0 Z`;
+          safetyCells.push({ d: `${outer} ${inner}` });
+        } else {
+          const iw = Math.max(0, cw - m * 2);
+          const ih = Math.max(0, ch - m * 2);
+          const outer = `M ${x} ${y} H ${x + cw} V ${y + ch} H ${x} Z`;
+          const inner = `M ${x + m} ${y + m} H ${x + m + iw} V ${y + m + ih} H ${x + m} Z`;
+          safetyCells.push({ d: `${outer} ${inner}` });
+        }
+      }
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -302,21 +348,44 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
               <div className="text-sm text-gray-600">Генерация предпросмотра...</div>
             </div>
           ) : (
-            <img
-              src={previewUrl}
-              alt="Предпросмотр листа"
-              onLoad={(e) => {
-                const img = e.currentTarget;
-                setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
-              }}
-              className="border border-gray-300 shadow-lg bg-white"
-              style={{
-                width: `${(naturalSize?.w || 794) * zoom}px`,
-                height: 'auto',
-                maxWidth: 'none',
-                imageRendering: zoom > 1 ? 'crisp-edges' : 'auto',
-              }}
-            />
+            <div
+              className="relative border border-gray-300 shadow-lg bg-white"
+              style={{ width: `${previewDisplayW}px` }}
+            >
+              <img
+                src={previewUrl}
+                alt="Предпросмотр листа"
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+                }}
+                className="block w-full h-auto"
+                style={{
+                  maxWidth: 'none',
+                  imageRendering: zoom > 1 ? 'crisp-edges' : 'auto',
+                }}
+              />
+
+              {/* Маска безопасных полей: всё вне зоны полностью перекрыто
+                  непрозрачным белым слоем (ничего не просвечивает) */}
+              {showSafety && (
+                <svg
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  viewBox={`0 0 ${sheetW_mm} ${sheetH_mm}`}
+                  preserveAspectRatio="none"
+                >
+                  {safetyCells.map((cell, i) => (
+                    <path
+                      key={i}
+                      d={cell.d}
+                      fill="#ffffff"
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                    />
+                  ))}
+                </svg>
+              )}
+            </div>
           )}
         </div>
 

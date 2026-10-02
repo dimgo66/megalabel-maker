@@ -182,70 +182,105 @@ function App() {
                 ...(selectedFormat.shape === 'circle' ? { boxShadow: '0 0 0 2px #d1d5db, 0 10px 15px -3px rgba(0, 0, 0, 0.1)' } : {}),
               }}
             >
-              {/* Безопасные поля - визуализация */}
-              {sheetSettings.safetyMargin_mm > 0 && (
-                <>
-                  {selectedFormat.shape === 'circle' ? (
-                    // Для круглых этикеток - круглая безопасная зона
-                    <div
-                      className="absolute border-2 border-dashed border-red-400/60 rounded-full pointer-events-none z-10"
-                      style={{
-                        top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                        left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                        right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                        bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                      }}
-                    />
-                  ) : (
-                    // Для прямоугольных этикеток - прямоугольная безопасная зона
+              {/* Fabric.js Canvas.
+                  ВАЖНО: LabelCanvas изолирован в собственном div. fabric.js
+                  заменяет <canvas> своей обёрткой (canvas-container) и переносит
+                  canvas внутрь, поэтому React теряет контроль над реальным
+                  родителем canvas. Если условно рендерить соседей рядом, React при
+                  вставке вызывает insertBefore(узел, canvasNode) — а canvasNode уже
+                  не ребёнок этого контейнера, отсюда NotFoundError: Failed to
+                  execute 'insertBefore' и пустой экран. Внутри изолирующего div
+                  React-детей не трогает, поэтому конфликт невозможен. */}
+              <div className="absolute inset-0">
+                <LabelCanvas />
+              </div>
+
+              {/* Безопасные поля - визуализация.
+                  Контейнер смонтирован ВСЕГДА (не условно): меняется только его
+                  внутреннее содержимое, а число React-соседей canvas остаётся
+                  неизменным. */}
+              <div className="absolute inset-0 z-10 pointer-events-none">
+                {sheetSettings.safetyMargin_mm > 0 && (() => {
+                  const marginPx = mmToPx(sheetSettings.safetyMargin_mm) * editorZoom;
+                  const w = mmToPx(selectedFormat.width_mm) * editorZoom;
+                  const h = mmToPx(selectedFormat.height_mm) * editorZoom;
+                  const isCircle = selectedFormat.shape === 'circle';
+                  const innerW = Math.max(0, w - marginPx * 2);
+                  const innerH = Math.max(0, h - marginPx * 2);
+                  const innerR = Math.max(0, Math.min(w, h) / 2 - marginPx);
+
+                  // Безопасное поле как МАСКА.
+                  // SVG заливает ВСЮ этикетку, а внутри безопасной зоны вырезает
+                  // «окно» через <mask> (чёрная фигура = прозрачность). Поэтому
+                  // содержимое за пределами поля реально перекрывается, независимо
+                  // от box-shadow и обрезки родителя. Слой pointer-events-none —
+                  // канвас под маской остаётся интерактивным.
+                  return (
                     <>
-                      {/* Верхняя безопасная зона */}
+                      <svg
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        viewBox={`0 0 ${w} ${h}`}
+                        preserveAspectRatio="none"
+                      >
+                        <defs>
+                          <mask id="safety-mask-hole">
+                            <rect x="0" y="0" width={w} height={h} fill="#fff" />
+                            {isCircle ? (
+                              <circle cx={w / 2} cy={h / 2} r={innerR} fill="#000" />
+                            ) : (
+                              <rect
+                                x={marginPx}
+                                y={marginPx}
+                                width={innerW}
+                                height={innerH}
+                                fill="#000"
+                              />
+                            )}
+                          </mask>
+                          {/* Диагональная штриховка закрытой зоны */}
+                          <pattern
+                            id="safety-mask-hatch"
+                            patternUnits="userSpaceOnUse"
+                            width="8"
+                            height="8"
+                            patternTransform="rotate(45)"
+                          >
+                            <rect width="8" height="8" fill="rgba(71, 85, 105, 0.35)" />
+                            <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(51, 65, 85, 0.55)" strokeWidth="4" />
+                          </pattern>
+                        </defs>
+                        <rect
+                          x="0"
+                          y="0"
+                          width={w}
+                          height={h}
+                          fill="url(#safety-mask-hatch)"
+                          mask="url(#safety-mask-hole)"
+                        />
+                      </svg>
+
+                      {/* Контур безопасного поля */}
                       <div
-                        className="absolute top-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
-                        style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
+                        className={`absolute border-2 border-dashed border-red-400/80 ${
+                          isCircle ? 'rounded-full' : ''
+                        }`}
+                        style={{ inset: `${marginPx}px` }}
                       />
-                      {/* Нижняя безопасная зона */}
-                      <div
-                        className="absolute bottom-0 left-0 right-0 bg-red-500/10 pointer-events-none z-10"
-                        style={{ height: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                      />
-                      {/* Левая безопасная зона */}
-                      <div
-                        className="absolute top-0 left-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
-                        style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                      />
-                      {/* Правая безопасная зона */}
-                      <div
-                        className="absolute top-0 right-0 bottom-0 bg-red-500/10 pointer-events-none z-10"
-                        style={{ width: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px` }}
-                      />
-                      {/* Пунктирная рамка безопасной зоны */}
-                      <div
-                        className="absolute border-2 border-dashed border-red-400/60 pointer-events-none z-10"
-                        style={{
-                          top: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                          left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                          right: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                          bottom: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom}px`,
-                        }}
-                      />
+
                       {/* Подпись размера безопасного поля */}
                       <div
-                        className="absolute text-xs text-red-500/80 font-medium pointer-events-none z-10"
+                        className="absolute text-xs text-red-500 font-medium"
                         style={{
-                          top: `${mmToPx(sheetSettings.safetyMargin_mm / 2) * editorZoom - 6}px`,
-                          left: `${mmToPx(sheetSettings.safetyMargin_mm) * editorZoom + 4}px`,
+                          top: `${marginPx / 2 - 6}px`,
+                          left: `${marginPx + 4}px`,
                         }}
                       >
                         ↕ {sheetSettings.safetyMargin_mm} мм
                       </div>
                     </>
-                  )}
-                </>
-              )}
-
-              {/* Fabric.js Canvas */}
-              <LabelCanvas />
+                  );
+                })()}
+              </div>
             </div>
           </div>
         </main>

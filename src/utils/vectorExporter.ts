@@ -4,6 +4,7 @@ import { svg2pdf } from 'svg2pdf.js';
 import * as fabric from 'fabric';
 import { LabelFormat } from '../types';
 import { calculateLayout, mmToPx, gridPitch } from './layoutCalculator';
+import { renderSheetSignature } from './sheetSignature';
 import { useProjectStore } from '../store/useProjectStore';
 import { loadLocalFontsFromDB } from './fontLoader';
 import { MM_PER_PX, PT_PER_MM, isEditorOnly, withHidden } from './canvasHelpers';
@@ -240,6 +241,27 @@ export async function exportToVectorPDF(cfg: ExportConfig): Promise<Uint8Array> 
         });
       }
     }
+  }
+
+  // Вертикальная подпись названия проекта на свободном месте листа
+  // (только для шаблона на 85 этикеток). Растр 600 DPI с прозрачным фоном
+  // поверх векторного листа — визуально совпадает с предпросмотром.
+  const signature = await renderSheetSignature(
+    useProjectStore.getState().projectName,
+    format,
+    layout,
+    orientation,
+    600
+  );
+  if (signature) {
+    const sigPng = await pdfDoc.embedPng(signature.canvas.toDataURL('image/png'));
+    const { leftMm, topMm, widthMm, heightMm } = signature.placement;
+    page.drawImage(sigPng, {
+      x: leftMm * PT_PER_MM,
+      y: (pageH - topMm - heightMm) * PT_PER_MM,
+      width: widthMm * PT_PER_MM,
+      height: heightMm * PT_PER_MM,
+    });
   }
 
   return await pdfDoc.save();

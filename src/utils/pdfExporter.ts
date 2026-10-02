@@ -4,6 +4,8 @@ import { LabelFormat } from '../types';
 import { calculateLayout } from './layoutCalculator';
 import { renderLabelAtDpi } from './sheetRenderer';
 import { gridPitch } from './layoutCalculator';
+import { renderSheetSignature } from './sheetSignature';
+import { useProjectStore } from '../store/useProjectStore';
 
 export interface ExportConfig {
   format: LabelFormat;
@@ -60,6 +62,27 @@ export async function composeSheetCanvas(
       }
     }
   }
+
+  // Вертикальная подпись названия проекта на свободном месте листа
+  // (только для шаблона на 85 этикеток). Не попадает на ячейки и в край листа.
+  const signature = await renderSheetSignature(
+    useProjectStore.getState().projectName,
+    format,
+    layout,
+    orientation,
+    screenDpi
+  );
+  if (signature) {
+    const { leftMm, topMm, widthMm, heightMm } = signature.placement;
+    ctx.drawImage(
+      signature.canvas,
+      leftMm * k,
+      topMm * k,
+      widthMm * k,
+      heightMm * k
+    );
+  }
+
   return canvas;
 }
 
