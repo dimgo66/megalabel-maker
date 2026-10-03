@@ -4,6 +4,7 @@ import { useProjectStore } from '../store/useProjectStore';
 import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
 import { ImagePanel } from './ImagePanel';
 import { BarcodeModal } from './BarcodeModal';
+import { LibraryPanel } from './LibraryPanel';
 
 export function LeftPanel() {
   const {
@@ -16,6 +17,7 @@ export function LeftPanel() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
+  const [googleFontsOpen, setGoogleFontsOpen] = useState(false);
 
   const handleGoogleFontLoad = async (fontId: string) => {
     const fontConfig = fontConfigs.find(f => f.id === fontId);
@@ -129,29 +131,66 @@ export function LeftPanel() {
 
       {/* Fonts section */}
       <div className="p-4 flex-1">
+      {/* Library */}
+        <LibraryPanel />
+
         {/* Google Fonts */}
         <div className="mb-4">
-          <div className="text-xs font-medium text-gray-600 mb-2">Кириллические (Google Fonts)</div>
-          <div className="space-y-1">
-            {googleFonts.map(font => {
-              const isLoaded = loadedGoogleFonts.includes(font.id);
-              return (
-                <div key={font.id} className="flex items-center justify-between px-2 py-1">
-                  <span className="text-sm text-gray-700">{font.name}</span>
-                  {isLoaded ? (
-                    <span className="text-green-600 text-xs">✓</span>
-                  ) : (
-                    <button
-                      onClick={() => handleGoogleFontLoad(font.id)}
-                      className="text-xs text-blue-600 hover:text-blue-700"
-                    >
-                      ↓ Загрузить
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <button
+            onClick={() => setGoogleFontsOpen(o => !o)}
+            className="w-full flex items-center justify-between text-xs font-medium text-gray-600 mb-2 hover:text-gray-900 transition-colors group"
+          >
+            <span>Google Fonts (кириллица)</span>
+            <span className="text-gray-400 group-hover:text-gray-600 transition-colors text-xs">
+              {googleFontsOpen ? '▲' : '▼'}
+            </span>
+          </button>
+
+          {googleFontsOpen && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+              {googleFonts.map(font => {
+                const isLoaded = loadedGoogleFonts.includes(font.id);
+                const fontFamily = font.name;
+                return (
+                  <div
+                    key={font.id}
+                    className="flex items-center justify-between px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-white transition-colors"
+                  >
+                    {/* Превью шрифта */}
+                    <div className="flex flex-col min-w-0 flex-1 mr-2">
+                      <span
+                        className="text-sm leading-tight truncate"
+                        style={{ fontFamily: isLoaded ? fontFamily : 'inherit', color: isLoaded ? '#1f2937' : '#9ca3af' }}
+                      >
+                        {font.name}
+                      </span>
+                      {isLoaded && (
+                        <span
+                          className="text-xs leading-tight text-gray-400 truncate"
+                          style={{ fontFamily: fontFamily }}
+                        >
+                          АаБбВв 123
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Статус / кнопка */}
+                    {isLoaded ? (
+                      <span className="text-green-500 text-xs shrink-0 font-medium">✓</span>
+                    ) : (
+                      <button
+                        onClick={() => handleGoogleFontLoad(font.id)}
+                        className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors shrink-0 font-medium"
+                        title={`Загрузить ${font.name}`}
+                      >
+                        ↓
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Local fonts */}

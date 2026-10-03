@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
-import { ImageCropEditor } from './ImageCropEditor';
-import { serializeCanvas, sceneWidth, sceneHeight } from '../utils/canvasHelpers';
+
+
 
 export function ImagePropertiesPanel() {
-  const { selectedObject, editorCanvas } = useProjectStore();
+  const { selectedObject } = useProjectStore();
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [left, setLeft] = useState(0);
@@ -14,7 +14,7 @@ export function ImagePropertiesPanel() {
   const [keepProportions, setKeepProportions] = useState(true);
   const [originalWidth, setOriginalWidth] = useState(0);
   const [originalHeight, setOriginalHeight] = useState(0);
-  const [showCropEditor, setShowCropEditor] = useState(false);
+
 
   useEffect(() => {
     if (selectedObject && selectedObject instanceof fabric.FabricImage) {
@@ -92,39 +92,6 @@ export function ImagePropertiesPanel() {
   const handleAngleChange = (value: number) => {
     setAngle(value);
     updateProperty('angle', value);
-  };
-
-  const handleSetAsBackground = () => {
-    if (!selectedObject || !(selectedObject instanceof fabric.FabricImage)) return;
-
-    const img = selectedObject;
-    const canvas = img.canvas;
-    if (!canvas) return;
-
-    // Масштабируем на весь размер канваса
-    const canvasWidth = sceneWidth(canvas);
-    const canvasHeight = sceneHeight(canvas);
-    const imgWidth = img.width || 1;
-    const imgHeight = img.height || 1;
-
-    const scaleX = canvasWidth / imgWidth;
-    const scaleY = canvasHeight / imgHeight;
-    const scale = Math.max(scaleX, scaleY);
-
-    img.set({
-      scaleX: scale,
-      scaleY: scale,
-      left: canvasWidth / 2,
-      top: canvasHeight / 2,
-      originX: 'center',
-      originY: 'center'
-    });
-
-    // Перемещаем на задний план
-    canvas.sendObjectToBack(img);
-    img.setCoords();
-    canvas.renderAll();
-    img.fire('modified');
   };
 
   const handleDelete = () => {
@@ -229,18 +196,6 @@ export function ImagePropertiesPanel() {
         {/* Действия */}
         <div className="space-y-2">
           <button
-            onClick={() => setShowCropEditor(true)}
-            className="w-full px-3 py-2 bg-blue-50 hover:bg-blue-100 rounded-lg text-sm text-blue-700 transition-colors"
-          >
-            ✂️ Обрезать изображение
-          </button>
-          <button
-            onClick={handleSetAsBackground}
-            className="w-full px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors"
-          >
-            Установить как фон
-          </button>
-          <button
             onClick={handleDelete}
             className="w-full px-3 py-2 bg-red-50 hover:bg-red-100 rounded-lg text-sm text-red-700 transition-colors"
           >
@@ -249,21 +204,6 @@ export function ImagePropertiesPanel() {
         </div>
       </div>
     </div>
-
-    {/* Редактор обрезки */}
-    {showCropEditor && selectedObject instanceof fabric.FabricImage && editorCanvas && (
-      <ImageCropEditor
-        image={selectedObject}
-        canvas={editorCanvas}
-        onApply={(cropped) => {
-          setShowCropEditor(false);
-          // Сохраняем изменения в store
-          const json = serializeCanvas(editorCanvas);
-          useProjectStore.getState().setCanvasJSON(json);
-        }}
-        onCancel={() => setShowCropEditor(false)}
-      />
-    )}
     </>
   );
 }

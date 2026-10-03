@@ -139,31 +139,17 @@ export function fitImageToCanvas(
  */
 export async function handleFileUpload(
   file: File,
-  canvas: fabric.Canvas,
-  onPdfPageSelect?: (file: File) => void,
-  pdfPageNumber?: number
+  canvas: fabric.Canvas
 ): Promise<void> {
   const fileType = file.type.toLowerCase();
   const fileName = file.name.toLowerCase();
-  
-  console.log('handleFileUpload: начинаем обработку', file.name, 'тип:', fileType, 'страница:', pdfPageNumber);
-  
+
   try {
     let fabricObject: fabric.FabricObject;
-    
-    // PDF файлы
+
+    // PDF файлы — всегда загружаем первую страницу
     if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      console.log('handleFileUpload: это PDF файл');
-      // Если есть callback для выбора страницы и не указан номер страницы, вызываем его
-      if (onPdfPageSelect && !pdfPageNumber) {
-        console.log('handleFileUpload: вызываем callback для выбора страницы и выходим');
-        onPdfPageSelect(file);
-        console.log('handleFileUpload: после вызова callback, выходим из функции');
-        return;
-      }
-      console.log('handleFileUpload: загружаем страницу PDF', pdfPageNumber || 1);
-      // Иначе загружаем указанную страницу (или первую по умолчанию)
-      fabricObject = await loadPdfFile(file, pdfPageNumber || 1);
+      fabricObject = await loadPdfFile(file, 1);
     }
     // SVG файлы
     else if (fileType === 'image/svg+xml' || fileName.endsWith('.svg')) {
@@ -175,7 +161,7 @@ export async function handleFileUpload(
     } else {
       throw new Error(`Неподдерживаемый тип файла: ${file.type}`);
     }
-    
+
     // Автомасштабирование
     if (fabricObject instanceof fabric.FabricImage) {
       fitImageToCanvas(fabricObject, canvas);
@@ -185,11 +171,11 @@ export async function handleFileUpload(
       const canvasHeight = sceneHeight(canvas);
       const groupWidth = fabricObject.width || 1;
       const groupHeight = fabricObject.height || 1;
-      
+
       const scaleX = (canvasWidth * 0.9) / groupWidth;
       const scaleY = (canvasHeight * 0.9) / groupHeight;
       const scale = Math.min(scaleX, scaleY);
-      
+
       fabricObject.scale(scale);
       fabricObject.set({
         left: canvasWidth / 2,
@@ -198,7 +184,7 @@ export async function handleFileUpload(
         originY: 'center'
       });
     }
-    
+
     // Оставляем только угловые точки масштабирования (без средних ml/mr/mt/mb)
     fabricObject.setControlsVisibility({
       ml: false,
@@ -211,7 +197,7 @@ export async function handleFileUpload(
     canvas.add(fabricObject);
     canvas.setActiveObject(fabricObject);
     canvas.renderAll();
-    
+
   } catch (error) {
     console.error('Ошибка загрузки файла:', error);
     throw error;

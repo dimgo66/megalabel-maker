@@ -183,16 +183,7 @@ const sections: HelpSection[] = [
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">PDF-файлы как изображения</h3>
           <p className="text-sm text-gray-600 leading-relaxed">
-            При добавлении PDF-файла откроется <strong>выбор страницы</strong>. Выберите нужную страницу —
-            она будет отрендерена как растровое изображение и помещена на этикетку.
-          </p>
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Обрезка изображения</h3>
-          <p className="text-sm text-gray-600 leading-relaxed">
-            Выделите изображение и нажмите <strong>«Обрезать»</strong> в правой панели.
-            Появится интерактивная рамка — перетащите её края для выбора нужной области.
-            Нажмите <strong>«Применить»</strong> для сохранения обрезки.
+            При добавлении PDF-файла он автоматически конвертируется в изображение и помещается на этикетку.
           </p>
         </div>
         <div>
