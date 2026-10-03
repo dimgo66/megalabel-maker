@@ -88,14 +88,12 @@ export function LabelCanvas() {
 
   const {
     selectedFormat,
-    sheetSettings,
     editorZoom,
     labelDesign,
     loadRevision,
     setCanvasJSON,
     setEditorZoom,
     setEditorCanvas,
-    selectedObject,
   } = useProjectStore();
 
   // Размер и зум: сцена всегда в базовых координатах (96 dpi), масштаб — через setZoom.
@@ -371,19 +369,9 @@ export function LabelCanvas() {
     };
   }, [editorZoom, setEditorZoom]);
 
-  // Обработчики зума
-  const handleZoomIn = () => {
-    setEditorZoom(Math.min(10.0, editorZoom + 0.25));
-  };
-
-  const handleZoomOut = () => {
-    setEditorZoom(Math.max(0.5, editorZoom - 0.25));
-  };
-
-  const handleFitToScreen = () => {
-    // Вписать канвас в доступную область (примерно)
-    setEditorZoom(1.5);
-  };
+  // Обработчики зума здесь не объявляются: зум живёт в App.tsx (тулбар) и
+  // PreviewModal.tsx (окно предпросмотра). Локальные копии были объявлены, но
+  // ни к чему не подключены.
 
   // Размеры холста в пикселях (с учётом zoom) для рендера направляющих
   const canvasPxW = mmToPx(selectedFormat.width_mm) * editorZoom;

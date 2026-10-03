@@ -110,7 +110,7 @@ export function ImagePropertiesPanel() {
   return (
     <>
     <div className="p-4 border-b border-gray-200">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+      <h4 className="type-group mb-3">
         Изображение
       </h4>
 

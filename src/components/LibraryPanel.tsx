@@ -3,6 +3,17 @@ import * as fabric from "fabric";
 import { useLibraryStore, LibraryItem } from "../store/useLibraryStore";
 import { useProjectStore } from "../store/useProjectStore";
 import { CUSTOM_PROPS, serializeCanvas, sceneWidth, sceneHeight } from "../utils/canvasHelpers";
+import { CollapsibleSection } from "./CollapsibleSection";
+import {
+  ArrowDown,
+  BarcodeIcon,
+  BookOpen,
+  ImageIcon,
+  Package,
+  Pencil,
+  Square,
+  X,
+} from "./icons";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,7 +70,6 @@ export function LibraryPanel() {
   const { items, addItem, removeItem, renameItem } = useLibraryStore();
   const { editorCanvas } = useProjectStore();
 
-  const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
   const [adding, setAdding] = useState(false);
@@ -136,39 +146,35 @@ export function LibraryPanel() {
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  const typeIcon: Record<LibraryItem["type"], string> = {
-    text: "✏️",
-    image: "🖼️",
-    barcode: "▮▮▮",
-    group: "📦",
-    other: "⬜",
+  // Иконки типов из общего набора. Раньше здесь были эмодзи и символьные
+  // глифы (✏️ 🖼️ ▮▮▮ 📦 ⬜) — они не наследуют currentColor, по-разному
+  // выглядят в разных ОС и не совпадали по толщине с левой панелью.
+  const typeIcon: Record<LibraryItem["type"], typeof Square> = {
+    text: Pencil,
+    image: ImageIcon,
+    barcode: BarcodeIcon,
+    group: Package,
+    other: Square,
   };
 
   return (
-    <div className="mb-4">
-      {/* Header */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between text-xs font-medium text-gray-600 mb-2 hover:text-gray-900 transition-colors group"
-      >
-        <span className="flex items-center gap-1.5">
-          <span>📚</span>
-          <span>Библиотека</span>
-          {items.length > 0 && (
-            <span className="bg-blue-100 text-blue-600 rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none">
-              {items.length}
-            </span>
-          )}
-        </span>
-        <span className="text-gray-400 group-hover:text-gray-600 transition-colors">
-          {open ? "▲" : "▼"}
-        </span>
-      </button>
-
-      {open && (
-        <div className="space-y-2">
+    <CollapsibleSection
+      title="Библиотека"
+      icon={<BookOpen size={16} />}
+      badge={
+        items.length > 0 ? (
+          <span className="bg-blue-100 text-blue-700 rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none">
+            {items.length}
+          </span>
+        ) : undefined
+      }
+      className="border-b border-gray-200"
+      contentClassName="px-4 pb-4"
+    >
+      <div className="space-y-2">
           {/* Save button */}
           <button
+            type="button"
             onClick={handleSaveSelected}
             disabled={adding}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-xs text-blue-700 font-medium transition-colors disabled:opacity-50"
@@ -178,7 +184,7 @@ export function LibraryPanel() {
 
           {/* Items grid */}
           {items.length === 0 ? (
-            <div className="text-xs text-gray-400 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+            <div className="text-xs text-gray-500 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
               Выделите объект и нажмите «Сохранить»
             </div>
           ) : (
@@ -189,21 +195,26 @@ export function LibraryPanel() {
                   className="group/item flex items-center gap-2 p-2 bg-gray-50 hover:bg-white border border-gray-200 hover:border-blue-200 rounded-lg transition-all cursor-default"
                 >
                   {/* Thumbnail */}
-                  <div
+                  <button
+                    type="button"
                     className="w-14 h-10 shrink-0 bg-white border border-gray-200 rounded overflow-hidden flex items-center justify-center cursor-pointer hover:border-blue-400 transition-colors"
                     onClick={() => handleInsert(item)}
                     title="Вставить на этикетку"
+                    aria-label={`Вставить «${item.name}» на этикетку`}
                   >
                     {item.thumbnail ? (
                       <img
                         src={item.thumbnail}
-                        alt={item.name}
+                        alt=""
                         className="w-full h-full object-contain"
                       />
                     ) : (
-                      <span className="text-lg">{typeIcon[item.type]}</span>
+                      (() => {
+                        const TypeGlyph = typeIcon[item.type];
+                        return <TypeGlyph size={18} className="text-gray-500" />;
+                      })()
                     )}
-                  </div>
+                  </button>
 
                   {/* Name + type */}
                   <div className="flex-1 min-w-0">
@@ -217,39 +228,48 @@ export function LibraryPanel() {
                           if (e.key === "Enter") commitRename();
                           if (e.key === "Escape") setEditingId(null);
                         }}
+                        aria-label="Название элемента библиотеки"
                         className="w-full text-xs border border-blue-300 rounded px-1 py-0.5 outline-none"
                       />
                     ) : (
-                      <div
-                        className="text-xs font-medium text-gray-700 truncate cursor-pointer hover:text-blue-600"
+                      <button
+                        type="button"
+                        className="block w-full text-left text-xs font-medium text-gray-700 truncate cursor-pointer hover:text-blue-600"
                         title="Двойной клик — переименовать"
+                        aria-label={`Переименовать «${item.name}»`}
                         onDoubleClick={() => startRename(item)}
                       >
                         {item.name}
-                      </div>
+                      </button>
                     )}
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {typeIcon[item.type]} {item.type === "barcode" ? "Штрих-код" : item.type === "text" ? "Текст" : item.type === "image" ? "Изображение" : item.type === "group" ? "Группа" : "Объект"}
+                    {/* Подпись типа — только текст: иконка уже есть в превью
+                        слева, дублировать её здесь незачем. */}
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {item.type === "barcode" ? "Штрих-код" : item.type === "text" ? "Текст" : item.type === "image" ? "Изображение" : item.type === "group" ? "Группа" : "Объект"}
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover/item:opacity-100 transition-opacity">
                     <button
+                      type="button"
                       onClick={() => handleInsert(item)}
-                      className="w-6 h-6 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded text-xs transition-colors"
+                      className="w-6 h-6 flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white rounded transition-colors"
                       title="Вставить"
+                      aria-label={`Вставить «${item.name}»`}
                     >
-                      ↓
+                      <ArrowDown size={13} />
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         if (confirm(`Удалить «${item.name}» из библиотеки?`)) removeItem(item.id);
                       }}
-                      className="w-6 h-6 flex items-center justify-center bg-red-100 hover:bg-red-500 text-red-500 hover:text-white rounded text-xs transition-colors"
+                      className="w-6 h-6 flex items-center justify-center bg-red-100 hover:bg-red-600 text-red-700 hover:text-white rounded transition-colors"
                       title="Удалить из библиотеки"
+                      aria-label={`Удалить «${item.name}» из библиотеки`}
                     >
-                      ×
+                      <X size={13} />
                     </button>
                   </div>
                 </div>
@@ -258,12 +278,11 @@ export function LibraryPanel() {
           )}
 
           {items.length > 0 && (
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-gray-500 text-center">
               Двойной клик по названию — переименовать
             </p>
           )}
-        </div>
-      )}
-    </div>
+      </div>
+    </CollapsibleSection>
   );
 }

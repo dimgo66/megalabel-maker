@@ -8,6 +8,7 @@ import { BarcodeFormat } from '../types';
 import * as fabric from 'fabric';
 import { serializeCanvas, sceneWidth, sceneHeight } from '../utils/canvasHelpers';
 import { useProjectStore } from '../store/useProjectStore';
+import { Check, X } from './icons';
 
 interface BarcodeModalProps {
   isOpen: boolean;
@@ -165,8 +166,9 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Закрыть"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
@@ -230,9 +232,9 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
             {/* Информация */}
             <div className="p-4 bg-blue-50 rounded-lg">
               <div className="text-xs text-blue-900 space-y-1">
-                <div>✓ Векторные штрихи (чёткие при любом масштабе)</div>
-                <div>✓ Стандартная раскладка цифр</div>
-                <div>✓ Сохраняется в проект</div>
+                <div className="flex items-center gap-1.5"><Check size={12} className="shrink-0" /> <span>Векторные штрихи (чёткие при любом масштабе)</span></div>
+                <div className="flex items-center gap-1.5"><Check size={12} className="shrink-0" /> <span>Стандартная раскладка цифр</span></div>
+                <div className="flex items-center gap-1.5"><Check size={12} className="shrink-0" /> <span>Сохраняется в проект</span></div>
               </div>
             </div>
           </div>

@@ -5,6 +5,14 @@ import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
 import { ImagePanel } from './ImagePanel';
 import { BarcodeModal } from './BarcodeModal';
 import { LibraryPanel } from './LibraryPanel';
+import { CollapsibleSection } from './CollapsibleSection';
+import {
+  BarcodeIcon,
+  Check,
+  Download,
+  Folder,
+  Type as TypeIcon,
+} from './icons';
 
 export function LeftPanel() {
   const {
@@ -17,7 +25,6 @@ export function LeftPanel() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showBarcodeModal, setShowBarcodeModal] = useState(false);
-  const [googleFontsOpen, setGoogleFontsOpen] = useState(false);
 
   const handleGoogleFontLoad = async (fontId: string) => {
     const fontConfig = fontConfigs.find(f => f.id === fontId);
@@ -85,7 +92,7 @@ export function LeftPanel() {
     <div className="w-[260px] bg-white border-r border-gray-200 flex flex-col shrink-0 overflow-y-auto">
       {/* Header */}
       <div className="h-12 border-b border-gray-200 flex items-center px-4 shrink-0">
-        <span className="text-sm font-semibold text-gray-900">Инструменты</span>
+        <span className="type-region">Инструменты</span>
       </div>
 
       {/* Tools section */}
@@ -96,11 +103,11 @@ export function LeftPanel() {
         >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <span className="text-xl text-blue-600">T</span>
+              <TypeIcon size={20} className="text-blue-600" />
             </div>
             <div className="text-left">
               <div className="text-sm font-medium text-gray-700">Текст</div>
-              <div className="text-xs text-gray-400">Добавить текст</div>
+              <div className="text-xs text-gray-500">Добавить текст</div>
             </div>
           </div>
         </button>
@@ -112,12 +119,18 @@ export function LeftPanel() {
           className="w-full card card-hover cursor-pointer"
         >
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-              <span className="text-xl">▮▮▮</span>
+            <div className="w-10 h-10 bg-teal-50 rounded-lg flex items-center justify-center">
+              {/* Иконка нарисована. Раньше здесь были три глифа ▮: при text-xl
+                  они давали 58px в плитке 40px и вылезали за скруглённый
+                  квадрат на 9px с каждой стороны, а ширина зависела от
+                  подстановки шрифта. SVG всегда 20×20 по центру.
+                  Teal, а не purple: фиолетовый занят изображениями, и две
+                  плитки «добавить объект» выглядели одинаково. */}
+              <BarcodeIcon size={20} className="text-teal-700" />
             </div>
             <div className="text-left">
               <div className="text-sm font-medium text-gray-700">Штрих-код</div>
-              <div className="text-xs text-gray-400">EAN-13, ITF-14 (вектор)</div>
+              <div className="text-xs text-gray-500">EAN-13, ITF-14 (вектор)</div>
             </div>
           </div>
         </button>
@@ -129,78 +142,95 @@ export function LeftPanel() {
         onClose={() => setShowBarcodeModal(false)}
       />
 
-      {/* Fonts section */}
-      <div className="p-4 flex-1">
-      {/* Library */}
-        <LibraryPanel />
+      {/* Library — независимая секция: хранит любые объекты, не только текст */}
+      <LibraryPanel />
 
-        {/* Google Fonts */}
+      {/* Fonts section — collapsible.
+          Разделитель даёт border-b у «Библиотеки» выше, поэтому border-t здесь не нужен.
+          Внутри — только один уровень раскрытия: вложенный аккордеон внутри
+          аккордеона давал двойной выпадающий список и лишний клик. */}
+      <CollapsibleSection
+        title="Шрифты"
+        badge={
+          <span className="text-xs text-gray-500 font-normal">
+            {loadedGoogleFonts.length + localFonts.length} подключено
+          </span>
+        }
+        contentClassName="px-4 pb-4"
+      >
+        {/* Google Fonts — обычный подзаголовок, без собственного раскрытия */}
         <div className="mb-4">
-          <button
-            onClick={() => setGoogleFontsOpen(o => !o)}
-            className="w-full flex items-center justify-between text-xs font-medium text-gray-600 mb-2 hover:text-gray-900 transition-colors group"
-          >
-            <span>Google Fonts (кириллица)</span>
-            <span className="text-gray-400 group-hover:text-gray-600 transition-colors text-xs">
-              {googleFontsOpen ? '▲' : '▼'}
+          <div className="flex items-baseline justify-between mb-2">
+            <h3 className="type-group">
+              Google Fonts (кириллица)
+            </h3>
+            <span className="type-meta">
+              {loadedGoogleFonts.length}/{googleFonts.length}
             </span>
-          </button>
-
-          {googleFontsOpen && (
-            <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50">
-              {googleFonts.map(font => {
-                const isLoaded = loadedGoogleFonts.includes(font.id);
-                const fontFamily = font.name;
-                return (
-                  <div
-                    key={font.id}
-                    className="flex items-center justify-between px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-white transition-colors"
-                  >
-                    {/* Превью шрифта */}
-                    <div className="flex flex-col min-w-0 flex-1 mr-2">
+          </div>
+          {/* Список ограничен по высоте: 17 шрифтов иначе растягивали панель
+              на всю длину и выталкивали блок «С компьютера» из вида. */}
+          <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-72 bg-gray-50">
+            {googleFonts.map(font => {
+              const isLoaded = loadedGoogleFonts.includes(font.id);
+              const fontFamily = font.name;
+              return (
+                <div
+                  key={font.id}
+                  className="flex items-center justify-between px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-white transition-colors"
+                >
+                  <div className="flex flex-col min-w-0 flex-1 mr-2">
+                    <span
+                      className="text-sm leading-tight truncate"
+                      style={{ fontFamily: isLoaded ? fontFamily : 'inherit', color: isLoaded ? '#1f2937' : '#6b7280' }}
+                    >
+                      {font.name}
+                    </span>
+                    {isLoaded && (
                       <span
-                        className="text-sm leading-tight truncate"
-                        style={{ fontFamily: isLoaded ? fontFamily : 'inherit', color: isLoaded ? '#1f2937' : '#9ca3af' }}
+                        className="text-xs leading-tight text-gray-500 truncate"
+                        style={{ fontFamily: fontFamily }}
                       >
-                        {font.name}
+                        АаБбВв 123
                       </span>
-                      {isLoaded && (
-                        <span
-                          className="text-xs leading-tight text-gray-400 truncate"
-                          style={{ fontFamily: fontFamily }}
-                        >
-                          АаБбВв 123
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Статус / кнопка */}
-                    {isLoaded ? (
-                      <span className="text-green-500 text-xs shrink-0 font-medium">✓</span>
-                    ) : (
-                      <button
-                        onClick={() => handleGoogleFontLoad(font.id)}
-                        className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors shrink-0 font-medium"
-                        title={`Загрузить ${font.name}`}
-                      >
-                        ↓
-                      </button>
                     )}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  {isLoaded ? (
+                    <Check
+                      size={14}
+                      className="text-green-700 shrink-0"
+                      role="img"
+                      aria-label="Шрифт загружен"
+                      aria-hidden={undefined}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleGoogleFontLoad(font.id)}
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors shrink-0 font-medium"
+                      title={`Загрузить ${font.name}`}
+                      aria-label={`Загрузить шрифт ${font.name}`}
+                    >
+                      <Download size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Local fonts */}
         <div>
-          <div className="text-xs font-medium text-gray-600 mb-2">С компьютера</div>
+          <h3 className="type-group mb-2">
+            С компьютера
+          </h3>
           <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             className="w-full btn btn-secondary flex items-center justify-center gap-2 mb-2"
           >
-            <span>📁</span>
+            <Folder size={16} />
             <span>Загрузить шрифт</span>
           </button>
           <input
@@ -211,17 +241,18 @@ export function LeftPanel() {
             onChange={handleLocalFontUpload}
             className="hidden"
           />
-          <p className="text-xs text-gray-400 mb-2">.ttf, .otf, .woff, .woff2</p>
-          
+          <p className="text-xs text-gray-500 mb-2">.ttf, .otf, .woff, .woff2</p>
           {localFonts.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">Загруженные:</div>
+              <div className="text-xs text-gray-500 mb-1">
+                Загруженные ({localFonts.length}):
+              </div>
               <div className="space-y-1">
                 {localFonts.map((font, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm text-gray-700 px-2 py-1">
-                    <span className="text-green-600">✓</span>
-                    <span>{font.name}</span>
-                    <span className="text-xs text-gray-400">
+                  <div key={`${font.name}-${idx}`} className="flex items-center gap-2 text-sm text-gray-700 px-2 py-1">
+                    <Check size={14} className="text-green-700 shrink-0" />
+                    <span className="truncate" title={font.name}>{font.name}</span>
+                    <span className="text-xs text-gray-500 shrink-0">
                       ({font.weight} {font.style === 'italic' ? 'italic' : ''})
                     </span>
                   </div>
@@ -230,7 +261,7 @@ export function LeftPanel() {
             </div>
           )}
         </div>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }

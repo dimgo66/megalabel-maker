@@ -1,7 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,400;0,500;0,600;0,700;1,400;1,700&display=swap');
 @import "tailwindcss";
 
-/* Global styles for Megalabel Pro */
+/* Global styles for Megalabel Pro.
+   Шрифт подключается <link> в index.html (preconnect + stylesheet), а не
+   @import отсюда: @import в CSS обнаруживается позже и блокирует отрисовку
+   лишний round-trip. Набор начертаний там тот же. */
 * {
   font-family: 'Roboto Condensed', Arial, sans-serif;
 }
@@ -63,6 +65,75 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: #9CA3AF;
 }
+
+/* Поверхности браузера.
+
+   Их не рисовали, но они уезжают вместе с макетом: выделение текста, каретка и
+   галочка по умолчанию синие системные (#0075FF у Chrome), то есть не
+   принадлежат ни одному дизайну. Здесь они выводятся из палитры: blue-200/900
+   для выделения, тон действия для каретки, blue-600 для галочки. Это самый
+   дешёвый признак того, что интерфейс построен, а не собран. */
+
+::selection {
+  background-color: #BFDBFE; /* blue-200 */
+  color: #1E3A8A;            /* blue-900 — 7.29:1 на blue-200 */
+}
+
+/* Каретка наследует цвет текста в поле, поэтому задаём тон действия явно:
+   в полях с тёмным текстом она иначе сливается с текстом. */
+input,
+textarea,
+[contenteditable="true"] {
+  caret-color: #1D4ED8;
+}
+
+/* accent-color красит нативную галочку. Ползункам он не нужен: у них уже
+   есть appearance:none и нарисованный thumb ниже, куда accent-color не
+   доходит — там строка была бы мёртвой. */
+input[type="checkbox"] {
+  accent-color: #2563EB; /* blue-600 */
+}
+
+/* Типографские роли.
+
+   Интерфейс построен на одном семействе (Roboto Condensed) — для Operate-режима
+   это правильно: condensed даёт больше строк в узкой панели. Проблема была не в
+   семействе, а в том, что размер и вес не разделяли роли: 14px/600 одновременно
+   работал заголовком области («Инструменты»), заголовком секции («Библиотека») и
+   акцентом в тексте.
+
+   Роли разведены минимум по двум осям сразу (размер + регистр/насыщенность/
+   тон), чтобы соседние уровни нельзя было спутать. Имена описывают назначение,
+   а не значение. */
+
+/* Область: «Инструменты», «Свойства», «Редактор этикетки».
+   Капслок отделяет область от секции без смены размера. */
+.type-region {
+  @apply text-sm font-bold uppercase tracking-[0.05em] text-gray-500;
+}
+
+/* Секция внутри панели: «Библиотека», «Шрифты», «Лист».
+   Тёмный тон + инициалы — главный уровень иерархии в панели. */
+.type-section {
+  @apply text-sm font-semibold text-gray-900;
+}
+
+/* Группа внутри секции: «Google Fonts», «С компьютера», «5–16 на листе».
+   Мелкий капслок — самый тихий уровень заголовка. */
+.type-group {
+  @apply text-xs font-semibold uppercase tracking-[0.025em] text-gray-500;
+}
+
+/* Служебная подпись: единицы, счётчики, ограничения, подсказки. */
+.type-meta {
+  @apply text-xs text-gray-500;
+}
+
+/* Отдельного токена для чисел нет намеренно. Числа в интерфейсе (размеры,
+   количество, масштаб) уже выровнены: Roboto Condensed имеет равные по ширине
+   цифры по умолчанию — замер дал одинаковые 49.38px для 0/1/8 при 100px.
+   `tabular-nums` на этом шрифте ничего не меняет, а Arial-fallback тоже
+   использует равные цифры. */
 
 /* Button styles */
 .btn {
@@ -132,6 +203,23 @@ input[type="range"] {
   background: #E5E7EB;
   border-radius: 3px;
   outline: none;
+}
+
+/* Возвращаем индикатор фокуса: `outline: none` выше убирал его полностью,
+   и при навигации с клавиатуры не было видно, какой ползунок в фокусе.
+   Как у остальных полей (`focus:ring-2` в number/text/select), только
+   через :focus-visible — чтобы мышью кольцо не мелькало. */
+input[type="range"]:focus-visible {
+  outline: 2px solid #2563EB;
+  outline-offset: 4px;
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
+}
+
+input[type="range"]:focus-visible::-moz-range-thumb {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.3);
 }
 
 input[type="range"]::-webkit-slider-thumb {

@@ -1,6 +1,20 @@
 import { useEffect, useState } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
+import {
+  ArrowDown,
+  ArrowUp,
+  BarcodeIcon,
+  Eye,
+  EyeOff,
+  ImageIcon,
+  Lock,
+  Package,
+  Square,
+  Type as TypeIcon,
+  Unlock,
+  X,
+} from './icons';
 
 interface LayersPanelProps {
   canvas: fabric.Canvas | null;
@@ -77,16 +91,19 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
     return 'other';
   };
 
-  const getTypeIcon = (type: string, obj: fabric.FabricObject): string => {
+  // Иконка типа объекта. Возвращает компонент (не строку-глиф): раньше здесь
+  // были 𝐓 / 🖼 / ▣ / ◉ / ▦ — символы из разных блоков Unicode, разной
+  // толщины и без общей метрики. Теперь один набор 24×24 с обводкой 2.
+  const getTypeIcon = (type: string, obj: fabric.FabricObject) => {
     // Штрих-код — группа с barcodeValue
-    if (type === 'group' && (obj as any).barcodeValue) return '▦';
-    const icons: Record<string, string> = {
-      text: '𝐓',
-      image: '🖼',
-      group: '▣',
-      other: '◉',
+    if (type === 'group' && (obj as any).barcodeValue) return BarcodeIcon;
+    const map: Record<string, typeof Square> = {
+      text: TypeIcon,
+      image: ImageIcon,
+      group: Package,
+      other: Square,
     };
-    return icons[type] || '◉';
+    return map[type] || Square;
   };
 
   const handleLayerClick = (layer: LayerItem) => {
@@ -148,15 +165,15 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
 
   if (layers.length === 0) {
     return (
-      <div className="p-4 text-center text-gray-400 text-sm">
+      <div className="p-4 border-b border-gray-200 text-center text-gray-500 text-sm">
         Нет объектов на канвасе
       </div>
     );
   }
 
   return (
-    <div className="p-3">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+    <div className="p-3 border-b border-gray-200">
+      <h4 className="type-group mb-2">
         Слои ({layers.length})
       </h4>
       <div className="space-y-1">
@@ -179,13 +196,17 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
                 }`}
               />
 
-              {/* Иконка типа */}
+              {/* Иконка типа. Убран font-mono: он подбирался под символьные
+                  глифы, а SVG-иконке моноширинный шрифт не нужен. */}
               <span
-                className={`text-sm font-mono w-4 text-center shrink-0 ${
-                  isSelected ? 'text-blue-600' : 'text-gray-400'
+                className={`w-4 flex items-center justify-center shrink-0 ${
+                  isSelected ? 'text-blue-700' : 'text-gray-500'
                 }`}
               >
-                {getTypeIcon(layer.type, layer.object)}
+                {(() => {
+                  const TypeGlyph = getTypeIcon(layer.type, layer.object);
+                  return <TypeGlyph size={14} />;
+                })()}
               </span>
 
               {/* Название */}
@@ -203,37 +224,42 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); handleMoveUp(layer); }}
-                  className="w-5 h-5 flex items-center justify-center text-xs hover:bg-gray-200 rounded text-gray-500"
+                  className="w-5 h-5 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
                   title="Переместить вверх"
-                >↑</button>
+                  aria-label={`Переместить «${layer.name}» вверх`}
+                ><ArrowUp size={12} /></button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleMoveDown(layer); }}
-                  className="w-5 h-5 flex items-center justify-center text-xs hover:bg-gray-200 rounded text-gray-500"
+                  className="w-5 h-5 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
                   title="Переместить вниз"
-                >↓</button>
+                  aria-label={`Переместить «${layer.name}» вниз`}
+                ><ArrowDown size={12} /></button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleToggleVisibility(layer); }}
-                  className={`w-5 h-5 flex items-center justify-center text-xs rounded ${
-                    layer.visible ? 'hover:bg-gray-200 text-gray-500' : 'bg-gray-200 text-gray-400'
+                  className={`w-5 h-5 flex items-center justify-center rounded ${
+                    layer.visible ? 'hover:bg-gray-200 text-gray-600' : 'bg-gray-200 text-gray-600'
                   }`}
                   title={layer.visible ? 'Скрыть' : 'Показать'}
+                  aria-label={layer.visible ? `Скрыть «${layer.name}»` : `Показать «${layer.name}»`}
                 >
-                  {layer.visible ? '👁' : '🚫'}
+                  {layer.visible ? <Eye size={12} /> : <EyeOff size={12} />}
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleToggleLock(layer); }}
-                  className={`w-5 h-5 flex items-center justify-center text-xs rounded ${
-                    layer.locked ? 'bg-yellow-100 text-yellow-600' : 'hover:bg-gray-200 text-gray-500'
+                  className={`w-5 h-5 flex items-center justify-center rounded ${
+                    layer.locked ? 'bg-amber-100 text-amber-800' : 'hover:bg-gray-200 text-gray-500'
                   }`}
                   title={layer.locked ? 'Разблокировать' : 'Заблокировать'}
+                  aria-label={layer.locked ? `Разблокировать «${layer.name}»` : `Заблокировать «${layer.name}»`}
                 >
-                  {layer.locked ? '🔒' : '🔓'}
+                  {layer.locked ? <Lock size={12} /> : <Unlock size={12} />}
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(layer); }}
-                  className="w-5 h-5 flex items-center justify-center text-xs hover:bg-red-100 rounded text-gray-500 hover:text-red-600"
+                  className="w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded text-gray-500 hover:text-red-700"
                   title="Удалить"
-                >✕</button>
+                  aria-label={`Удалить «${layer.name}»`}
+                ><X size={12} /></button>
               </div>
             </div>
           );

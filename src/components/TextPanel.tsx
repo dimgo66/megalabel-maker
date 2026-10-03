@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { IText } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ChevronDown,
+} from './icons';
 
 export function TextPanel() {
   const { selectedObject, objectRevision } = useProjectStore();
@@ -281,7 +287,7 @@ export function TextPanel() {
 
   return (
     <div className="p-4 border-b border-gray-200">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+      <h4 className="type-group mb-3">
         Текст
         {hasSelection && (
           <span className="ml-2 text-blue-600 normal-case font-normal">(выделено)</span>
@@ -470,7 +476,7 @@ export function TextPanel() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              ←
+              <AlignLeft size={16} className="mx-auto" />
             </button>
             <button
               onClick={() => handleTextAlignChange('center')}
@@ -482,7 +488,7 @@ export function TextPanel() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              ↕
+              <AlignCenter size={16} className="mx-auto" />
             </button>
             <button
               onClick={() => handleTextAlignChange('right')}
@@ -494,7 +500,7 @@ export function TextPanel() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              →
+              <AlignRight size={16} className="mx-auto" />
             </button>
           </div>
         </div>
@@ -519,13 +525,14 @@ export function TextPanel() {
         <div>
           <button
             onClick={() => setShowSpecialChars(!showSpecialChars)}
-            className={`w-full text-left text-xs font-semibold uppercase tracking-wide mb-2 px-2 py-1.5 rounded-lg transition-all duration-200 ${
+            className={`w-full text-left text-xs font-semibold uppercase tracking-wide mb-2 px-2 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-1.5 ${
               showSpecialChars
                 ? 'bg-blue-50 text-blue-700'
                 : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
             }`}
           >
-            {showSpecialChars ? '▾' : '▸'} Спецсимволы
+            <ChevronDown size={14} className="shrink-0" />
+            <span>Спецсимволы</span>
           </button>
           {showSpecialChars && (
             <div className="grid grid-cols-6 gap-1">

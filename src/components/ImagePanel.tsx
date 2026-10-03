@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import { handleFileUpload } from '../utils/imageLoader';
 import * as fabric from 'fabric';
+import { ImageIcon } from './icons';
 
 interface ImagePanelProps {
   canvas: fabric.Canvas | null;
@@ -43,11 +44,11 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
-            <span className="text-xl">🖼️</span>
+            <ImageIcon size={20} className="text-purple-600" />
           </div>
           <div className="text-left">
             <div className="text-sm font-medium text-gray-700">Изображение</div>
-            <div className="text-xs text-gray-400">PNG, JPG, SVG, PDF</div>
+            <div className="text-xs text-gray-500">PNG, JPG, SVG, PDF</div>
           </div>
         </div>
       </button>

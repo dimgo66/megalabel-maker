@@ -5,6 +5,7 @@ import { composeSheetCanvas, ExportConfig, exportWithFallback } from '../utils/p
 import { checkPdfSources } from '../utils/vectorExporter';
 import { printViaPdfWindow } from '../utils/printManager';
 import { calculateLayout, gridPitch } from '../utils/layoutCalculator';
+import { FileText, Printer } from './icons';
 
 interface PreviewModalProps {
   isOpen: boolean;
@@ -278,7 +279,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
             <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
               {selectedFormat.name}
             </span>
-            <span className="text-sm text-gray-400">
+            <span className="text-sm text-gray-600">
               {selectedFormat.count} этикеток, {selectedFormat.width_mm}×{selectedFormat.height_mm} мм каждая
               {' · '}
               {sheetSettings.orientation === 'portrait' ? 'Книжная' : 'Альбомная'}
@@ -422,7 +423,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
               </>
             ) : (
               <>
-                <span>🖨️</span>
+                <Printer size={16} />
                 <span>Печать</span>
               </>
             )}
@@ -442,7 +443,7 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
               </>
             ) : (
               <>
-                <span>📄</span>
+                <FileText size={16} />
                 <span>Скачать PDF</span>
               </>
             )}

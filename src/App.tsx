@@ -8,10 +8,11 @@ import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
 import { useAutosave } from './hooks/useAutosave';
 import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
-import { LABEL_FORMATS, getFormatById } from './config/labelFormats';
+import { getFormatById } from './config/labelFormats';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
 import { injectEmbeddedFontFaces, ensureEmbeddedFontsLoaded } from './utils/embeddedFontLoader';
+import { Circle, MoveVertical } from './components/icons';
 import { FONT_CONFIGS } from './config/fonts';
 import './styles/print.css';
 
@@ -139,11 +140,12 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden bg-gray-100">
           {/* Canvas header */}
           <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
-            <span className="text-sm font-semibold text-gray-900">Редактор этикетки</span>
+            <span className="type-region">Редактор этикетки</span>
             <div className="flex items-center gap-2">
               {selectedFormat.shape === 'circle' && (
-                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium">
-                  ⚪ Круг
+                <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded font-medium flex items-center gap-1">
+                  <Circle size={11} />
+                  <span>Круг</span>
                 </span>
               )}
               {/* Zoom controls */}
@@ -161,7 +163,7 @@ function App() {
                   onClick={handleZoomIn}
                   disabled={editorZoom >= 10.0}
                   title="Увеличить (Ctrl+колесо мыши)"
-                  className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-base leading-none"
+                  className="w-7 h-7 flex items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-700 hover:bg-blue-50 hover:border-blue-400 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-base leading-none"
                 >
                   +
                 </button>
@@ -269,13 +271,14 @@ function App() {
 
                       {/* Подпись размера безопасного поля */}
                       <div
-                        className="absolute text-xs text-red-500 font-medium"
+                        className="absolute text-xs text-red-600 font-medium whitespace-nowrap flex items-center gap-1"
                         style={{
                           top: `${marginPx / 2 - 6}px`,
                           left: `${marginPx + 4}px`,
                         }}
                       >
-                        ↕ {sheetSettings.safetyMargin_mm} мм
+                        <MoveVertical size={11} />
+                        <span>{sheetSettings.safetyMargin_mm} мм</span>
                       </div>
                     </>
                   );
