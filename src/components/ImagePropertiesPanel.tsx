@@ -189,7 +189,7 @@ export function ImagePropertiesPanel() {
         </div>
 
         {/* Информация */}
-        <div className="text-xs text-gray-500 space-y-1">
+        <div className="type-meta space-y-1">
           <div>Исходный размер: {originalWidth} × {originalHeight} px</div>
         </div>
 

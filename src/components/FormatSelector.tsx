@@ -173,7 +173,7 @@ export function FormatSelector({ selectedFormat, onSelect }: FormatSelectorProps
                             <div className="text-sm font-medium text-gray-900">
                               {format.width_mm}×{format.height_mm} мм
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="type-meta mt-1">
                               {format.count} шт на листе
                             </div>
                             {format.shape === 'circle' && (

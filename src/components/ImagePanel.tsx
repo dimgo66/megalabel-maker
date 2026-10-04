@@ -48,7 +48,7 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
           </div>
           <div className="text-left">
             <div className="text-sm font-medium text-gray-700">Изображение</div>
-            <div className="text-xs text-gray-500">PNG, JPG, SVG, PDF</div>
+            <div className="type-meta">PNG, JPG, SVG, PDF</div>
           </div>
         </div>
       </button>

@@ -1,9 +1,8 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { getFormatById } from '../config/labelFormats';
 import { FormatSelector } from './FormatSelector';
 import { UndoRedoButtons } from './UndoRedoButtons';
-import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
+import { useProjectFile } from '../hooks/useProjectFile';
 import { LabelFormat } from '../types';
 import { HelpModal } from './HelpModal';
 import { Eye, FolderOpen, Save, Tag } from './icons';
@@ -19,51 +18,12 @@ export function Toolbar({ onPreview }: ToolbarProps) {
     isDirty,
     setProjectName,
     setSelectedFormat,
-    loadProject,
-    markSaved,
   } = useProjectStore();
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleSave = () => {
-    const state = useProjectStore.getState();
-    const json = serializeProject(state.labelDesign, state.sheetSettings);
-    const project = JSON.parse(json);
-    downloadProjectFile(project, `${state.projectName}.labelproj.json`);
-    markSaved();
-  };
-
-  const handleLoad = () => {
-    const state = useProjectStore.getState();
-    if (state.isDirty) {
-      const confirmed = confirm('Есть несохранённые изменения. Загрузить проект без сохранения?');
-      if (!confirmed) return;
-    }
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const project = await readProjectFile(file);
-      const format = getFormatById(project.labelDesign.formatId);
-      if (format) {
-        loadProject(project.labelDesign, project.sheetSettings);
-      } else {
-        alert('Формат из файла не найден в списке доступных');
-      }
-    } catch (err) {
-      alert(`Ошибка загрузки: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
-    }
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
+  // Сохранение и загрузка — общая реализация с горячими клавишами App.tsx
+  const { handleSave, handleLoad } = useProjectFile();
 
   const handleFormatSelect = (format: LabelFormat) => {
     setSelectedFormat(format);
@@ -130,15 +90,6 @@ export function Toolbar({ onPreview }: ToolbarProps) {
         <FolderOpen size={16} />
         <span className="hidden xl:inline">Загрузить</span>
       </button>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json,.labelproj.json"
-        onChange={handleFileChange}
-        className="hidden"
-      />
 
       {/* Preview button */}
       <button

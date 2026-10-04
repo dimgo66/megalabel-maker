@@ -521,7 +521,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               <span className="text-2xl"><BookOpen size={24} /></span>
               <div>
                 <div className="text-sm font-bold text-gray-900">Справка</div>
-                <div className="text-xs text-gray-500">Megalabel Pro</div>
+                <div className="type-meta">Megalabel Pro</div>
               </div>
             </div>
           </div>
@@ -546,7 +546,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
           {/* Footer */}
           <div className="px-4 py-3 border-t border-gray-200">
-            <div className="text-xs text-gray-500 text-center">Megalabel Pro v1.0</div>
+            <div className="type-meta text-center">Megalabel Pro v1.0</div>
           </div>
         </div>
 

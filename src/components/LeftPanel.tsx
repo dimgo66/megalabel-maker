@@ -107,7 +107,7 @@ export function LeftPanel() {
             </div>
             <div className="text-left">
               <div className="text-sm font-medium text-gray-700">Текст</div>
-              <div className="text-xs text-gray-500">Добавить текст</div>
+              <div className="type-meta">Добавить текст</div>
             </div>
           </div>
         </button>
@@ -130,7 +130,7 @@ export function LeftPanel() {
             </div>
             <div className="text-left">
               <div className="text-sm font-medium text-gray-700">Штрих-код</div>
-              <div className="text-xs text-gray-500">EAN-13, ITF-14 (вектор)</div>
+              <div className="type-meta">EAN-13, ITF-14 (вектор)</div>
             </div>
           </div>
         </button>
@@ -152,7 +152,7 @@ export function LeftPanel() {
       <CollapsibleSection
         title="Шрифты"
         badge={
-          <span className="text-xs text-gray-500 font-normal">
+          <span className="type-meta font-normal">
             {loadedGoogleFonts.length + localFonts.length} подключено
           </span>
         }
@@ -241,10 +241,10 @@ export function LeftPanel() {
             onChange={handleLocalFontUpload}
             className="hidden"
           />
-          <p className="text-xs text-gray-500 mb-2">.ttf, .otf, .woff, .woff2</p>
+          <p className="type-meta mb-2">.ttf, .otf, .woff, .woff2</p>
           {localFonts.length > 0 && (
             <div>
-              <div className="text-xs text-gray-500 mb-1">
+              <div className="type-meta mb-1">
                 Загруженные ({localFonts.length}):
               </div>
               <div className="space-y-1">
@@ -252,7 +252,7 @@ export function LeftPanel() {
                   <div key={`${font.name}-${idx}`} className="flex items-center gap-2 text-sm text-gray-700 px-2 py-1">
                     <Check size={14} className="text-green-700 shrink-0" />
                     <span className="truncate" title={font.name}>{font.name}</span>
-                    <span className="text-xs text-gray-500 shrink-0">
+                    <span className="type-meta shrink-0">
                       ({font.weight} {font.style === 'italic' ? 'italic' : ''})
                     </span>
                   </div>

@@ -6,9 +6,8 @@ import { LabelCanvas } from './components/LabelCanvas';
 import { PreviewModal } from './components/PreviewModal';
 import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
+import { useProjectFile } from './hooks/useProjectFile';
 import { useAutosave } from './hooks/useAutosave';
-import { serializeProject, downloadProjectFile, readProjectFile } from './utils/projectSerializer';
-import { getFormatById } from './config/labelFormats';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
 import { injectEmbeddedFontFaces, ensureEmbeddedFontsLoaded } from './utils/embeddedFontLoader';
@@ -22,8 +21,6 @@ function App() {
     sheetSettings,
     editorZoom,
     setEditorZoom,
-    markSaved,
-    loadProject,
     setLoadedGoogleFonts,
     setLocalFonts,
     setGoogleFontLoaded,
@@ -71,42 +68,8 @@ function App() {
     restoreFonts();
   }, []);
 
-  const handleSave = () => {
-    const state = useProjectStore.getState();
-    const json = serializeProject(state.labelDesign, state.sheetSettings);
-    const project = JSON.parse(json);
-    downloadProjectFile(project, `${state.projectName}.labelproj.json`);
-    markSaved();
-  };
-
-  const handleLoad = () => {
-    const state = useProjectStore.getState();
-    if (state.isDirty) {
-      const confirmed = confirm('Есть несохранённые изменения. Загрузить проект без сохранения?');
-      if (!confirmed) return;
-    }
-    
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,.labelproj.json';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      
-      try {
-        const project = await readProjectFile(file);
-        const format = getFormatById(project.labelDesign.formatId);
-        if (format) {
-          loadProject(project.labelDesign, project.sheetSettings);
-        } else {
-          alert('Формат из файла не найден в списке доступных');
-        }
-      } catch (err) {
-        alert(`Ошибка загрузки: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
-      }
-    };
-    input.click();
-  };
+  // Сохранение и загрузка проекта — общая реализация с кнопками тулбара
+  const { handleSave, handleLoad } = useProjectFile();
 
   const { undo, redo } = useProjectStore();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -150,7 +113,7 @@ function App() {
               )}
               {/* Zoom controls */}
               <div className="flex items-center gap-1 ml-2">
-                <span className="text-xs text-gray-500 mr-1 select-none">Масштаб:</span>
+                <span className="type-meta mr-1 select-none">Масштаб:</span>
                 <button
                   onClick={handleZoomReset}
                   disabled={editorZoom === DEFAULT_ZOOM}

@@ -211,7 +211,7 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Код штрихкода
                 {fullCode && fullCode !== code && (
-                  <span className="text-xs text-gray-500 ml-2">
+                  <span className="type-meta ml-2">
                     (контрольная цифра: {fullCode.slice(-1)})
                   </span>
                 )}

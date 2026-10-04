@@ -49,10 +49,24 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
       }));
   };
 
+  /**
+   * Полная пересборка списка слоёв — единственная точка входа.
+   * Нужна там, где fabric не генерирует событие (смена z-порядка), а также
+   * как обработчик событий холста.
+   *
+   * Не заменяет точечные `setLayers(prev => prev.map(...))` для видимости и
+   * замка: те меняют одно поле у одного слоя и пересборкой были бы лишней
+   * работой с потерей ссылок на объекты.
+   */
+  const syncLayers = (c: fabric.Canvas | null) => {
+    if (!c) return;
+    setLayers(buildLayers(c));
+  };
+
   useEffect(() => {
     if (!canvas) return;
 
-    const updateLayers = () => setLayers(buildLayers(canvas));
+    const updateLayers = () => syncLayers(canvas);
 
     updateLayers();
 
@@ -118,14 +132,14 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
     canvas.bringObjectForward(layer.object);
     canvas.renderAll();
     // fabric не генерирует событие при смене z-порядка — обновляем вручную
-    setLayers(buildLayers(canvas));
+    syncLayers(canvas);
   };
 
   const handleMoveDown = (layer: LayerItem) => {
     if (!canvas) return;
     canvas.sendObjectBackwards(layer.object);
     canvas.renderAll();
-    setLayers(buildLayers(canvas));
+    syncLayers(canvas);
   };
 
   const handleToggleVisibility = (layer: LayerItem) => {
@@ -183,7 +197,7 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
             <div
               key={i}
               onClick={() => handleLayerClick(layer)}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
                 isSelected
                   ? 'bg-blue-50 border border-blue-400 shadow-sm'
                   : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
@@ -218,25 +232,30 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
                 {layer.name}
               </span>
 
-              {/* Кнопки управления */}
-              <div className="flex items-center gap-0.5 shrink-0"
+              {/* Кнопки управления.
+                  gap-0 вместо gap-0.5: кнопки выросли с 20px до 24px ради
+                  тач-цели, и это отнимало 20px у имени слоя. Плотная упаковка
+                  возвращает 4px — иначе дефолтное «Изображение 1» (76.2px при
+                  доступных 75px) начинало обрезаться. Кнопки при этом не
+                  соприкасаются: у каждой скругление rounded и hover-фон. */}
+              <div className="flex items-center gap-0 shrink-0"
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   onClick={(e) => { e.stopPropagation(); handleMoveUp(layer); }}
-                  className="w-5 h-5 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
+                  className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
                   title="Переместить вверх"
                   aria-label={`Переместить «${layer.name}» вверх`}
                 ><ArrowUp size={12} /></button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleMoveDown(layer); }}
-                  className="w-5 h-5 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
+                  className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
                   title="Переместить вниз"
                   aria-label={`Переместить «${layer.name}» вниз`}
                 ><ArrowDown size={12} /></button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleToggleVisibility(layer); }}
-                  className={`w-5 h-5 flex items-center justify-center rounded ${
+                  className={`w-6 h-6 flex items-center justify-center rounded ${
                     layer.visible ? 'hover:bg-gray-200 text-gray-600' : 'bg-gray-200 text-gray-600'
                   }`}
                   title={layer.visible ? 'Скрыть' : 'Показать'}
@@ -246,7 +265,7 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleToggleLock(layer); }}
-                  className={`w-5 h-5 flex items-center justify-center rounded ${
+                  className={`w-6 h-6 flex items-center justify-center rounded ${
                     layer.locked ? 'bg-amber-100 text-amber-800' : 'hover:bg-gray-200 text-gray-500'
                   }`}
                   title={layer.locked ? 'Разблокировать' : 'Заблокировать'}
@@ -256,7 +275,7 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); handleDelete(layer); }}
-                  className="w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded text-gray-500 hover:text-red-700"
+                  className="w-6 h-6 flex items-center justify-center hover:bg-red-100 rounded text-gray-500 hover:text-red-700"
                   title="Удалить"
                   aria-label={`Удалить «${layer.name}»`}
                 ><X size={12} /></button>

@@ -184,7 +184,7 @@ export function LibraryPanel() {
 
           {/* Items grid */}
           {items.length === 0 ? (
-            <div className="text-xs text-gray-500 text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+            <div className="type-meta text-center py-4 bg-gray-50 rounded-lg border border-dashed border-gray-300">
               Выделите объект и нажмите «Сохранить»
             </div>
           ) : (
@@ -244,7 +244,7 @@ export function LibraryPanel() {
                     )}
                     {/* Подпись типа — только текст: иконка уже есть в превью
                         слева, дублировать её здесь незачем. */}
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="type-meta mt-0.5">
                       {item.type === "barcode" ? "Штрих-код" : item.type === "text" ? "Текст" : item.type === "image" ? "Изображение" : item.type === "group" ? "Группа" : "Объект"}
                     </div>
                   </div>
@@ -278,7 +278,7 @@ export function LibraryPanel() {
           )}
 
           {items.length > 0 && (
-            <p className="text-xs text-gray-500 text-center">
+            <p className="type-meta text-center">
               Двойной клик по названию — переименовать
             </p>
           )}

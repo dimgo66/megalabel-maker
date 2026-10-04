@@ -75,7 +75,7 @@ export function RightPanel() {
                 onChange={(e) => handleSafetyMarginChange(Number(e.target.value))}
                 className="w-full"
               />
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <div className="flex justify-between type-meta mt-1">
                 <span>0 мм</span>
                 <span>10 мм</span>
               </div>
