@@ -135,9 +135,13 @@ function App() {
           </div>
 
           {/* Canvas area with safety margins overlay */}
-          <div className="flex-1 flex items-center justify-center overflow-auto p-8">
+          {/* Центрирование — через `m-auto` у холста, а не `items-center
+              justify-center`: при центрировании flex-контейнером увеличенный
+              холст уходит выше/левее начала области прокрутки, и эта часть
+              становится недостижимой для скролла. */}
+          <div className="flex-1 flex overflow-auto p-8">
             <div
-              className={`bg-white shadow-xl flex items-center justify-center relative overflow-hidden shrink-0 ${
+              className={`bg-white shadow-xl flex items-center justify-center relative overflow-hidden shrink-0 m-auto ${
                 selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg border border-gray-300'
               }`}
               style={{

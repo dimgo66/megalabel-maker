@@ -5,6 +5,7 @@ import { composeSheetCanvas, ExportConfig, exportWithFallback } from '../utils/p
 import { checkPdfSources } from '../utils/vectorExporter';
 import { printViaPdfWindow } from '../utils/printManager';
 import { calculateLayout, gridPitch } from '../utils/layoutCalculator';
+import { PreviewCellGuides } from './PreviewCellGuides';
 import { FileText, Printer } from './icons';
 
 interface PreviewModalProps {
@@ -217,50 +218,64 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
 
   const isLoading = !previewUrl;
 
-  // ── Маска безопасных полей поверх листа ──────────────────────────────────
+  // ── Оверлеи поверх листа ─────────────────────────────────────────────────
   // Превью — это готовый растр листа A4, поэтому оверлей редактора сюда не
-  // попадает. Строим SVG-маску в координатах листа (мм) и накладываем её
-  // ровно на изображение: у каждой этикетки всё, что вне безопасной зоны,
-  // перекрывается (fill-rule="evenodd": внешний контур минус внутренний).
+  // попадает. Строим SVG в координатах листа (мм) и накладываем его ровно на
+  // изображение: растр остаётся нетронутым, а вся разметка живёт в DOM.
+  // Именно поэтому контуры ячеек физически не могут попасть в PDF и в печать:
+  // эти пути собирают лист заново в pdfExporter/vectorExporter и об этом слое
+  // не знают.
   const sheetW_mm = sheetSettings.orientation === 'portrait' ? 210 : 297;
   const sheetH_mm = sheetSettings.orientation === 'portrait' ? 297 : 210;
   const showSafety = sheetSettings.safetyMargin_mm > 0;
   const previewLayout = calculateLayout(selectedFormat, sheetSettings.orientation);
   const previewPitch = gridPitch(selectedFormat, previewLayout);
   const previewDisplayW = (naturalSize?.w || 794) * zoom;
+  const isCircleFormat = selectedFormat.shape === 'circle';
 
-  // Патчи безопасных полей (по одному на этикетку) в мм-координатах листа
+  // Ячейки листа в мм-координатах: одна геометрия на маску безопасных полей и
+  // на контуры ячеек — иначе разметка и маска разъедутся на дробных шагах сетки.
+  const cells: { x: number; y: number; w: number; h: number }[] = [];
+  for (let row = 0; row < previewLayout.rows; row++) {
+    for (let col = 0; col < previewLayout.cols; col++) {
+      if (cells.length >= selectedFormat.count) break;
+      cells.push({
+        x: previewLayout.marginLeft_mm + col * previewPitch.pitchX_mm,
+        y: previewLayout.marginTop_mm + row * previewPitch.pitchY_mm,
+        w: previewLayout.cellWidth_mm,
+        h: previewLayout.cellHeight_mm,
+      });
+    }
+  }
+
+  // Патчи безопасных полей (по одному на этикетку). У каждой этикетки всё, что
+  // вне безопасной зоны, перекрывается: fill-rule="evenodd" вычитает
+  // внутренний контур из внешнего.
   const safetyCells: { d: string }[] = [];
   if (showSafety) {
     const m = sheetSettings.safetyMargin_mm;
-    const cw = previewLayout.cellWidth_mm;
-    const ch = previewLayout.cellHeight_mm;
-    let idx = 0;
-    for (let row = 0; row < previewLayout.rows; row++) {
-      for (let col = 0; col < previewLayout.cols; col++) {
-        if (idx++ >= selectedFormat.count) break;
-        const x = previewLayout.marginLeft_mm + col * previewPitch.pitchX_mm;
-        const y = previewLayout.marginTop_mm + row * previewPitch.pitchY_mm;
-
-        if (selectedFormat.shape === 'circle') {
-          const R = Math.min(cw, ch) / 2;
-          const r = Math.max(0, R - m);
-          const cx = x + cw / 2;
-          const cy = y + ch / 2;
-          // Внешний круг (по часовой) + внутренний (против) → маска-кольцо
-          const outer = `M ${cx - R} ${cy} a ${R} ${R} 0 1 0 ${2 * R} 0 a ${R} ${R} 0 1 0 ${-2 * R} 0 Z`;
-          const inner = `M ${cx - r} ${cy} a ${r} ${r} 0 1 1 ${2 * r} 0 a ${r} ${r} 0 1 1 ${-2 * r} 0 Z`;
-          safetyCells.push({ d: `${outer} ${inner}` });
-        } else {
-          const iw = Math.max(0, cw - m * 2);
-          const ih = Math.max(0, ch - m * 2);
-          const outer = `M ${x} ${y} H ${x + cw} V ${y + ch} H ${x} Z`;
-          const inner = `M ${x + m} ${y + m} H ${x + m + iw} V ${y + m + ih} H ${x + m} Z`;
-          safetyCells.push({ d: `${outer} ${inner}` });
-        }
+    for (const { x, y, w: cw, h: ch } of cells) {
+      if (isCircleFormat) {
+        const R = Math.min(cw, ch) / 2;
+        const r = Math.max(0, R - m);
+        const cx = x + cw / 2;
+        const cy = y + ch / 2;
+        // Внешний круг (по часовой) + внутренний (против) → маска-кольцо
+        const outer = `M ${cx - R} ${cy} a ${R} ${R} 0 1 0 ${2 * R} 0 a ${R} ${R} 0 1 0 ${-2 * R} 0 Z`;
+        const inner = `M ${cx - r} ${cy} a ${r} ${r} 0 1 1 ${2 * r} 0 a ${r} ${r} 0 1 1 ${-2 * r} 0 Z`;
+        safetyCells.push({ d: `${outer} ${inner}` });
+      } else {
+        const iw = Math.max(0, cw - m * 2);
+        const ih = Math.max(0, ch - m * 2);
+        const outer = `M ${x} ${y} H ${x + cw} V ${y + ch} H ${x} Z`;
+        const inner = `M ${x + m} ${y + m} H ${x + m + iw} V ${y + m + ih} H ${x + m} Z`;
+        safetyCells.push({ d: `${outer} ${inner}` });
       }
     }
   }
+
+  // Контуры ячеек выбранного шаблона — пунктирная разметка только для глаз.
+  const cellGuides = cells;
 
   return (
     <div
@@ -342,15 +357,21 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
         </div>
 
         {/* Preview area */}
-        <div ref={containerRef} className="flex-1 overflow-auto bg-gray-100 p-6 relative flex items-center justify-center">
+        {/* Центрируем лист через `m-auto`, а не через `items-center
+            justify-center`: при центрировании flex-контейнером контент,
+            который больше области прокрутки, уходит выше/левее её начала, и
+            эта часть становится недостижимой для скролла. Auto-margin
+            сжимается до нуля, когда места нет, поэтому прокрутка доступна во
+            все стороны. `shrink-0` не даёт листу сжаться вместо прокрутки. */}
+        <div ref={containerRef} className="flex-1 overflow-auto bg-gray-100 p-6 relative flex">
           {isLoading ? (
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-3 m-auto">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
               <div className="text-sm text-gray-600">Генерация предпросмотра...</div>
             </div>
           ) : (
             <div
-              className="relative border border-gray-300 shadow-lg bg-white"
+              className="relative border border-gray-300 shadow-lg bg-white m-auto shrink-0"
               style={{ width: `${previewDisplayW}px` }}
             >
               <img
@@ -367,25 +388,39 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
                 }}
               />
 
-              {/* Маска безопасных полей: всё вне зоны полностью перекрыто
-                  непрозрачным белым слоем (ничего не просвечивает) */}
-              {showSafety && (
+              {/* Слой разметки листа. Контейнер смонтирован всегда: меняется
+                  только содержимое, чтобы соседи <img> не пересоздавались. */}
+              <div className="absolute inset-0 pointer-events-none">
+                {/* Маска безопасных полей: всё вне зоны полностью перекрыто
+                    непрозрачным белым слоем (ничего не просвечивает) */}
+                {showSafety && (
+                  <svg
+                    className="absolute inset-0 w-full h-full"
+                    viewBox={`0 0 ${sheetW_mm} ${sheetH_mm}`}
+                    preserveAspectRatio="none"
+                  >
+                    {safetyCells.map((cell, i) => (
+                      <path
+                        key={i}
+                        d={cell.d}
+                        fill="#ffffff"
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                      />
+                    ))}
+                  </svg>
+                )}
+
+                {/* Контуры ячеек выбранного шаблона — непечатный пунктир.
+                    Только предпросмотр: слой не участвует ни в PDF, ни в печати. */}
                 <svg
-                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  className="absolute inset-0 w-full h-full"
                   viewBox={`0 0 ${sheetW_mm} ${sheetH_mm}`}
                   preserveAspectRatio="none"
                 >
-                  {safetyCells.map((cell, i) => (
-                    <path
-                      key={i}
-                      d={cell.d}
-                      fill="#ffffff"
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                    />
-                  ))}
+                  <PreviewCellGuides cells={cellGuides} circle={isCircleFormat} />
                 </svg>
-              )}
+              </div>
             </div>
           )}
         </div>

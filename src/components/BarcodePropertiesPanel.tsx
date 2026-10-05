@@ -8,7 +8,7 @@ import { serializeCanvas } from '../utils/canvasHelpers';
 import { Lightbulb, Pencil, RefreshCw, Trash } from './icons';
 
 export function BarcodePropertiesPanel() {
-  const { selectedObject, editorCanvas } = useProjectStore();
+  const { selectedObject, editorCanvas, objectRevision } = useProjectStore();
   const [showEditModal, setShowEditModal] = useState(false);
   const [left, setLeft] = useState(0);
   const [top, setTop] = useState(0);
@@ -23,7 +23,9 @@ export function BarcodePropertiesPanel() {
       setTop(Math.round(selectedObject.top || 0));
       setAngle(Math.round(selectedObject.angle || 0));
     }
-  }, [selectedObject, isBarcode]);
+    // objectRevision обязателен: left/top меняются и в обход этой панели —
+    // стрелками на клавиатуре. Без него поля X/Y показывали бы старую позицию.
+  }, [selectedObject, isBarcode, objectRevision]);
 
   const updateProperty = (property: string, value: any) => {
     if (!selectedObject) return;

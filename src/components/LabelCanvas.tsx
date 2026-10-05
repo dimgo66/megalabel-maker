@@ -5,7 +5,7 @@ import { mmToPx } from '../utils/layoutCalculator';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 import { BARCODE_NORM_VERSION } from '../utils/barcodeGenerator';
 import { serializeCanvas, isHistorySuspended, withoutHistory } from '../utils/canvasHelpers';
-import { calcSnapGuides, type GuideLine } from '../utils/smartGuides';
+import { calcSnapGuides, sameGuides, type GuideLine } from '../utils/smartGuides';
 
 /**
  * Применяет сериализованное состояние к канвасу и мигрирует устаревшие штрих-коды.
@@ -174,7 +174,25 @@ export function LabelCanvas() {
       handleModification(e);
       setGuideLines([]);
     });
-    canvas.on('object:removed', handleModification);
+    // Удаление нельзя вести через handleModification: fabric поднимает
+    // selection:cleared РАНЬШЕ object:removed, поэтому порядок такой —
+    //   1) selection:cleared → selectedObject = null
+    //   2) object:removed    → handleModification(e) записал бы в selectedObject
+    //                          уже удалённый объект
+    // Панели свойств (TextPanel, Image/Barcode-панели) оставались бы привязаны к
+    // объекту, которого нет на канвасе, и показывали бы его свойства до тех пор,
+    // пока пользователь не выделит что-то другое. Здесь выделение только
+    // сбрасываем, а canvasJSON обновляем — удаление обязано попасть в историю.
+    const handleObjectRemoved = (e: any) => {
+      if (!fabricCanvasRef.current || isHistorySuspended()) return;
+      const removed = e?.target;
+      const store = useProjectStore.getState();
+      if (removed && store.selectedObject === removed) {
+        store.setSelectedObject(null);
+      }
+      setCanvasJSON(serializeCanvas(canvas));
+    };
+    canvas.on('object:removed', handleObjectRemoved);
 
     // ── Alt+drag: дублирование объекта ─────────────────────────────────────
     // cloneRef хранит готовый клон между mouse:down и первым object:moving
@@ -228,7 +246,7 @@ export function LabelCanvas() {
         target.setCoords();
       }
 
-      setGuideLines(guides);
+      setGuideLines(prev => (sameGuides(prev, guides) ? prev : guides));
     });
 
     // Скрываем направляющие при завершении перемещения
@@ -287,6 +305,133 @@ export function LabelCanvas() {
 
     window.addEventListener('keydown', handleKeyDelete);
 
+    // ── Стрелки: перемещение выбранного объекта с клавиатуры ───────────────
+    // Шаг — 1 px сцены (базовые координаты 96 dpi, ≈0.26 мм), Shift — 10 px.
+    const NUDGE_STEP = 1;
+    const NUDGE_STEP_SHIFT = 10;
+    // Удержание стрелки даёт автоповтор ОС: писать историю на каждый пиксель
+    // нельзя — undo-стек (50 шагов) выгорает за одно удержание клавиши.
+    // Поэтому серия сдвигов пишется в историю один раз, в конце серии.
+    const NUDGE_FLUSH_DELAY = 400;
+    let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Фиксация результата серии сдвигов. Нужна не только для undo: canvasJSON —
+    // это и есть сохраняемое состояние проекта, поэтому незафиксированный сдвиг
+    // не попал бы ни в автосохранение, ни в файл проекта.
+    const flushNudgeHistory = () => {
+      if (nudgeTimer === null) return;
+      clearTimeout(nudgeTimer);
+      nudgeTimer = null;
+      const c = fabricCanvasRef.current;
+      if (!c) return;
+      setCanvasJSON(serializeCanvas(c));
+    };
+
+    /** Холст перекрыт модалкой или поповером — двигать «вслепую» нельзя. */
+    const isCanvasCovered = (): boolean => {
+      const el = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
+      if (!el || typeof document.elementFromPoint !== 'function') return false;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+
+      // Проверяем центр ВИДИМОЙ части холста, а не всего холста: при сильном
+      // увеличении (до 1000%) центр холста уходит за пределы вьюпорта, и
+      // проверка по нему возвращала бы null — модалка поверх холста осталась бы
+      // незамеченной, и объект уехал бы «за» окном предпросмотра.
+      const left = Math.max(r.left, 0);
+      const top = Math.max(r.top, 0);
+      const right = Math.min(r.right, window.innerWidth);
+      const bottom = Math.min(r.bottom, window.innerHeight);
+      // Видимой части нет — холст вне экрана, двигать нечего.
+      if (right <= left || bottom <= top) return true;
+
+      const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+      // null — hit-test недоступен в этой точке; не мешаем работе.
+      if (!hit) return false;
+
+      // Свой холст и его fabric-обёртка (canvas-container) — это не перекрытие.
+      // Сравниваем именно с обёрткой, а не с «любым предком»: предком является и
+      // <body>, поэтому проверка вида `!hit.contains(el)` сочла бы перекрытием
+      // любой посторонний элемент и молча отключила бы стрелки.
+      const wrapper = el.parentElement;
+      if (hit === el || hit === wrapper || hit.parentElement === wrapper) return false;
+
+      // body/html означают, что холста в этой точке геометрически нет — судить о
+      // перекрытии не по чему. Намеренно НЕ блокируем: ложное «перекрыто» тихо
+      // ломает стрелки, а ложное «свободно» лишь сдвинет объект (отменяется Ctrl+Z).
+      if (hit === document.body || hit === document.documentElement) return false;
+
+      return true;
+    };
+
+    const handleKeyNudge = (e: KeyboardEvent) => {
+      // Любая не-стрелка завершает серию: результат попадает в историю до того,
+      // как сработает Ctrl+Z/Ctrl+Y или другое действие — иначе отложенная
+      // запись перезаписала бы состояние уже после отката.
+      if (!e.key.startsWith('Arrow')) {
+        flushNudgeHistory();
+        return;
+      }
+
+      // Ctrl/Alt/Meta+стрелка — не наши комбинации (браузерные жесты, выделение)
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // Фокус в поле ввода: стрелки двигают курсор, а не объект
+      const activeEl = document.activeElement as HTMLElement | null;
+      const tag = activeEl?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || activeEl?.isContentEditable) {
+        return;
+      }
+
+      if (isCanvasCovered()) return;
+
+      const active = canvas.getActiveObject() as any;
+      if (!active) return;
+      // Режим ввода текста: стрелки — навигация по символам
+      if (active.isEditing) return;
+      // Заблокированный слой: мышью он не двигается (evented=false) — с
+      // клавиатуры тоже не должен
+      if (active.locked) return;
+
+      e.preventDefault();
+
+      const step = e.shiftKey ? NUDGE_STEP_SHIFT : NUDGE_STEP;
+      const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+      const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+
+      // Мультивыделение двигаем как единое целое. У детей внутри
+      // ActiveSelection left/top относительны группы (fabric v7), поэтому сдвиг
+      // самих детей дал бы дрейф и разъехавшуюся рамку выделения.
+      active.set({
+        left: (active.left ?? 0) + dx,
+        top: (active.top ?? 0) + dy,
+      });
+      active.setCoords();
+      canvas.requestRenderAll();
+
+      // Панели свойств читают позицию через objectRevision. Событие
+      // object:modified здесь не поднимаем намеренно: его обработчик сразу
+      // вызвал бы setCanvasJSON и обесценил склейку серии сдвигов.
+      useProjectStore.getState().bumpObjectRevision();
+
+      if (nudgeTimer !== null) clearTimeout(nudgeTimer);
+      nudgeTimer = setTimeout(flushNudgeHistory, NUDGE_FLUSH_DELAY);
+    };
+
+    // Начало перетаскивания мышью завершает серию сдвигов
+    const handleNudgeMouseDown = () => flushNudgeHistory();
+    // Потеря фокуса окна — тоже конец серии (иначе сдвиг останется вне истории)
+    const handleNudgeBlur = () => flushNudgeHistory();
+
+    // Слушатель — в фазе перехвата (capture). Это принципиально: фиксация
+    // серии сдвигов обязана произойти ДО обработчиков Ctrl+Z/Ctrl+Y, иначе undo
+    // отработает по устаревшей истории, а отложенная запись допишется уже после
+    // отката. Перехват выполняется раньше любых bubble-слушателей независимо от
+    // порядка их регистрации, поэтому результат не зависит от порядка монтирования.
+    window.addEventListener('keydown', handleKeyNudge, true);
+    canvas.on('mouse:down', handleNudgeMouseDown);
+    window.addEventListener('blur', handleNudgeBlur);
+
     // Загрузка сохранённого состояния (при первичном монтировании)
     let disposed = false;
     const loadSavedState = async () => {
@@ -300,7 +445,13 @@ export function LabelCanvas() {
     loadSavedState();
     return () => {
       disposed = true;
+      // Незафиксированная серия сдвигов должна попасть в историю и в
+      // canvasJSON до размонтирования, иначе последний сдвиг потеряется.
+      flushNudgeHistory();
       window.removeEventListener('keydown', handleKeyDelete);
+      window.removeEventListener('keydown', handleKeyNudge, true);
+      window.removeEventListener('blur', handleNudgeBlur);
+      canvas.off('mouse:down', handleNudgeMouseDown);
       canvas.dispose();
       setEditorCanvas(null);
     };
@@ -384,45 +535,48 @@ export function LabelCanvas() {
         className="absolute inset-0"
       />
 
-      {/* Динамические направляющие (smart guides) */}
-      {guideLines.length > 0 && (
-        <svg
-          className="absolute inset-0 pointer-events-none"
-          width={canvasPxW}
-          height={canvasPxH}
-          style={{ zIndex: 20 }}
-        >
-          {guideLines.map((guide, i) =>
-            guide.orientation === 'v' ? (
-              // Вертикальная направляющая (x = pos * zoom)
-              <line
-                key={i}
-                x1={guide.pos * editorZoom}
-                y1={0}
-                x2={guide.pos * editorZoom}
-                y2={canvasPxH}
-                stroke="#3b82f6"
-                strokeWidth={1}
-                strokeDasharray="4 3"
-                opacity={0.85}
-              />
-            ) : (
-              // Горизонтальная направляющая (y = pos * zoom)
-              <line
-                key={i}
-                x1={0}
-                y1={guide.pos * editorZoom}
-                x2={canvasPxW}
-                y2={guide.pos * editorZoom}
-                stroke="#3b82f6"
-                strokeWidth={1}
-                strokeDasharray="4 3"
-                opacity={0.85}
-              />
-            )
-          )}
-        </svg>
-      )}
+      {/* Динамические направляющие (smart guides).
+          Контейнер смонтирован всегда, а не условно: смена числа React-соседей
+          <canvas> заставляет React вставлять/удалять узлы рядом с элементом,
+          который fabric переносит в свою обёртку (см. комментарий в App.tsx).
+          Показываем и прячем только содержимое SVG. */}
+      <svg
+        className="absolute inset-0 pointer-events-none"
+        width={canvasPxW}
+        height={canvasPxH}
+        style={{ zIndex: 20, display: guideLines.length > 0 ? undefined : 'none' }}
+        aria-hidden="true"
+      >
+        {guideLines.map((guide, i) =>
+          guide.orientation === 'v' ? (
+            // Вертикальная направляющая (x = pos * zoom)
+            <line
+              key={`v${i}`}
+              x1={guide.pos * editorZoom}
+              y1={0}
+              x2={guide.pos * editorZoom}
+              y2={canvasPxH}
+              stroke="#3b82f6"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={0.85}
+            />
+          ) : (
+            // Горизонтальная направляющая (y = pos * zoom)
+            <line
+              key={`h${i}`}
+              x1={0}
+              y1={guide.pos * editorZoom}
+              x2={canvasPxW}
+              y2={guide.pos * editorZoom}
+              stroke="#3b82f6"
+              strokeWidth={1}
+              strokeDasharray="4 3"
+              opacity={0.85}
+            />
+          )
+        )}
+      </svg>
     </>
   );
 }

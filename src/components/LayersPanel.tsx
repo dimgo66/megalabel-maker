@@ -180,7 +180,7 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
   if (layers.length === 0) {
     return (
       <div className="p-4 border-b border-gray-200 text-center text-gray-500 text-sm">
-        Нет объектов на канвасе
+        Чистый лист
       </div>
     );
   }

@@ -459,7 +459,8 @@ const sections: HelpSection[] = [
           { keys: 'Ctrl + колесо мыши', desc: 'Масштабирование редактора' },
           { keys: 'Delete / Backspace', desc: 'Удалить выделенный объект' },
           { keys: 'Esc', desc: 'Снять выделение / закрыть режим ввода' },
-          { keys: 'Стрелки', desc: 'Перемещение выделенного объекта' },
+          { keys: 'Стрелки', desc: 'Перемещение выделенного объекта (1 px)' },
+          { keys: 'Shift + стрелки', desc: 'Перемещение выделенного объекта (10 px)' },
         ].map(({ keys, desc }) => (
           <div key={keys} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <span className="text-sm text-gray-600">{desc}</span>

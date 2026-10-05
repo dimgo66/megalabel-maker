@@ -5,7 +5,7 @@ import { useProjectStore } from '../store/useProjectStore';
 
 
 export function ImagePropertiesPanel() {
-  const { selectedObject } = useProjectStore();
+  const { selectedObject, objectRevision } = useProjectStore();
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [left, setLeft] = useState(0);
@@ -27,7 +27,9 @@ export function ImagePropertiesPanel() {
       setOriginalWidth(img.width || 0);
       setOriginalHeight(img.height || 0);
     }
-  }, [selectedObject]);
+    // objectRevision обязателен: left/top меняются и в обход этой панели —
+    // стрелками на клавиатуре. Без него поля X/Y показывали бы старую позицию.
+  }, [selectedObject, objectRevision]);
 
   const updateProperty = (property: string, value: any) => {
     if (!selectedObject || !(selectedObject instanceof fabric.FabricImage)) return;
