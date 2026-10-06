@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 
 interface HotkeyHandlers {
   onSave?: () => void;
+  onSaveAs?: () => void;
   onLoad?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
@@ -13,8 +14,19 @@ interface HotkeyHandlers {
 export function useHotkeys(handlers: HotkeyHandlers) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+
+      // Ctrl+Shift+S or Cmd+Shift+S - Save As.
+      // Проверяется раньше Ctrl+S: при зажатом Shift `e.key` приходит как «S»,
+      // поэтому сравнение идёт по toLowerCase(), а shiftKey отсекается явно.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === 's') {
+        e.preventDefault();
+        handlers.onSaveAs?.();
+        return;
+      }
+
       // Ctrl+S or Cmd+S - Save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key === 's') {
         e.preventDefault();
         handlers.onSave?.();
       }

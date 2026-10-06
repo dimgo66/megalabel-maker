@@ -5,6 +5,7 @@ import { composeSheetCanvas, ExportConfig, exportWithFallback } from '../utils/p
 import { checkPdfSources } from '../utils/vectorExporter';
 import { printViaPdfWindow } from '../utils/printManager';
 import { calculateLayout, gridPitch } from '../utils/layoutCalculator';
+import { NON_PRINTABLE_MARGIN_MM, labelsReachNonPrintableZone, nonPrintableZonePath } from '../config/printer';
 import { PreviewCellGuides } from './PreviewCellGuides';
 import { FileText, Printer } from './icons';
 
@@ -277,6 +278,21 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
   // Контуры ячеек выбранного шаблона — пунктирная разметка только для глаз.
   const cellGuides = cells;
 
+  // ── Непечатная зона принтера (только предпросмотр) ───────────────────────
+  // Рамка по периметру листа: одной <path> с fill-rule="evenodd" — внешний
+  // прямоугольник листа минус внутренний. Тот же приём, что у `safetyCells`,
+  // поэтому зоны не конфликтуют и не требуют отдельных слоёв.
+  const nonPrintablePath = nonPrintableZonePath(sheetW_mm, sheetH_mm);
+
+  // Предупреждение: сетка шаблона заходит в непечатную зону. Считаем по
+  // геометрии листа с учётом ориентации, а не «на глаз».
+  const hitsNonPrintableZone = labelsReachNonPrintableZone(
+    previewLayout,
+    previewPitch,
+    sheetW_mm,
+    sheetH_mm
+  );
+
   return (
     <div
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
@@ -288,17 +304,49 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="h-16 border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="text-lg font-semibold text-gray-900">Предпросмотр</span>
-            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
+        <div className="h-16 border-b border-gray-200 flex items-center px-6 justify-between gap-4 shrink-0">
+          {/* Левая группа сжимается (min-w-0) и не выдавливает блок масштаба:
+              заголовок и легенда — самое важное, поэтому «N этикеток, …»
+              уступает место первым. Раньше группа была негибкой, и на 1024px
+              легенда непечатной зоны выталкивала кнопки за край окна. */}
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-lg font-semibold text-gray-900 shrink-0">Предпросмотр</span>
+            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg shrink-0">
               {selectedFormat.name}
             </span>
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 truncate hidden xl:inline">
               {selectedFormat.count} этикеток, {selectedFormat.width_mm}×{selectedFormat.height_mm} мм каждая
               {' · '}
               {sheetSettings.orientation === 'portrait' ? 'Книжная' : 'Альбомная'}
             </span>
+
+            {/* Легенда непечатной зоны: без неё розовая рамка читается как
+                «ошибка», а не как подсказка о крае листа. Образец повторяет
+                реальный цвет и прозрачность слоя. */}
+            <span className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
+              <span
+                className="inline-block w-3 h-3 rounded-[2px] border border-dashed shrink-0"
+                style={{ backgroundColor: 'rgba(249, 168, 212, 0.28)', borderColor: 'rgba(236, 72, 153, 0.5)' }}
+                aria-hidden="true"
+              />
+              <span className="hidden lg:inline">Непечатная зона принтера, {NON_PRINTABLE_MARGIN_MM} мм</span>
+              <span className="lg:hidden" title={`Непечатная зона принтера, ${NON_PRINTABLE_MARGIN_MM} мм`}>
+                {NON_PRINTABLE_MARGIN_MM} мм
+              </span>
+            </span>
+
+            {/* Шаблоны с полями уже 4.2 мм печатаются «в край» — часть этикетки
+                принтер может не пропечатать. Предупреждаем до печати, а не после. */}
+            {hitsNonPrintableZone && (
+              <span
+                className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 shrink-0"
+                role="status"
+                title="У выбранного шаблона поля уже непечатной зоны: печать идёт в край листа"
+              >
+                <span className="hidden lg:inline">Часть этикеток попадает в непечатную зону</span>
+                <span className="lg:hidden">В край листа</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -419,6 +467,37 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
                   preserveAspectRatio="none"
                 >
                   <PreviewCellGuides cells={cellGuides} circle={isCircleFormat} />
+                </svg>
+
+                {/* Непечатная зона принтера — по периметру листа.
+                    Идёт ПОСЛЕ маски безопасных полей: непрозрачная белая маска
+                    перекрыла бы розовую рамку, и подсказка пропала бы ровно на
+                    тех шаблонах, где она нужнее всего (узкие поля).
+                    Класс `preview-only` исключает слой из печати страницы
+                    (print.css), а PDF и печать листа собираются заново в
+                    pdfExporter/printManager и об этом слое не знают. */}
+                <svg
+                  className="absolute inset-0 w-full h-full preview-only"
+                  viewBox={`0 0 ${sheetW_mm} ${sheetH_mm}`}
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d={nonPrintablePath}
+                    fill="#F9A8D4"
+                    fillOpacity={0.28}
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                  />
+                  <path
+                    d={nonPrintablePath}
+                    fill="none"
+                    stroke="#EC4899"
+                    strokeOpacity={0.5}
+                    strokeWidth={1}
+                    strokeDasharray="4 3"
+                    vectorEffect="non-scaling-stroke"
+                  />
                 </svg>
               </div>
             </div>

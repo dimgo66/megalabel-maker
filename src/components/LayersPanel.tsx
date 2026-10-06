@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
+import { CollapsibleSection } from './CollapsibleSection';
 import {
   ArrowDown,
   ArrowUp,
   BarcodeIcon,
+  Clipboard,
   Eye,
   EyeOff,
   ImageIcon,
@@ -177,113 +179,118 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
     canvas.renderAll();
   };
 
-  if (layers.length === 0) {
-    return (
-      <div className="p-4 border-b border-gray-200 text-center text-gray-500 text-sm">
-        Чистый лист
-      </div>
-    );
-  }
-
+  // Слои спрятаны в раскрывающуюся секцию: список занимал всю высоту панели и
+  // вытеснял свойства объекта. Бейдж с числом остаётся видимым и в свёрнутом
+  // виде, поэтому о содержимом листа известно без раскрытия.
   return (
-    <div className="p-3 border-b border-gray-200">
-      <h4 className="type-group mb-2">
-        Слои ({layers.length})
-      </h4>
-      <div className="space-y-1">
-        {layers.map((layer, i) => {
-          const isSelected = selectedObject === layer.object;
-          return (
-            <div
-              key={i}
-              onClick={() => handleLayerClick(layer)}
-              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg cursor-pointer transition-all ${
-                isSelected
-                  ? 'bg-blue-50 border border-blue-400 shadow-sm'
-                  : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
-              }`}
-            >
-              {/* Цветной индикатор выделения */}
+    <CollapsibleSection
+      title="Слои"
+      icon={<Clipboard size={16} />}
+      badge={<span className="type-meta font-normal">{layers.length}</span>}
+      className="border-b border-gray-200"
+      contentClassName="px-4 pb-4"
+    >
+      {layers.length === 0 ? (
+        <div className="type-meta text-center py-3 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+          Чистый лист
+        </div>
+      ) : (
+        <div className="space-y-0.5">
+          {layers.map((layer, i) => {
+            const isSelected = selectedObject === layer.object;
+            return (
               <div
-                className={`w-1.5 h-5 rounded-full shrink-0 transition-colors ${
-                  isSelected ? 'bg-blue-500' : 'bg-gray-200'
-                }`}
-              />
-
-              {/* Иконка типа. Убран font-mono: он подбирался под символьные
-                  глифы, а SVG-иконке моноширинный шрифт не нужен. */}
-              <span
-                className={`w-4 flex items-center justify-center shrink-0 ${
-                  isSelected ? 'text-blue-700' : 'text-gray-500'
+                key={i}
+                onClick={() => handleLayerClick(layer)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg cursor-pointer transition-all ${
+                  isSelected
+                    ? 'bg-blue-50 border border-blue-400 shadow-sm'
+                    : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
                 }`}
               >
-                {(() => {
-                  const TypeGlyph = getTypeIcon(layer.type, layer.object);
-                  return <TypeGlyph size={14} />;
-                })()}
-              </span>
-
-              {/* Название */}
-              <span
-                className={`flex-1 text-xs truncate ${
-                  isSelected ? 'text-blue-800 font-semibold' : 'text-gray-700'
-                } ${!layer.visible ? 'opacity-40 line-through' : ''}`}
-              >
-                {layer.name}
-              </span>
-
-              {/* Кнопки управления.
-                  gap-0 вместо gap-0.5: кнопки выросли с 20px до 24px ради
-                  тач-цели, и это отнимало 20px у имени слоя. Плотная упаковка
-                  возвращает 4px — иначе дефолтное «Изображение 1» (76.2px при
-                  доступных 75px) начинало обрезаться. Кнопки при этом не
-                  соприкасаются: у каждой скругление rounded и hover-фон. */}
-              <div className="flex items-center gap-0 shrink-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleMoveUp(layer); }}
-                  className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
-                  title="Переместить вверх"
-                  aria-label={`Переместить «${layer.name}» вверх`}
-                ><ArrowUp size={12} /></button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleMoveDown(layer); }}
-                  className="w-6 h-6 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
-                  title="Переместить вниз"
-                  aria-label={`Переместить «${layer.name}» вниз`}
-                ><ArrowDown size={12} /></button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleToggleVisibility(layer); }}
-                  className={`w-6 h-6 flex items-center justify-center rounded ${
-                    layer.visible ? 'hover:bg-gray-200 text-gray-600' : 'bg-gray-200 text-gray-600'
+                {/* Цветной индикатор выделения */}
+                <div
+                  className={`w-1 h-4 rounded-full shrink-0 transition-colors ${
+                    isSelected ? 'bg-blue-500' : 'bg-gray-200'
                   }`}
-                  title={layer.visible ? 'Скрыть' : 'Показать'}
-                  aria-label={layer.visible ? `Скрыть «${layer.name}»` : `Показать «${layer.name}»`}
-                >
-                  {layer.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleToggleLock(layer); }}
-                  className={`w-6 h-6 flex items-center justify-center rounded ${
-                    layer.locked ? 'bg-amber-100 text-amber-800' : 'hover:bg-gray-200 text-gray-500'
+                />
+
+                {/* Иконка типа. Убран font-mono: он подбирался под символьные
+                    глифы, а SVG-иконке моноширинный шрифт не нужен. */}
+                <span
+                  className={`w-4 flex items-center justify-center shrink-0 ${
+                    isSelected ? 'text-blue-700' : 'text-gray-500'
                   }`}
-                  title={layer.locked ? 'Разблокировать' : 'Заблокировать'}
-                  aria-label={layer.locked ? `Разблокировать «${layer.name}»` : `Заблокировать «${layer.name}»`}
                 >
-                  {layer.locked ? <Lock size={12} /> : <Unlock size={12} />}
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(layer); }}
-                  className="w-6 h-6 flex items-center justify-center hover:bg-red-100 rounded text-gray-500 hover:text-red-700"
-                  title="Удалить"
-                  aria-label={`Удалить «${layer.name}»`}
-                ><X size={12} /></button>
+                  {(() => {
+                    const TypeGlyph = getTypeIcon(layer.type, layer.object);
+                    return <TypeGlyph size={13} />;
+                  })()}
+                </span>
+
+                {/* Название */}
+                <span
+                  className={`flex-1 text-xs truncate ${
+                    isSelected ? 'text-blue-800 font-semibold' : 'text-gray-700'
+                  } ${!layer.visible ? 'opacity-40 line-through' : ''}`}
+                >
+                  {layer.name}
+                </span>
+
+                {/* Кнопки управления.
+                    Высота строки ужата по требованию: было py-1.5 и кнопки
+                    24px (≈34px на строку), стало py-1 и кнопки 20px (≈28px).
+                    Тач-цель кнопок теперь меньше рекомендованных 24px — это
+                    осознанный размен: вся строка кликабельна (выделяет слой),
+                    у каждой кнопки есть title и aria-label. Имя слоя при этом
+                    не страдает: кнопки вернулись к 20px, как было до UI-полировки. */}
+                <div className="flex items-center gap-0 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleMoveUp(layer); }}
+                    className="w-5 h-5 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
+                    title="Переместить вверх"
+                    aria-label={`Переместить «${layer.name}» вверх`}
+                  ><ArrowUp size={11} /></button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleMoveDown(layer); }}
+                    className="w-5 h-5 flex items-center justify-center hover:bg-gray-200 rounded text-gray-500"
+                    title="Переместить вниз"
+                    aria-label={`Переместить «${layer.name}» вниз`}
+                  ><ArrowDown size={11} /></button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleVisibility(layer); }}
+                    className={`w-5 h-5 flex items-center justify-center rounded ${
+                      layer.visible ? 'hover:bg-gray-200 text-gray-600' : 'bg-gray-200 text-gray-600'
+                    }`}
+                    title={layer.visible ? 'Скрыть' : 'Показать'}
+                    aria-label={layer.visible ? `Скрыть «${layer.name}»` : `Показать «${layer.name}»`}
+                  >
+                    {layer.visible ? <Eye size={11} /> : <EyeOff size={11} />}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleToggleLock(layer); }}
+                    className={`w-5 h-5 flex items-center justify-center rounded ${
+                      layer.locked ? 'bg-amber-100 text-amber-800' : 'hover:bg-gray-200 text-gray-500'
+                    }`}
+                    title={layer.locked ? 'Разблокировать' : 'Заблокировать'}
+                    aria-label={layer.locked ? `Разблокировать «${layer.name}»` : `Заблокировать «${layer.name}»`}
+                  >
+                    {layer.locked ? <Lock size={11} /> : <Unlock size={11} />}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(layer); }}
+                    className="w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded text-gray-500 hover:text-red-700"
+                    title="Удалить"
+                    aria-label={`Удалить «${layer.name}»`}
+                  ><X size={11} /></button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+            );
+          })}
+        </div>
+      )}
+    </CollapsibleSection>
   );
 }

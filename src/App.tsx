@@ -69,7 +69,7 @@ function App() {
   }, []);
 
   // Сохранение и загрузка проекта — общая реализация с кнопками тулбара
-  const { handleSave, handleLoad } = useProjectFile();
+  const { handleSave, handleSaveAs, handleLoad } = useProjectFile();
 
   const { undo, redo } = useProjectStore();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -78,6 +78,7 @@ function App() {
 
   useHotkeys({
     onSave: handleSave,
+    onSaveAs: handleSaveAs,
     onLoad: handleLoad,
     onUndo: undo,
     onRedo: redo,

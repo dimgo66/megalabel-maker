@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
-import { IText } from 'fabric';
+import { Textbox } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
+import { mmToPx } from '../utils/layoutCalculator';
+import { COMPACT_WIDTH_RATIO, syncFrameGeometry } from '../utils/textFitter';
 import { ImagePanel } from './ImagePanel';
 import { BarcodeModal } from './BarcodeModal';
 import { LibraryPanel } from './LibraryPanel';
@@ -13,6 +15,31 @@ import {
   Folder,
   Type as TypeIcon,
 } from './icons';
+
+/** Человекочитаемое имя веса — в списке шрифтов числа читаются хуже слова. */
+function weightLabel(weight: number): string {
+  const labels: Record<number, string> = {
+    100: 'тонкий',
+    200: 'сверхсветлый',
+    300: 'светлый',
+    400: 'обычный',
+    500: 'средний',
+    600: 'полужирный',
+    700: 'жирный',
+    800: 'сверхжирный',
+    900: 'чёрный',
+  };
+  return labels[weight] ?? String(weight);
+}
+
+/**
+ * Подставное семейство для превью незагруженного шрифта.
+ * Точной гарнитуры до загрузки нет, но общий характер (с засечками или без)
+ * известен по имени — этого достаточно, чтобы превью различались между собой.
+ */
+function previewFamily(fontName: string): string {
+  return /serif|alegreya|georgia|times/i.test(fontName) ? 'serif' : 'sans-serif';
+}
 
 export function LeftPanel() {
   const {
@@ -61,25 +88,45 @@ export function LeftPanel() {
     }
   };
 
+  /**
+   * Новый текстовый блок создаётся сразу фреймом (`Textbox`), а не `IText`.
+   * У `IText` нет ширины переноса — он не тянется за боковые ручки и не может
+   * быть рамкой, поэтому раньше его приходилось конвертировать на лету.
+   * Боковые ручки оставлены видимыми: ими меняется ширина рамки.
+   *
+   * Блок встаёт в ЦЕНТР этикетки: это точка, которую пользователь считает
+   * «по умолчанию», а не левый верхний угол (там блок читался как уехавший за
+   * край). Позиция задаётся через `originX/originY: 'center'` — так она не
+   * зависит от ширины и высоты рамки, которые ещё будут меняться.
+   */
   const handleAddText = () => {
     const canvas = (window as any).__fabricCanvas;
     if (!canvas) return;
 
-    const text = new IText('Текст', {
-      left: 100,
-      top: 100,
+    const state = useProjectStore.getState();
+    const margin = state.sheetSettings.safetyMargin_mm > 0 ? state.sheetSettings.safetyMargin_mm : 1;
+    const inset = mmToPx(margin);
+    // Размер сцены в базовых координатах: зум редактора на геометрию не влияет.
+    const zoom = canvas.getZoom() || 1;
+    const sceneW = canvas.getWidth() / zoom;
+    const sceneH = canvas.getHeight() / zoom;
+    const zoneWidth = Math.max(8, mmToPx(state.selectedFormat.width_mm) - inset * 2);
+
+    const text = new Textbox('Текст', {
+      left: sceneW / 2,
+      top: sceneH / 2,
+      originX: 'center',
+      originY: 'center',
+      width: Math.max(32, zoneWidth * COMPACT_WIDTH_RATIO),
       fill: '#000000',
       fontSize: 24,
       fontFamily: 'Roboto Condensed',
     });
 
-    // Оставляем только угловые точки масштабирования (без средних ml/mr/mt/mb)
-    text.setControlsVisibility({
-      ml: false,
-      mr: false,
-      mt: false,
-      mb: false,
-    });
+    // Рамка идёт за текстом: при коротком тексте высота — одна строка, и
+    // `clipPath` не должен отрезать то, что пользователь допишет следом.
+    (text as any).frameAutoHeight = true;
+    syncFrameGeometry(text);
 
     canvas.add(text);
     canvas.setActiveObject(text);
@@ -169,51 +216,80 @@ export function LeftPanel() {
             </span>
           </div>
           {/* Список ограничен по высоте: 17 шрифтов иначе растягивали панель
-              на всю длину и выталкивали блок «С компьютера» из вида. */}
-          <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-72 bg-gray-50">
+              на всю длину и выталкивали блок «С компьютера» из вида.
+              Высота 80 (было 72): строки стали выше — у каждой теперь превью
+              начертаний, и в прежние 288px помещалось бы 3 шрифта. */}
+          <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-80 bg-gray-50">
             {googleFonts.map(font => {
               const isLoaded = loadedGoogleFonts.includes(font.id);
               const fontFamily = font.name;
               return (
                 <div
                   key={font.id}
-                  className="flex items-center justify-between px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-white transition-colors"
+                  className="px-3 py-2 border-b border-gray-100 last:border-0 hover:bg-white transition-colors"
                 >
-                  <div className="flex flex-col min-w-0 flex-1 mr-2">
+                  <div className="flex items-center justify-between gap-2">
                     <span
                       className="text-sm leading-tight truncate"
                       style={{ fontFamily: isLoaded ? fontFamily : 'inherit', color: isLoaded ? '#1f2937' : '#6b7280' }}
                     >
                       {font.name}
                     </span>
-                    {isLoaded && (
-                      <span
-                        className="text-xs leading-tight text-gray-500 truncate"
-                        style={{ fontFamily: fontFamily }}
+                    {isLoaded ? (
+                      <Check
+                        size={14}
+                        className="text-green-700 shrink-0"
+                        role="img"
+                        aria-label="Шрифт загружен"
+                        aria-hidden={undefined}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleGoogleFontLoad(font.id)}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors shrink-0 font-medium"
+                        title={`Загрузить ${font.name}`}
+                        aria-label={`Загрузить шрифт ${font.name}`}
                       >
-                        АаБбВв 123
+                        <Download size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Превью начертаний: каждый доступный вес показан своим
+                      начертанием, поэтому до загрузки видно набор весов и
+                      курсив, а после — как шрифт реально выглядит.
+                      У незагруженного шрифта гарнитуры ещё нет: образец идёт
+                      подставным семейством (serif/sans-serif по имени), а не
+                      системным шрифтом интерфейса — иначе все превью выглядели
+                      бы одинаково и ничего не сообщали. */}
+                  <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 mt-1">
+                    {font.weights.map(weight => (
+                      <span
+                        key={weight}
+                        className="text-xs leading-tight whitespace-nowrap"
+                        style={{
+                          fontFamily: isLoaded ? fontFamily : previewFamily(font.name),
+                          fontWeight: weight,
+                          color: isLoaded ? '#374151' : '#9CA3AF',
+                        }}
+                      >
+                        Аа <span className="type-meta">{weightLabel(weight)}</span>
+                      </span>
+                    ))}
+                    {font.styles.includes('italic') && (
+                      <span
+                        className="text-xs leading-tight whitespace-nowrap"
+                        style={{
+                          fontFamily: isLoaded ? fontFamily : previewFamily(font.name),
+                          fontStyle: 'italic',
+                          color: isLoaded ? '#374151' : '#9CA3AF',
+                        }}
+                      >
+                        Аа <span className="type-meta">курсив</span>
                       </span>
                     )}
                   </div>
-                  {isLoaded ? (
-                    <Check
-                      size={14}
-                      className="text-green-700 shrink-0"
-                      role="img"
-                      aria-label="Шрифт загружен"
-                      aria-hidden={undefined}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleGoogleFontLoad(font.id)}
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-1.5 py-0.5 rounded transition-colors shrink-0 font-medium"
-                      title={`Загрузить ${font.name}`}
-                      aria-label={`Загрузить шрифт ${font.name}`}
-                    >
-                      <Download size={14} />
-                    </button>
-                  )}
                 </div>
               );
             })}

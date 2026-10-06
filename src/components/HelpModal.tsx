@@ -57,7 +57,7 @@ const sections: HelpSection[] = [
           <div className="space-y-2 text-sm text-blue-700">
             <div className="flex items-start gap-2">
               <span className="font-bold shrink-0 w-28">Верхняя панель</span>
-              <span>— название проекта, формат этикетки, отмена/повтор, сохранение, загрузка, предпросмотр</span>
+              <span>— название проекта, формат этикетки, отмена/повтор, сохранение и «Сохранить как», загрузка, предпросмотр</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold shrink-0 w-28">Левая панель</span>
@@ -69,7 +69,7 @@ const sections: HelpSection[] = [
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold shrink-0 w-28">Правая панель</span>
-              <span>— свойства выделенного объекта, слои, настройки листа</span>
+              <span>— закреплённые безопасные поля, свойства выделенного объекта и слои</span>
             </div>
           </div>
         </div>
@@ -168,6 +168,23 @@ const sections: HelpSection[] = [
           </div>
         </div>
         <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Рамка и текст — размеры независимы</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            <strong>Боковые точки</strong> тянут ширину рамки, <strong>верхняя и нижняя</strong> —
+            высоту, <strong>углы</strong> — оба размера сразу. Строки переносятся заново, а
+            <strong> кегль при этом не меняется</strong>: размер шрифта задаётся в правой панели,
+            точкой сверху блок поворачивается.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Если текст не помещается в рамку, он <strong>обрезается по ней</strong>, а рамка выделения
+            становится <span className="text-red-700 font-medium">красной</span> — это значит, что
+            часть текста не видна. Увеличьте рамку или уменьшите кегль.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Рамку нельзя сузить уже самого длинного слова: слова целиком, переноса по буквам нет.
+          </p>
+        </div>
+        <div>
           <h3 className="font-semibold text-gray-900 mb-2">Свойства текста (правая панель)</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
             {[
@@ -186,6 +203,23 @@ const sections: HelpSection[] = [
               </div>
             ))}
           </div>
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Вставка текста из буфера</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Вставьте текст на этикетку (<kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+V</kbd> в режиме ввода
+            или в поле <strong>«Текст»</strong> правой панели) — длинный фрагмент автоматически разобьётся на строки,
+            а кегль уменьшится, чтобы текст целиком поместился в этикетку с учётом безопасных полей.
+            Если текст уже помещался, он останется как есть.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Направление роста блока задаёт выравнивание абзаца: при выравнивании по правому краю текст
+            «растёт» влево, по центру — в обе стороны, по левому — вправо.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Если на этикетке ничего не выделено, <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+V</kbd> создаст
+            новый текстовый блок с содержимым буфера. Если выделен не текст (например, изображение), вставка не подменяется.
+          </p>
         </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-sm text-blue-800 flex items-start gap-2">
           <Lightbulb size={15} className="shrink-0 mt-0.5" />
@@ -339,6 +373,10 @@ const sections: HelpSection[] = [
           Панель <strong>«Слои»</strong> находится в правой панели. Здесь показаны все объекты на этикетке
           в порядке их наложения (сверху — ближе к зрителю).
         </p>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          Это раскрывающаяся секция: по умолчанию она свёрнута, а рядом с заголовком показано число слоёв.
+          Нажмите на заголовок, чтобы открыть список.
+        </p>
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Управление слоями</h3>
           <div className="space-y-2 text-sm text-gray-600">
@@ -383,6 +421,20 @@ const sections: HelpSection[] = [
             <div className="flex items-start gap-2"><span aria-hidden="true" className="text-blue-600 shrink-0"><ChevronRight size={14} /></span><span><strong>Растровый PDF</strong> — резервный вариант, если векторный не работает</span></div>
           </div>
         </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Непечатная зона принтера</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            По периметру листа в предпросмотре показана нежно-розовая рамка — <strong>4.2 мм</strong>.
+            Это кромка, которую настольный лазерный принтер обычно не пропечатывает: лист держат валики.
+            Всё, что попадает в эту зону, может выйти бледным или пропасть.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Рамка — только подсказка в окне предпросмотра: в редакторе её нет, в скачанный PDF и в печать
+            она не попадает. Если рядом с легендой появилось янтарное предупреждение
+            «Часть этикеток попадает в непечатную зону» — у выбранного шаблона поля уже 4.2 мм,
+            печать идёт «в край», и результат зависит от конкретного принтера.
+          </p>
+        </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-sm text-blue-800 flex items-start gap-2">
           <Lightbulb size={15} className="shrink-0 mt-0.5" />
           <span>При печати рекомендуется установить <strong>масштаб 100%</strong> в настройках принтера, чтобы соблюсти точные размеры в мм.</span>
@@ -398,36 +450,46 @@ const sections: HelpSection[] = [
       <div className="space-y-4">
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Название проекта</h3>
-          <p className="text-sm text-gray-600">Введите название в поле вверху. Оно используется как имя файла при сохранении.</p>
+          <p className="text-sm text-gray-600">Введите название в поле вверху. Оно используется как имя файла при сохранении и остаётся видимым в поле всё время работы.</p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Фон поля — единственный индикатор состояния проекта: <strong>нежно-зелёный</strong> — всё сохранено,
+            <strong> нежно-оранжевый</strong> — есть несохранённые изменения. Отдельных значков состояния в тулбаре нет;
+            для скринридеров то же самое объявляется вслух.
+          </p>
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Сохранение проекта в файл</h3>
-          <p className="text-sm text-gray-600">Кнопка <strong>«Сохранить»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+S</kbd>. Файл <code className="text-xs bg-gray-100 px-1 rounded">.labelproj.json</code> сохраняется на компьютер.</p>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Кнопка <strong>«Сохранить»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+S</kbd>.
+            Место и имя файла <code className="text-xs bg-gray-100 px-1 rounded">.json</code> спрашиваются один раз — при первом сохранении проекта.
+            Дальше файл перезаписывается на том же месте под тем же именем, без вопросов.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Кнопка <strong>«Сохранить как»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+Shift+S</kbd> —
+            новый файл: имя проекта подставляется из имени выбранного файла и дальнейшие сохранения идут уже в него.
+          </p>
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Загрузка проекта</h3>
-          <p className="text-sm text-gray-600">Кнопка <strong>«Загрузить»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+O</kbd>. Выберите ранее сохранённый <code className="text-xs bg-gray-100 px-1 rounded">.labelproj.json</code> файл.</p>
+          <p className="text-sm text-gray-600">Кнопка <strong>«Загрузить»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+O</kbd>. Выберите ранее сохранённый <code className="text-xs bg-gray-100 px-1 rounded">.json</code> файл проекта. Файлы старого формата <code className="text-xs bg-gray-100 px-1 rounded">.labelproj.json</code> тоже открываются.</p>
         </div>
         <div>
           <h3 className="font-semibold text-gray-900 mb-2">Автосохранение</h3>
           <p className="text-sm text-gray-600 leading-relaxed">Проект автоматически сохраняется в браузере. При следующем открытии появится баннер <strong>«Найден несохранённый проект»</strong> с кнопками <em>Восстановить</em> или <em>Удалить</em>.</p>
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Индикатор состояния</h3>
+          <h3 className="font-semibold text-gray-900 mb-2">Состояние проекта</h3>
           <div className="space-y-2 text-sm text-gray-600">
             <div className="flex items-center gap-2">
-              {/* green-600, а не green-500: ровно так нарисован настоящий
-                  индикатор в панели (галочка text-green-600). green-500 давал
-                  всего 2.22:1 на белом и не совпадал с оригиналом. */}
-              <div className="w-2 h-2 bg-green-600 rounded-full shrink-0"></div>
-              <span><strong>Зелёный «Сохранено»</strong> — изменений нет</span>
+              {/* Образцы — те же токены, что у настоящего поля в тулбаре
+                  (bg-emerald-50 / bg-amber-50), иначе легенда разойдётся с тем,
+                  что человек видит в панели. */}
+              <div className="w-6 h-4 bg-emerald-50 border border-emerald-300 rounded shrink-0"></div>
+              <span><strong>Зелёное поле названия</strong> — изменения сохранены</span>
             </div>
             <div className="flex items-center gap-2">
-              {/* amber-600, а не amber-500: 2.15:1 на белом — ниже нормы 3:1
-                  для нетекстового индикатора, и светлее зелёного соседа.
-                  amber-600 даёт 3.20:1 и совпадает по весу с green-600. */}
-              <div className="w-2 h-2 bg-amber-600 rounded-full shrink-0"></div>
-              <span><strong>Жёлтый «Изменения»</strong> — есть несохранённые изменения</span>
+              <div className="w-6 h-4 bg-amber-50 border border-amber-300 rounded shrink-0"></div>
+              <span><strong>Оранжевое поле названия</strong> — есть несохранённые изменения</span>
             </div>
           </div>
         </div>
@@ -448,7 +510,8 @@ const sections: HelpSection[] = [
     content: (
       <div className="space-y-1">
         {[
-          { keys: 'Ctrl + S', desc: 'Сохранить проект в файл' },
+          { keys: 'Ctrl + S', desc: 'Сохранить проект в текущий файл (без вопросов)' },
+          { keys: 'Ctrl + Shift + S', desc: 'Сохранить как — новый файл и новое имя' },
           { keys: 'Ctrl + O', desc: 'Загрузить проект из файла' },
           { keys: 'Ctrl + Z', desc: 'Отменить действие' },
           { keys: 'Ctrl + Y', desc: 'Повторить действие' },

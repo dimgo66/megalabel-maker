@@ -14,6 +14,13 @@ export const CUSTOM_PROPS = [
   'barcodeFontSizeFrac',
   'barcodeBaseW',
   'barcodeBaseH',
+  // Высота текстового фрейма: fabric пересчитывает height из содержимого,
+  // поэтому собственная высота рамки хранится отдельным свойством
+  'frameHeight',
+  // Признак «высота рамки идёт за текстом» (true/отсутствует) против «высоту
+  // задал пользователь» (false). Без него обрезка по рамке съедала вставленный
+  // текст: сохранённая высота оставалась прежней, а текст под ней рос.
+  'frameAutoHeight',
 ];
 
 /** Сериализация canvas с кастомными свойствами, без служебных объектов */
@@ -66,6 +73,34 @@ export async function withHidden<T>(
 
 /** Служебные объекты редактора, которых не должно быть в экспорте */
 export const isEditorOnly = (o: any) => o.name === 'safeArea' || o.name === 'safetyMargin';
+
+/**
+ * Заставляет fabric перерисовать текстовый объект после правки посимвольных
+ * стилей (`setSelectionStyles`).
+ *
+ * Зачем: fabric держит отрисованный объект в собственном кэше-канвасе
+ * (`objectCaching` по умолчанию включён). `setSelectionStyles` выставляет
+ * только `_forceClearCache`, но НЕ `dirty`. Флаг `_forceClearCache` читается
+ * внутри `Text.render`, а `render` вызывает пересчёт размеров лишь тогда, когда
+ * кэш уже помечен грязным, — получается замкнутый круг: новый стиль в объекте
+ * есть, но на холсте остаётся старая картинка до любой посторонней перерисовки
+ * (сдвиг, смена выделения, изменение размера окна).
+ *
+ * Лечится явной инвалидацией кэша. `initDimensions()` заодно пересчитывает
+ * метрики: полужирное начертание шире обычного, поэтому ширина строки и
+ * переносы обязаны быть пересчитаны, иначе текст поедет после перерисовки.
+ */
+export function invalidateTextCache(object: FabricObject | null | undefined): void {
+  if (!object) return;
+  const text = object as unknown as {
+    initDimensions?: () => void;
+    dirty?: boolean;
+  };
+  text.initDimensions?.();
+  text.dirty = true;
+  object.setCoords();
+  object.canvas?.requestRenderAll();
+}
 
 /** Размер сцены в базовых координатах (не зависит от зума редактора) */
 export const sceneWidth = (c: Canvas) => c.getWidth() / (c.getZoom() || 1);

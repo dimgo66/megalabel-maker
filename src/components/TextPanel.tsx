@@ -1,6 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { IText } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
+import { serializeCanvas, invalidateTextCache } from '../utils/canvasHelpers';
+import {
+  fitTextToLabel,
+  fitOptionsFromStore,
+  normalizeText,
+  sanitizePastedFragment,
+  whenPastedTextInserted,
+} from '../utils/textFitter';
 import {
   AlignCenter,
   AlignLeft,
@@ -22,6 +30,52 @@ export function TextPanel() {
   const [angle, setAngle] = useState(0);
   const [hasSelection, setHasSelection] = useState(false);
   const [showSpecialChars, setShowSpecialChars] = useState(false);
+
+  // Ссылка на поле ввода: нужна, чтобы при сбое синхронизации перенести в
+  // объект именно то, что видит пользователь.
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Список шрифтов для <select>. Подписка на конкретные срезы стора, а не
+  // getState() прямо в рендере: иначе только что загруженный Google-шрифт не
+  // появлялся бы в списке до следующего перерендера панели. Сам расчёт
+  // переиспользует стор-метод getAvailableFonts() — один источник правды о том,
+  // какие шрифты доступны; useMemo держит ссылку стабильной между рендерами.
+  const fontConfigs = useProjectStore(s => s.fontConfigs);
+  const loadedGoogleFonts = useProjectStore(s => s.loadedGoogleFonts);
+  const localFonts = useProjectStore(s => s.localFonts);
+  const availableFonts = useMemo(
+    () => useProjectStore.getState().getAvailableFonts(),
+    [fontConfigs, loadedGoogleFonts, localFonts]
+  );
+
+  /** Опции селектора, сгруппированные по источнику шрифта. */
+  const fontGroups = useMemo(() => {
+    const groups = [
+      {
+        label: 'Системные',
+        options: availableFonts
+          .filter(f => f.loaded && f.source === 'system')
+          .map(f => ({ key: f.id, value: f.name, label: f.name })),
+      },
+      {
+        label: 'Google Fonts',
+        options: availableFonts
+          .filter(f => f.loaded && f.source === 'google')
+          .map(f => ({ key: f.id, value: f.name, label: f.name })),
+      },
+      {
+        label: 'С компьютера',
+        options: localFonts.map((f, idx) => ({
+          key: `local-${idx}`,
+          value: f.name,
+          label: `${f.name}${f.weight !== 400 || f.style === 'italic' ? ` (${f.weight} ${f.style})` : ''}`,
+        })),
+      },
+    ];
+    // Пустые группы не рендерим: <optgroup> без опций оставлял бы висящий заголовок.
+    return groups.filter(g => g.options.length > 0);
+  }, [availableFonts, localFonts]);
+
 
   const SPECIAL_CHARS = [
     { label: '©', title: 'Copyright' },
@@ -137,14 +191,22 @@ export function TextPanel() {
     if (!selectedObject) return;
 
     selectedObject.set(property, value);
-    selectedObject.setCoords();
+    // `set()` у текста сам помечает кэш грязным только для свойств вёрстки;
+    // для остальных (например, поворота) инвалидация нужна явная.
+    invalidateTextCache(selectedObject);
     selectedObject.canvas?.renderAll();
 
     // Триггерим событие для сохранения
     selectedObject.fire('modified');
   };
 
-  // Применение стиля к выделенному тексту или ко всему объекту
+  /**
+   * Применение стиля к выделенному тексту или ко всему объекту.
+   *
+   * `setSelectionStyles` не помечает кэш объекта грязным (см.
+   * `invalidateTextCache`), поэтому без явной инвалидации новое начертание
+   * появлялось бы только после посторонней перерисовки.
+   */
   const applyStyleToSelection = (property: string, value: any) => {
     if (!selectedObject) return;
 
@@ -158,7 +220,7 @@ export function TextPanel() {
       textObj.set(property, value);
     }
 
-    textObj.setCoords();
+    invalidateTextCache(textObj);
     textObj.canvas?.renderAll();
     textObj.fire('modified');
   };
@@ -167,6 +229,74 @@ export function TextPanel() {
     const value = e.target.value;
     setText(value);
     updateObject('text', value);
+  };
+
+  /**
+   * Подгонка текста выделенного объекта под этикетку + запись в историю.
+   * Общая точка для обоих исходов вставки (текст дошёл до объекта сам или его
+   * пришлось дописать).
+   */
+  const fitSelectedText = () => {
+    const store = useProjectStore.getState();
+    const obj = store.selectedObject;
+    if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return;
+
+    const normalized = normalizeText(obj.text ?? '');
+    if (normalized !== obj.text) obj.set('text', normalized);
+
+    const result = fitTextToLabel(obj, fitOptionsFromStore());
+    obj.canvas?.renderAll();
+
+    // Объект мог быть пересоздан как Textbox — панель обязана переключиться
+    // на новый экземпляр, иначе следующие правки уйдут в «мёртвый» объект.
+    store.setSelectedObject(result.object);
+    store.bumpObjectRevision();
+
+    // Холст берём у объекта, а если его там нет — из стора: после замены
+    // объекта ссылка на канвас появляется только по факту добавления, и
+    // состояние проекта не должно от этого зависеть.
+    const canvas = (result.object.canvas ?? store.editorCanvas) as any;
+    if (canvas) {
+      store.setCanvasJSON(serializeCanvas(canvas));
+    }
+    setText(result.object.text ?? '');
+
+    if (result.overflow) {
+      alert('Текст не помещается в этикетку: кегль уменьшен до минимального');
+    }
+  };
+
+  /**
+   * Вставка в поле «Текст» панели.
+   *
+   * Браузер вставляет текст в textarea сам, React обновляет объект через
+   * onChange. Ждать приходится, а не подгонять сразу: порядок «браузер вставил
+   * → React обновил объект» не гарантирован относительно нашего вызова, и без
+   * ожидания подгонка считала бы старый текст и решала, что всё помещается.
+   */
+  const handleTextPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const fragment = sanitizePastedFragment(e.clipboardData?.getData('text/plain') ?? '');
+    if (!fragment) return;
+
+    whenPastedTextInserted({
+      readText: () => {
+        const obj = useProjectStore.getState().selectedObject;
+        if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return null;
+        return String(obj.text ?? '');
+      },
+      fragment,
+      onInserted: fitSelectedText,
+      onMissing: () => {
+        // Объект не получил вставленное: переносим в него текущее значение поля.
+        const store = useProjectStore.getState();
+        const obj = store.selectedObject;
+        const typed = textareaRef.current?.value;
+        if (obj && typeof typed === 'string') {
+          obj.set('text', typed);
+        }
+        fitSelectedText();
+      },
+    });
   };
 
   const handleFontSizeChange = (value: number) => {
@@ -301,14 +431,22 @@ export function TextPanel() {
           <textarea
             id="text-panel-text"
             name="text-panel-text"
+            ref={textareaRef}
             value={text}
             onChange={handleTextChange}
+            onPaste={handleTextPaste}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={3}
           />
         </div>
 
-        {/* Шрифт */}
+        {/* Шрифт.
+            Список собирается из подписки на стор, а не из getState() прямо в
+            рендере: раньше только что загруженный Google-шрифт не появлялся в
+            списке до следующего перерендера панели. Опции сгруппированы по
+            источнику, и каждой задана своя гарнитура — в Chrome/Edge/Firefox
+            выпадающий список показывает начертания (Safari стиль опций
+            игнорирует, деградация безвредна). */}
         <div>
           <label htmlFor="text-panel-font-family" className="block text-xs text-gray-600 mb-1">Шрифт:</label>
           <select
@@ -318,29 +456,14 @@ export function TextPanel() {
             onChange={(e) => handleFontFamilyChange(e.target.value)}
             className="w-full"
           >
-            {/* Системные шрифты */}
-            {useProjectStore.getState().getAvailableFonts()
-              .filter(f => f.loaded && f.source === 'system')
-              .map(font => (
-                <option key={font.id} value={font.name}>
-                  {font.name}
-                </option>
-              ))}
-
-            {/* Google Fonts */}
-            {useProjectStore.getState().getAvailableFonts()
-              .filter(f => f.loaded && f.source === 'google')
-              .map(font => (
-                <option key={font.id} value={font.name}>
-                  {font.name}
-                </option>
-              ))}
-
-            {/* Локальные шрифты */}
-            {useProjectStore.getState().localFonts.map((font, idx) => (
-              <option key={`local-${idx}`} value={font.name}>
-                {font.name} {font.weight !== 400 || font.style === 'italic' ? `(${font.weight} ${font.style})` : ''}
-              </option>
+            {fontGroups.map(group => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map(option => (
+                  <option key={option.key} value={option.value} style={{ fontFamily: option.value }}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>

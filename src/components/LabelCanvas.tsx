@@ -1,10 +1,21 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { Canvas } from 'fabric';
+import { Canvas, Textbox } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { mmToPx } from '../utils/layoutCalculator';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 import { BARCODE_NORM_VERSION } from '../utils/barcodeGenerator';
 import { serializeCanvas, isHistorySuspended, withoutHistory } from '../utils/canvasHelpers';
+import {
+  COMPACT_WIDTH_RATIO,
+  applyFrameScale,
+  ensureTextFrame,
+  fitOptionsFromStore,
+  fitTextToLabel,
+  normalizeText,
+  sanitizePastedFragment,
+  syncFrameGeometry,
+  whenPastedTextInserted,
+} from '../utils/textFitter';
 import { calcSnapGuides, sameGuides, type GuideLine } from '../utils/smartGuides';
 
 /**
@@ -65,13 +76,54 @@ async function applyStateToCanvas(c: Canvas, json: object): Promise<void> {
 
     c.renderAll();
   }
+
+  // Миграция: IText → фрейм (Textbox).
+  //
+  // У IText нет ширины переноса — он всегда растёт одной строкой, поэтому
+  // фреймом быть не может: за боковые ручки такой текст не тянется. Конвертация
+  // делается ЗДЕСЬ (при загрузке), а не во время перетаскивания: подмена объекта
+  // посреди трансформации ломает fabric — он держит ссылку на удалённый объект.
+  const legacyTextObjects = c.getObjects().filter((obj: any) => obj.type === 'i-text');
+  if (legacyTextObjects.length > 0) {
+    console.log(`Миграция: ${legacyTextObjects.length} текстовых блоков переведены во фреймы`);
+    await withoutHistory(async () => {
+      for (const legacy of legacyTextObjects) {
+        ensureTextFrame(legacy as any);
+      }
+    });
+    c.renderAll();
+  }
+
+  // Восстанавливаем геометрию фреймов: loadFromJSON ставит height по содержимому,
+  // а собственная высота рамки хранится в frameHeight. Заодно возвращается
+  // обрезка по рамке.
+  await withoutHistory(async () => {
+    for (const obj of c.getObjects()) {
+      if (obj.type === 'textbox') syncFrameGeometry(obj as any);
+    }
+  });
 }
 
-/** Скрывает средние точки масштабирования для текста, изображений и штрих-кодов. */
+/**
+ * Управляет ручками масштабирования у текста, изображений и штрих-кодов.
+ *
+ * У текста-фрейма доступны ВСЕ ручки: боковые и верх/низ тянут размеры рамки
+ * (ширину и высоту соответственно), углы — оба размера; точка поворота остаётся.
+ * Кегль при этом не меняется: масштаб сворачивается в размеры рамки в
+ * `object:scaling`.
+ *
+ * Вертикальный масштаб больше не запрещён (`lockScalingY`): высота рамки теперь
+ * независима, поэтому `scalingIsForbidden` не блокирует и углы. Отражение
+ * запрещено — случайно перевёрнутый текст выглядит как поломка.
+ * У изображений и штрих-кодов скрыты все четыре средние точки, как и раньше.
+ */
 function hideMiddleControls(obj: any) {
   const t = obj?.type;
   const isBarcode = !!obj?.barcodeValue;
-  if (t === 'i-text' || t === 'textbox' || t === 'image' || isBarcode) {
+  const isText = t === 'i-text' || t === 'textbox';
+  if (isText) {
+    obj.set({ lockScalingY: false, lockScalingFlip: true });
+  } else if (t === 'image' || isBarcode) {
     obj.setControlsVisibility({
       ml: false,
       mr: false,
@@ -132,22 +184,46 @@ export function LabelCanvas() {
     // Сохраняем canvas в store для предпросмотра
     setEditorCanvas(canvas);
 
-    // Нормализация масштаба текстового объекта: переносим scaleX/scaleY в fontSize
+    // Фрейм текста: масштаб уходит в ШИРИНУ рамки, кегль не меняется.
+    //
+    // Раньше любой ресайз текста превращался в кегль (scaleX/scaleY → fontSize),
+    // поэтому «размер рамки» и «размер текста» были одним и тем же, и рамку
+    // нельзя было ни растянуть, ни сузить. Теперь потянутая ручка меняет ширину
+    // переноса, а кегль правится только в панели «Текст».
+    //
+    // Считаем на живом событии object:scaling, а не только на object:modified:
+    // иначе во время перетаскивания текст растягивался бы и «прыгал» в конце.
+    const handleFrameScaling = (e: any) => {
+      const target = e?.target;
+      // Только готовый фрейм: конвертация IText подменяет объект на холсте, а
+      // внутри трансформации это ломает перетаскивание (fabric держит ссылку на
+      // удаляемый объект). Старые IText переводятся во фреймы при загрузке.
+      if (target?.type !== 'textbox') return;
+
+      const action = e?.transform?.action;
+      // 'scaleX'/'scaleY' — боковые ручки и верх/низ, 'scale' — углы. Любое из
+      // них меняет РАЗМЕР РАМКИ: масштаб сворачивается в width/frameHeight.
+      if (action !== 'scaleX' && action !== 'scaleY' && action !== 'scale') return;
+
+      applyFrameScale(target);
+    };
+    canvas.on('object:scaling', handleFrameScaling);
+
+    // Рамка обязана помнить собственную высоту: fabric пересчитывает height из
+    // содержимого при каждой правке текста и каждом переносе строк. Поэтому
+    // после такого пересчёта возвращаем высоту рамки и обрезку.
+    const handleFrameTextChanged = (e: any) => {
+      if (e?.target?.type !== 'textbox') return;
+      syncFrameGeometry(e.target);
+    };
+    canvas.on('text:changed', handleFrameTextChanged);
+
+    // Страховка на отпускание: если масштаб всё же остался (программный ресайз,
+    // загрузка чужого проекта) — свернуть его в размеры рамки.
     const normalizeTextScale = (obj: any) => {
-      if (obj.type !== 'i-text' && obj.type !== 'textbox') return;
-      const scaleX = obj.scaleX ?? 1;
-      const scaleY = obj.scaleY ?? 1;
-      // Если масштаб не единичный — нормализуем
-      if (Math.abs(scaleX - 1) > 0.001 || Math.abs(scaleY - 1) > 0.001) {
-        const scale = (scaleX + scaleY) / 2;
-        const newFontSize = Math.round((obj.fontSize ?? 14) * scale);
-        obj.set({
-          fontSize: newFontSize,
-          scaleX: 1,
-          scaleY: 1,
-        });
-        obj.setCoords();
-      }
+      if (obj?.type !== 'textbox') return;
+      applyFrameScale(obj);
+      syncFrameGeometry(obj);
     };
 
     // Обработчики событий для сохранения состояния
@@ -432,6 +508,132 @@ export function LabelCanvas() {
     canvas.on('mouse:down', handleNudgeMouseDown);
     window.addEventListener('blur', handleNudgeBlur);
 
+    // ── Вставка текста из буфера обмена ────────────────────────────────────
+    // Штатный путь fabric (двойной клик по тексту → Ctrl+V) вставляет текст в
+    // скрытую textarea и НЕ переносит строки: длинная строка уезжает за край
+    // этикетки. Здесь после вставки текст подгоняется под формат: перенос по
+    // строкам, уменьшение кегля, сдвиг по направлению выравнивания абзаца.
+    //
+    // ВАЖНО: скрытая textarea fabric — обычный <textarea data-fabric="textarea">,
+    // который fabric приклеивает к document.body и фокусирует в режиме ввода.
+    // То есть в момент вставки document.activeElement — это textarea, и наивная
+    // проверка «фокус в поле ввода → пропустить» отключала бы обработчик ровно
+    // там, где он нужен. Пропускаем только ЧУЖИЕ поля (панель «Текст»).
+    const isForeignInputField = (el: HTMLElement | null): boolean => {
+      if (!el) return false;
+      const isField = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+      if (!isField) return false;
+      return el.getAttribute('data-fabric') !== 'textarea';
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      if (isForeignInputField(document.activeElement as HTMLElement | null)) return;
+
+      const active = canvas.getActiveObject() as any;
+      const isTextField = !!active && (active.type === 'i-text' || active.type === 'textbox');
+
+      const clip = e.clipboardData?.getData('text/plain') ?? '';
+      if (!clip.trim()) return;
+
+      const fragment = sanitizePastedFragment(clip);
+      if (!fragment) return;
+
+      const applyFit = (obj: any) => {
+        const c = fabricCanvasRef.current;
+        if (!c) return;
+
+        const result = fitTextToLabel(obj, fitOptionsFromStore());
+        c.requestRenderAll();
+        useProjectStore.getState().setSelectedObject(result.object);
+        useProjectStore.getState().bumpObjectRevision();
+        setCanvasJSON(serializeCanvas(c));
+
+        if (result.overflow) {
+          alert('Текст не помещается в этикетку: кегль уменьшен до минимального');
+        }
+      };
+
+      if (!isTextField) {
+        // Выделен не текст (например, изображение) — вставку не подменяем.
+        if (active) return;
+
+        // Ничего не выделено: создаём текстовый блок из буфера. Раньше Ctrl+V в
+        // этом состоянии не делал ничего, и вставка «не работала» именно так.
+        // Добавление идёт без записи в историю, чтобы в undo попало одно действие
+        // — вставка целиком, а не «добавление объекта» и «подгонка» отдельно.
+        const state = useProjectStore.getState();
+        const inset = mmToPx(state.sheetSettings.safetyMargin_mm > 0 ? state.sheetSettings.safetyMargin_mm : 1);
+        // Стартовая ширина — та же доля безопасной зоны, что и в подгонке
+        // (COMPACT_WIDTH_RATIO): новая рамка не должна начинаться «во всю
+        // этикетку», иначе её невозможно сдвинуть вбок.
+        const zoneWidth = Math.max(8, mmToPx(state.selectedFormat.width_mm) - inset * 2);
+        const initialWidth = Math.max(32, zoneWidth * COMPACT_WIDTH_RATIO);
+        // Блок встаёт в центр этикетки, как и при добавлении через панель:
+        // левый верхний угол читался как «уехавший за край» блок.
+        const zoom = canvas.getZoom() || 1;
+        const textbox = new Textbox(fragment, {
+          left: canvas.getWidth() / zoom / 2,
+          top: canvas.getHeight() / zoom / 2,
+          originX: 'center',
+          originY: 'center',
+          width: initialWidth,
+          fontSize: 14,
+          fontFamily: 'Roboto Condensed',
+          fill: '#000000',
+        });
+        (textbox as any).frameAutoHeight = true;
+        syncFrameGeometry(textbox);
+        hideMiddleControls(textbox);
+
+        withoutHistory(() => {
+          canvas.add(textbox);
+          canvas.setActiveObject(textbox);
+        });
+
+        applyFit(textbox);
+        return;
+      }
+
+      /** Дописать фрагмент в место курсора — если fabric вставку не подхватил. */
+      const insertFragment = (obj: any) => {
+        const current = obj.text ?? '';
+        const start = obj.selectionStart ?? current.length;
+        const end = obj.selectionEnd ?? start;
+        obj.set('text', current.slice(0, start) + fragment + current.slice(end));
+        obj.selectionStart = start + fragment.length;
+        obj.selectionEnd = start + fragment.length;
+      };
+
+      whenPastedTextInserted({
+        readText: () => {
+          const c = fabricCanvasRef.current;
+          const obj = c?.getActiveObject() as any;
+          if (!obj || (obj.type !== 'i-text' && obj.type !== 'textbox')) return null;
+          return String(obj.text ?? '');
+        },
+        fragment,
+        onInserted: () => {
+          const obj = fabricCanvasRef.current?.getActiveObject() as any;
+          if (!obj) return;
+          const normalized = normalizeText(obj.text ?? '');
+          if (normalized !== obj.text) obj.set('text', normalized);
+          applyFit(obj);
+        },
+        onMissing: () => {
+          const obj = fabricCanvasRef.current?.getActiveObject() as any;
+          if (!obj) return;
+          // Объект выделен, но не в режиме ввода — fabric вставку не обрабатывает,
+          // поэтому текст дописываем сами: «вставить в элемент» работает и без
+          // двойного клика.
+          if (obj.isEditing) insertFragment(obj);
+          else obj.set('text', obj.text ? `${obj.text}\n${fragment}` : fragment);
+          applyFit(obj);
+        },
+      });
+    };
+
+    document.addEventListener('paste', handlePaste);
+
     // Загрузка сохранённого состояния (при первичном монтировании)
     let disposed = false;
     const loadSavedState = async () => {
@@ -451,6 +653,7 @@ export function LabelCanvas() {
       window.removeEventListener('keydown', handleKeyDelete);
       window.removeEventListener('keydown', handleKeyNudge, true);
       window.removeEventListener('blur', handleNudgeBlur);
+      document.removeEventListener('paste', handlePaste);
       canvas.off('mouse:down', handleNudgeMouseDown);
       canvas.dispose();
       setEditorCanvas(null);

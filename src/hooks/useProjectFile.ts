@@ -1,58 +1,269 @@
 import { useCallback } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
-import { serializeProject, downloadProjectFile, readProjectFile } from '../utils/projectSerializer';
+import {
+  buildProjectFile,
+  deserializeProject,
+  downloadProjectFile,
+  projectFileName,
+  projectNameFromFileName,
+  readProjectFile,
+  serializeProject,
+} from '../utils/projectSerializer';
 import { getFormatById } from '../config/labelFormats';
+import { ProjectFile } from '../types';
 
 /**
- * Сохранение и загрузка проекта в файл — одна реализация на оба входа:
- * кнопки в тулбаре и горячие клавиши Ctrl+S / Ctrl+O.
+ * Сохранение и загрузка проекта в файл — одна реализация на все входы:
+ * кнопки в тулбаре («Сохранить», «Сохранить как», «Загрузить») и горячие
+ * клавиши Ctrl+S / Ctrl+Shift+S / Ctrl+O.
  *
  * Зачем хук: раньше логика была продублирована в App.tsx и Toolbar.tsx, причём
  * механизм выбора файла в копиях уже разошёлся — App создавал <input> динамически,
  * Toolbar держал его в ref. Это давало два независимых пути к одному действию и
- * расхождение при любой правке. Здесь один путь: скрытый <input> создаётся по
- * требованию, поэтому разметке вызывающего компонента ничего не нужно.
+ * расхождение при любой правке. Здесь путь один.
  *
  * Состояние читается через getState(), а не через подписку: обработчики не
  * должны пересоздаваться при каждом изменении стора, иначе useEffect в
  * useHotkeys будет переподписывать слушатель keydown на каждый рендер.
  */
-export function useProjectFile() {
-  const handleSave = useCallback(() => {
+
+/** Типы файлов для диалогов выбора — одни и те же в save и open. */
+const PICKER_TYPES: FilePickerAcceptType[] = [
+  { description: 'Проект Megalabel', accept: { 'application/json': ['.json'] } },
+];
+
+/**
+ * Текущий файл проекта и его имя.
+ *
+ * Хранится в модульных переменных, а не в состоянии React: ручка обязана
+ * переживать ре-рендеры и повторные вызовы хука (хук вызывается и в App.tsx,
+ * и в Toolbar.tsx — это два независимых вызова с одним модульным состоянием).
+ *
+ * `handle === null` в браузерах без File System Access API: там «то же место»
+ * недостижимо, сохранение = скачивание с тем же именем, а `savedOnce` отделяет
+ * первое сохранение (спрашиваем имя) от последующих (без вопросов).
+ */
+let saveTarget: FileSystemFileHandle | null = null;
+let savedOnce = false;
+
+/** File System Access API доступен: Chromium + защищённый контекст (https/localhost). */
+const canUseFileSystem = () =>
+  typeof window !== 'undefined' &&
+  typeof window.showSaveFilePicker === 'function' &&
+  window.isSecureContext === true;
+
+/** Отмена диалога пользователем — не ошибка, молча выходим. */
+const isAbort = (error: unknown): boolean =>
+  error instanceof DOMException && error.name === 'AbortError';
+
+const errorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Неизвестная ошибка';
+
+/**
+ * Разрешение на запись в уже выбранный файл. После перезагрузки страницы
+ * браузер сбрасывает выданное разрешение на «prompt» — спрашиваем в жесте
+ * пользователя (обработчик кнопки/Ctrl+S), иначе запись молча упадёт.
+ */
+async function ensureWritePermission(handle: FileSystemFileHandle): Promise<boolean> {
+  const descriptor: FileSystemHandlePermissionDescriptor = { mode: 'readwrite' };
+  if ((await handle.queryPermission(descriptor)) === 'granted') return true;
+  return (await handle.requestPermission(descriptor)) === 'granted';
+}
+
+async function writeProjectToHandle(handle: FileSystemFileHandle, json: string): Promise<void> {
+  const writable = await handle.createWritable();
+  try {
+    await writable.write(json);
+  } finally {
+    await writable.close();
+  }
+}
+
+/**
+ * «Сохранить как» — всегда новое место и (при успехе) новое имя проекта.
+ *
+ * Имя пишется в стор ДО сериализации: файл обязан содержать то же имя, что
+ * видно в поле, иначе после перезагрузки страницы проект «потеряет» название.
+ *
+ * @returns true, если файл записан (или скачан в fallback-режиме);
+ *          false — пользователь отменил диалог.
+ */
+async function saveProjectAs(currentName: string): Promise<boolean> {
+  // Браузеры без File System Access API: единственная доступная семантика
+  // «сохранить как» — спросить имя и скачать файл под ним.
+  if (!canUseFileSystem()) {
+    const input = window.prompt('Сохранить проект как:', currentName || 'Без названия');
+    if (input === null) return false;
+
+    const name = input.trim() || 'Без названия';
+    useProjectStore.getState().setProjectName(name);
+
     const state = useProjectStore.getState();
-    const json = serializeProject(state.labelDesign, state.sheetSettings);
-    downloadProjectFile(JSON.parse(json), `${state.projectName}.labelproj.json`);
+    downloadProjectFile(buildProjectFile(state.labelDesign, state.sheetSettings), projectFileName(name));
+    useProjectStore.getState().markSaved();
+    savedOnce = true;
+    return true;
+  }
+
+  let handle: FileSystemFileHandle;
+  try {
+    handle = await window.showSaveFilePicker({
+      suggestedName: projectFileName(currentName),
+      types: PICKER_TYPES,
+    });
+  } catch (error) {
+    if (isAbort(error)) return false;
+    alert(`Не удалось выбрать файл: ${errorMessage(error)}`);
+    return false;
+  }
+
+  const name = projectNameFromFileName(handle.name) || 'Без названия';
+  useProjectStore.getState().setProjectName(name);
+
+  const state = useProjectStore.getState();
+  try {
+    await writeProjectToHandle(handle, serializeProject(state.labelDesign, state.sheetSettings));
+  } catch (error) {
+    alert(`Не удалось сохранить проект: ${errorMessage(error)}`);
+    return false;
+  }
+
+  saveTarget = handle;
+  savedOnce = true;
+  useProjectStore.getState().markSaved();
+  return true;
+}
+
+/**
+ * Загрузка разобранного файла в стор, с фолбэком имени по имени файла.
+ *
+ * @returns false, если проект не загружен (например, формат из файла неизвестен):
+ *          тогда вызывающий код не должен считать этот файл текущим, иначе
+ *          Ctrl+S перезапишет только что выбранный файл старым проектом.
+ */
+function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
+  const format = getFormatById(project.labelDesign.formatId);
+  if (!format) {
+    alert('Формат из файла не найден в списке доступных');
+    return false;
+  }
+
+  // Имя из метаданных приоритетно, но старые/чужие файлы могут прийти без него —
+  // тогда берём имя файла, чтобы поле названия не осталось пустым.
+  const name = project.labelDesign.metadata.name.trim() || projectNameFromFileName(fileName);
+  const design = {
+    ...project.labelDesign,
+    metadata: { ...project.labelDesign.metadata, name: name || 'Новый проект' },
+  };
+
+  useProjectStore.getState().loadProject(design, project.sheetSettings);
+  return true;
+}
+
+export function useProjectFile() {
+  /**
+   * «Сохранить»: без вопросов перезаписывает текущий файл тем же именем.
+   * Место спрашивается ровно один раз — при первом сохранении проекта.
+   */
+  const handleSave = useCallback(async () => {
+    const state = useProjectStore.getState();
+
+    if (!savedOnce) {
+      await saveProjectAs(state.projectName);
+      return;
+    }
+
+    if (!saveTarget) {
+      // Fallback-режим: «то же место» недостижимо, повторяем скачивание под тем же именем.
+      const current = useProjectStore.getState();
+      downloadProjectFile(
+        buildProjectFile(current.labelDesign, current.sheetSettings),
+        projectFileName(current.projectName)
+      );
+      useProjectStore.getState().markSaved();
+      return;
+    }
+
+    if (!(await ensureWritePermission(saveTarget))) {
+      // Разрешение не выдали — выходим на путь «Сохранить как»: молча ничего не теряем.
+      await saveProjectAs(state.projectName);
+      return;
+    }
+
+    const current = useProjectStore.getState();
+    try {
+      await writeProjectToHandle(
+        saveTarget,
+        serializeProject(current.labelDesign, current.sheetSettings)
+      );
+    } catch (error) {
+      alert(`Не удалось сохранить проект: ${errorMessage(error)}`);
+      return;
+    }
+
     useProjectStore.getState().markSaved();
   }, []);
 
-  const handleLoad = useCallback(() => {
+  /** «Сохранить как» (Ctrl+Shift+S): всегда новый файл, имя подставляется из него. */
+  const handleSaveAs = useCallback(async () => {
+    await saveProjectAs(useProjectStore.getState().projectName);
+  }, []);
+
+  const handleLoad = useCallback(async () => {
     const state = useProjectStore.getState();
     if (state.isDirty) {
-      const confirmed = confirm('Есть несохранённые изменения. Загрузить проект без сохранения?');
+      const confirmed = window.confirm('Есть несохранённые изменения. Загрузить проект без сохранения?');
       if (!confirmed) return;
     }
 
+    if (canUseFileSystem()) {
+      let handles: FileSystemFileHandle[];
+      try {
+        handles = await window.showOpenFilePicker({ multiple: false, types: PICKER_TYPES });
+      } catch (error) {
+        if (isAbort(error)) return;
+        alert(`Не удалось открыть файл: ${errorMessage(error)}`);
+        return;
+      }
+
+      const handle = handles[0];
+      if (!handle) return;
+
+      let loaded = false;
+      try {
+        const file = await handle.getFile();
+        loaded = applyLoadedProject(deserializeProject(await file.text()), file.name);
+      } catch (error) {
+        alert(`Ошибка загрузки: ${errorMessage(error)}`);
+        return;
+      }
+      // Проект не принят (неизвестный формат) — файл текущим не делаем.
+      if (!loaded) return;
+
+      // Файл открыт — следующие Ctrl+S пишут в него же, без диалогов.
+      saveTarget = handle;
+      savedOnce = true;
+      return;
+    }
+
+    // Браузеры без File System Access API — скрытый <input> создаётся по требованию.
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.json,.labelproj.json';
+    input.accept = '.json';
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {
-        const project = await readProjectFile(file);
-        const format = getFormatById(project.labelDesign.formatId);
-        if (!format) {
-          alert('Формат из файла не найден в списке доступных');
-          return;
+        if (applyLoadedProject(await readProjectFile(file), file.name)) {
+          savedOnce = true;
         }
-        useProjectStore.getState().loadProject(project.labelDesign, project.sheetSettings);
       } catch (err) {
-        alert(`Ошибка загрузки: ${err instanceof Error ? err.message : 'Неизвестная ошибка'}`);
+        alert(`Ошибка загрузки: ${errorMessage(err)}`);
       }
     };
     input.click();
   }, []);
 
-  return { handleSave, handleLoad };
+  return { handleSave, handleSaveAs, handleLoad };
 }
