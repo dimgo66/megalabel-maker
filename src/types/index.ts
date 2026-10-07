@@ -45,6 +45,22 @@ export interface ProjectFile {
   appVersion: string;
   labelDesign: LabelDesign;
   sheetSettings: SheetSettings;
+  /**
+   * Вкладки проекта (каждая — отдельная этикетка). Появилось с версией
+   * вкладок; в старых файлах поля нет — тогда файл читается как проект с
+   * единственной вкладкой, собранной из labelDesign/sheetSettings.
+   */
+  tabs?: ProjectTabEntry[];
+  /** Активная вкладка на момент сохранения (id). Восстанавливается при загрузке. */
+  activeTabId?: string;
+}
+
+/** Одна вкладка проекта: самостоятельная этикетка со своими настройками. */
+export interface ProjectTabEntry {
+  id: string;
+  name: string;
+  labelDesign: LabelDesign;
+  sheetSettings: SheetSettings;
 }
 
 // Штрих-коды: единая структура в модулях

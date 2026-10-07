@@ -15,7 +15,7 @@ interface PreviewModalProps {
 }
 
 export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
-  const { selectedFormat, sheetSettings, editorCanvas, projectName } = useProjectStore();
+  const { selectedFormat, sheetSettings, editorCanvas, projectName, activeTabId, canvasContentRevision } = useProjectStore();
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -55,7 +55,11 @@ export function PreviewModal({ isOpen, onClose }: PreviewModalProps) {
     return () => {
       cancelled = true;
     };
-  }, [isOpen, editorCanvas, selectedFormat, sheetSettings.orientation, projectName]);
+    // activeTabId + canvasContentRevision в зависимостях: при смене вкладки
+    // канвас перезагружается асинхронно, и ссылка editorCanvas может не
+    // измениться. Превью строится только после фактического применения
+    // содержимого вкладки к канвасу.
+  }, [isOpen, editorCanvas, selectedFormat, sheetSettings.orientation, projectName, activeTabId, canvasContentRevision]);
 
   // Автоматическое вписывание после загрузки изображения
   const handleFitToScreen = useCallback(() => {

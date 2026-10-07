@@ -11,6 +11,7 @@ import {
 } from '../utils/projectSerializer';
 import { getFormatById } from '../config/labelFormats';
 import { ProjectFile } from '../types';
+import { serializeCanvas } from '../utils/canvasHelpers';
 
 /**
  * Сохранение и загрузка проекта в файл — одна реализация на все входы:
@@ -88,6 +89,39 @@ async function writeProjectToHandle(handle: FileSystemFileHandle, json: string):
  * @returns true, если файл записан (или скачан в fallback-режиме);
  *          false — пользователь отменил диалог.
  */
+/**
+ * Полный снимок стора для записи в файл: активная вкладка с живым канвасом
+ * (без него последние штрихи на холсте не попали бы в файл) плюс все вкладки.
+ */
+function collectProjectState() {
+  const s = useProjectStore.getState();
+  const liveDesign =
+    s.editorCanvas && s.activeTabId
+      ? { ...s.labelDesign, canvasJSON: serializeCanvas(s.editorCanvas) }
+      : s.labelDesign;
+  // Активная вкладка снимается из живого канваса; остальные — как есть.
+  const tabs = s.activeTabId
+    ? s.tabs.map(t =>
+        t.id === s.activeTabId
+          ? { ...t, labelDesign: liveDesign, sheetSettings: s.sheetSettings }
+          : t
+      )
+    : [
+        {
+          id: s.activeTabId || 'tab-active',
+          name: s.projectName,
+          labelDesign: liveDesign,
+          sheetSettings: s.sheetSettings,
+        },
+      ];
+  return {
+    design: liveDesign,
+    settings: s.sheetSettings,
+    tabs,
+    activeTabId: s.activeTabId || tabs[0].id,
+  };
+}
+
 async function saveProjectAs(currentName: string): Promise<boolean> {
   // Браузеры без File System Access API: единственная доступная семантика
   // «сохранить как» — спросить имя и скачать файл под ним.
@@ -98,8 +132,8 @@ async function saveProjectAs(currentName: string): Promise<boolean> {
     const name = input.trim() || 'Без названия';
     useProjectStore.getState().setProjectName(name);
 
-    const state = useProjectStore.getState();
-    downloadProjectFile(buildProjectFile(state.labelDesign, state.sheetSettings), projectFileName(name));
+    const s = collectProjectState();
+    downloadProjectFile(buildProjectFile(s.design, s.settings, s.tabs, s.activeTabId), projectFileName(name));
     useProjectStore.getState().markSaved();
     savedOnce = true;
     return true;
@@ -120,9 +154,12 @@ async function saveProjectAs(currentName: string): Promise<boolean> {
   const name = projectNameFromFileName(handle.name) || 'Без названия';
   useProjectStore.getState().setProjectName(name);
 
-  const state = useProjectStore.getState();
+  const s = collectProjectState();
   try {
-    await writeProjectToHandle(handle, serializeProject(state.labelDesign, state.sheetSettings));
+    await writeProjectToHandle(
+      handle,
+      serializeProject(s.design, s.settings, s.tabs, s.activeTabId)
+    );
   } catch (error) {
     alert(`Не удалось сохранить проект: ${errorMessage(error)}`);
     return false;
@@ -142,6 +179,26 @@ async function saveProjectAs(currentName: string): Promise<boolean> {
  *          Ctrl+S перезапишет только что выбранный файл старым проектом.
  */
 function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
+  // Файл с вкладками: загружаем все вкладки целиком.
+  if (project.tabs && project.tabs.length > 0) {
+    const invalid = project.tabs.find(t => !getFormatById(t.labelDesign.formatId));
+    if (invalid) {
+      alert('Формат одной из вкладок не найден в списке доступных');
+      return false;
+    }
+    const name = projectNameFromFileName(fileName);
+    const tabs = project.tabs.map((t, i) => ({
+      ...t,
+      name:
+        t.name?.trim() ||
+        t.labelDesign.metadata.name?.trim() ||
+        (name ? `${name} ${i + 1}` : `Этикетка ${i + 1}`),
+    }));
+    useProjectStore.getState().loadProjectWithTabs(tabs, project.activeTabId || tabs[0].id);
+    return true;
+  }
+
+  // Файл без вкладок (старый формат) → проект с одной вкладкой.
   const format = getFormatById(project.labelDesign.formatId);
   if (!format) {
     alert('Формат из файла не найден в списке доступных');
@@ -175,10 +232,10 @@ export function useProjectFile() {
 
     if (!saveTarget) {
       // Fallback-режим: «то же место» недостижимо, повторяем скачивание под тем же именем.
-      const current = useProjectStore.getState();
+      const s = collectProjectState();
       downloadProjectFile(
-        buildProjectFile(current.labelDesign, current.sheetSettings),
-        projectFileName(current.projectName)
+        buildProjectFile(s.design, s.settings, s.tabs, s.activeTabId),
+        projectFileName(s.design.metadata.name)
       );
       useProjectStore.getState().markSaved();
       return;
@@ -190,11 +247,11 @@ export function useProjectFile() {
       return;
     }
 
-    const current = useProjectStore.getState();
+    const s = collectProjectState();
     try {
       await writeProjectToHandle(
         saveTarget,
-        serializeProject(current.labelDesign, current.sheetSettings)
+        serializeProject(s.design, s.settings, s.tabs, s.activeTabId)
       );
     } catch (error) {
       alert(`Не удалось сохранить проект: ${errorMessage(error)}`);

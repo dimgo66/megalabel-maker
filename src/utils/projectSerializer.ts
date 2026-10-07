@@ -1,4 +1,4 @@
-import { LabelDesign, SheetSettings, ProjectFile } from '../types';
+import { LabelDesign, ProjectTabEntry, SheetSettings, ProjectFile } from '../types';
 
 const APP_VERSION = '1.0.0';
 
@@ -17,20 +17,35 @@ export const PROJECT_FILE_EXTENSION = '.json';
  * Собирает объект проекта. Отдельно от `serializeProject`, потому что одна и та
  * же структура нужна и строкой (запись в выбранный файл), и объектом
  * (`downloadProjectFile` в браузерах без File System Access API).
+ *
+ * Активная вкладка дублируется в `labelDesign`/`sheetSettings` верхнего уровня:
+ * старые версии приложения прочитают такой файл как одну этикетку, а поля
+ * `tabs`/`activeTabId` добавляют вкладки для новых версий.
  */
-export function buildProjectFile(design: LabelDesign, settings: SheetSettings): ProjectFile {
+export function buildProjectFile(
+  design: LabelDesign,
+  settings: SheetSettings,
+  tabs: ProjectTabEntry[] = [],
+  activeTabId: string = ''
+): ProjectFile {
   return {
     appVersion: APP_VERSION,
     labelDesign: design,
     sheetSettings: settings,
+    ...(tabs.length > 0 ? { tabs, activeTabId } : {}),
   };
 }
 
 /**
  * Serialize project to JSON string
  */
-export function serializeProject(design: LabelDesign, settings: SheetSettings): string {
-  return JSON.stringify(buildProjectFile(design, settings), null, 2);
+export function serializeProject(
+  design: LabelDesign,
+  settings: SheetSettings,
+  tabs: ProjectTabEntry[] = [],
+  activeTabId: string = ''
+): string {
+  return JSON.stringify(buildProjectFile(design, settings, tabs, activeTabId), null, 2);
 }
 
 /**
@@ -92,6 +107,26 @@ export function deserializeProject(json: string): ProjectFile {
 
     if (!project.sheetSettings.orientation) {
       throw new Error('Invalid sheet settings');
+    }
+
+    // Вкладки: проверяем только при наличии. Каждая вкладка обязана нести
+    // полноценную этикетку, иначе молча отбрасываем её (а не весь файл).
+    if (project.tabs) {
+      if (!Array.isArray(project.tabs)) {
+        throw new Error('Invalid tabs data');
+      }
+      project.tabs = project.tabs.filter(
+        t =>
+          t &&
+          typeof t.id === 'string' &&
+          t.labelDesign &&
+          t.labelDesign.formatId &&
+          t.sheetSettings &&
+          !!t.sheetSettings.orientation
+      );
+      if (!project.tabs.some(t => t.id === project.activeTabId)) {
+        project.activeTabId = project.tabs[0]?.id ?? '';
+      }
     }
 
     return project;

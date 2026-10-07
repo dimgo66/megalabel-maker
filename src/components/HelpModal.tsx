@@ -65,7 +65,7 @@ const sections: HelpSection[] = [
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold shrink-0 w-28">Центр</span>
-              <span>— рабочая область редактора этикетки с масштабированием</span>
+              <span>— вкладки этикеток и рабочая область редактора с масштабированием</span>
             </div>
             <div className="flex items-start gap-2">
               <span className="font-bold shrink-0 w-28">Правая панель</span>
@@ -494,6 +494,20 @@ const sections: HelpSection[] = [
           </div>
         </div>
         <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Вкладки</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Над холстом — панель вкладок: каждая вкладка хранит <strong>отдельную этикетку</strong> со своим форматом,
+            настройками листа и историей отмен. Кнопка «+» добавляет новую вкладку, двойной клик по ярлыку
+            переименовывает её, крестик закрывает. Закрыть последнюю вкладку нельзя — она сбрасывается в пустую этикетку.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Alt+1</kbd> …{' '}
+            <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Alt+9</kbd> — перейти к вкладке по номеру.
+            В файл проекта сохраняются все вкладки сразу; файл со вкладками, открытый в старой версии приложения,
+            покажет только активную вкладку.
+          </p>
+        </div>
+        <div>
           <h3 className="font-semibold text-gray-900 mb-2">Отмена / Повтор</h3>
           <div className="space-y-1 text-sm text-gray-600">
             <div><kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+Z</kbd> — отменить последнее действие</div>
@@ -519,6 +533,7 @@ const sections: HelpSection[] = [
           { keys: 'Ctrl + Shift + P', desc: 'Открыть предпросмотр листа' },
           { keys: 'Ctrl + P', desc: 'Открыть предпросмотр (печать)' },
           { keys: 'Ctrl + Shift + E', desc: 'Открыть предпросмотр (экспорт PDF)' },
+          { keys: 'Alt + 1…9', desc: 'Перейти к вкладке по номеру' },
           { keys: 'Ctrl + колесо мыши', desc: 'Масштабирование редактора' },
           { keys: 'Delete / Backspace', desc: 'Удалить выделенный объект' },
           { keys: 'Esc', desc: 'Снять выделение / закрыть режим ввода' },

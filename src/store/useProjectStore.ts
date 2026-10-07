@@ -1,12 +1,95 @@
 import { create } from 'zustand';
 import * as fabric from 'fabric';
-import { LabelFormat, LabelDesign, SheetSettings } from '../types';
+import { LabelFormat, LabelDesign, ProjectTabEntry, SheetSettings } from '../types';
 import { LABEL_FORMATS, getFormatById } from '../config/labelFormats';
 import { createEmptyDesign, createDefaultSettings } from '../utils/projectSerializer';
 import { FontConfig, LocalFontInfo, FONT_CONFIGS } from '../config/fonts';
-import { withoutHistory } from '../utils/canvasHelpers';
+import { serializeCanvas, withoutHistory } from '../utils/canvasHelpers';
 
 const EMPTY_CANVAS = { version: '7', objects: [], background: '#FFFFFF' };
+
+/**
+ * Уникальный id вкладки. `randomUUID` есть только в защищённом контексте
+ * (https/localhost), поэтому нужен запасной составной id — иначе на `file://`
+ * все вкладки получили бы один id и переключение сломалось бы.
+ */
+const newTabId = (): string => {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+  return `tab-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+/** История отмен/повторов конкретной вкладки (только в памяти, в файл не пишется). */
+interface TabHistory {
+  history: object[];
+  historyIndex: number;
+}
+
+/**
+ * Копия `tabs` с обновлённой записью одной вкладки. Не мутирует входной массив:
+ * Zustand сравнивает ссылки, и без копии компоненты не узнали бы об изменении.
+ */
+function replaceTabEntry(
+  tabs: ProjectTabEntry[],
+  tabId: string,
+  labelDesign: LabelDesign,
+  sheetSettings: SheetSettings
+): ProjectTabEntry[] {
+  const idx = tabs.findIndex(t => t.id === tabId);
+  if (idx === -1) return tabs;
+  const next = tabs.slice();
+  next[idx] = { ...next[idx], labelDesign, sheetSettings };
+  return next;
+}
+
+/**
+ * Снимок активной вкладки перед уходом с неё (переключение, добавление).
+ *
+ * Данные активной вкладки живут в labelDesign/sheetSettings, но канвас может
+ * быть свежее последней записи в историю (редкая правка без события) — поэтому
+ * в запись вкладки пишется сериализованное состояние живого канваса, а история
+ * отмен сохраняется в tabHistories по id вкладки.
+ */
+function snapshotActiveTab(
+  s: Pick<
+    ProjectState,
+    'tabs' | 'activeTabId' | 'labelDesign' | 'sheetSettings' | 'editorCanvas' | 'history' | 'historyIndex' | 'tabHistories' | 'tabZooms' | 'editorZoom'
+  >
+): { tabs: ProjectTabEntry[]; tabHistories: Record<string, TabHistory>; tabZooms: Record<string, number> } {
+  const liveDesign =
+    s.editorCanvas && s.activeTabId
+      ? { ...s.labelDesign, canvasJSON: serializeCanvas(s.editorCanvas) }
+      : s.labelDesign;
+  const tabs = s.activeTabId
+    ? replaceTabEntry(s.tabs, s.activeTabId, liveDesign, s.sheetSettings)
+    : s.tabs;
+  const tabHistories = { ...s.tabHistories };
+  const tabZooms = { ...s.tabZooms };
+  if (s.activeTabId) {
+    tabHistories[s.activeTabId] = { history: s.history, historyIndex: s.historyIndex };
+    // Масштаб остаётся в editorZoom, в снимок пишется копия по id вкладки.
+    tabZooms[s.activeTabId] = s.editorZoom;
+  }
+  return { tabs, tabHistories, tabZooms };
+}
+
+/**
+ * Вкладка из текущего состояния (для первого снятия снимка, когда список
+ * вкладок ещё пуст — стартовая вкладка материализуется лениво).
+ */
+function makeTabEntry(s: {
+  activeTabId: string;
+  projectName: string;
+  labelDesign: LabelDesign;
+  sheetSettings: SheetSettings;
+}): ProjectTabEntry {
+  return {
+    id: s.activeTabId || newTabId(),
+    name: s.projectName,
+    labelDesign: s.labelDesign,
+    sheetSettings: s.sheetSettings,
+  };
+}
 
 interface ProjectState {
   // Format
@@ -17,6 +100,11 @@ interface ProjectState {
   
   // Sheet settings
   sheetSettings: SheetSettings;
+  
+  // Вкладки: каждая — самостоятельная этикетка. Активная вкладка — та,
+  // чьи данные лежат в labelDesign/sheetSettings/selectedFormat.
+  tabs: ProjectTabEntry[];
+  activeTabId: string;
   
   // UI state
   isDirty: boolean;
@@ -43,11 +131,24 @@ interface ProjectState {
   history: object[];
   historyIndex: number;
   
+  // История отмен по вкладкам: при переключении вкладки её история прячется
+  // сюда, а история новой активной вкладки — достаётся.
+  tabHistories: Record<string, TabHistory>;
+  
+  // Масштаб редактора по вкладкам: у каждой вкладки свой, как и история отмен.
+  // Активный масштаб лежит в editorZoom (как раньше), уходящий прячется сюда.
+  tabZooms: Record<string, number>;
+  
   // PDF sources (исходные байты загруженных PDF для векторного экспорта)
   pdfSources: Record<string, ArrayBuffer>;
   
   // Счётчик внешних загрузок проекта (loadProject/resetProject) — триггер перезагрузки канваса
   loadRevision: number;
+  
+  // Счётчик фактических перезагрузок канваса (LabelCanvas наращивает его ПОСЛЕ
+  // применения состояния). Предпросмотр подписывается на него, чтобы не снять
+  // лист до того, как канвас загрузил содержимое новой вкладки.
+  canvasContentRevision: number;
   
   // Actions
   setSelectedFormat: (format: LabelFormat) => void;
@@ -59,9 +160,19 @@ interface ProjectState {
   setEditorZoom: (zoom: number) => void;
   setPreviewZoom: (zoom: number) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
+  loadProjectWithTabs: (tabs: ProjectTabEntry[], activeTabId: string) => void;
   setSelectedObject: (obj: any) => void;
   bumpObjectRevision: () => void;
   setEditorCanvas: (canvas: fabric.Canvas | null) => void;
+  
+  // Вкладки: создание, переключение, закрытие, переименование
+  addTab: () => void;
+  switchTab: (tabId: string) => void;
+  closeTab: (tabId: string) => void;
+  renameTab: (tabId: string, name: string) => void;
+  countTabs: () => number;
+  /** LabelCanvas вызывает после фактического применения состояния к канвасу. */
+  bumpCanvasContentRevision: () => void;
   
   // Undo/Redo actions
   undo: () => Promise<void>;
@@ -94,6 +205,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   // Default sheet settings
   sheetSettings: createDefaultSettings(),
   
+  // Вкладки: одна стартовая вкладка, совпадающая с начальным проектом
+  tabs: [],
+  activeTabId: '',
+  
   // UI state
   isDirty: false,
   projectName: 'Новый проект',
@@ -116,11 +231,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   history: [],
   historyIndex: -1,
   
+  // История отмен по вкладкам (заполняется при переключении)
+  tabHistories: {},
+  
+  // Масштаб редактора по вкладкам (заполняется при переключении)
+  tabZooms: {},
+  
   // PDF sources
   pdfSources: {},
   
   // Счётчик внешних загрузок проекта
   loadRevision: 0,
+  
+  // Счётчик фактических применений состояния к канвасу
+  canvasContentRevision: 0,
   
   // Actions
   setSelectedFormat: (format: LabelFormat) => {
@@ -193,6 +317,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           updatedAt: new Date().toISOString(),
         },
       },
+      // Имя — это имя АКТИВНОЙ вкладки: оно же подпись на ярлыке вкладки,
+      // поэтому обновляется и в списке вкладок.
+      tabs: (() => {
+        const s = get();
+        if (!s.activeTabId) return s.tabs;
+        const idx = s.tabs.findIndex(t => t.id === s.activeTabId);
+        if (idx === -1) return s.tabs;
+        const next = s.tabs.slice();
+        next[idx] = { ...next[idx], name };
+        return next;
+      })(),
       isDirty: true,
     });
   },
@@ -203,9 +338,27 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   resetProject: () => {
     const format = get().selectedFormat;
+    // Текущая вкладка — тоже вкладка: сбрасываем только её, соседние не трогаем.
+    const currentId = get().activeTabId;
+    const tabs = currentId
+      ? (() => {
+          const idx = get().tabs.findIndex(t => t.id === currentId);
+          if (idx === -1) return get().tabs;
+          const next = get().tabs.slice();
+          next[idx] = {
+            id: currentId,
+            name: 'Новый проект',
+            labelDesign: createEmptyDesign(format.id, 'Новый проект'),
+            sheetSettings: createDefaultSettings(),
+          };
+          return next;
+        })()
+      : get().tabs;
     set({
       labelDesign: createEmptyDesign(format.id, 'Новый проект'),
+      sheetSettings: createDefaultSettings(),
       projectName: 'Новый проект',
+      tabs,
       isDirty: false,
       history: [],
       historyIndex: -1,
@@ -269,11 +422,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   
   loadProject: (design: LabelDesign, settings: SheetSettings) => {
     const format = getFormatById(design.formatId) || LABEL_FORMATS[0];
+    const id = newTabId();
     set({
       selectedFormat: format,
       labelDesign: design,
       sheetSettings: settings,
       projectName: design.metadata.name,
+      // Файл без вкладок (старый формат) → проект с одной вкладкой.
+      tabs: [{ id, name: design.metadata.name, labelDesign: design, sheetSettings: settings }],
+      activeTabId: id,
+      tabHistories: {},
+      tabZooms: {},
       isDirty: false,
       // Загруженный проект — это другое состояние: сбрасываем историю и выделение
       history: [],
@@ -284,12 +443,255 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     });
   },
   
+  /**
+   * Полная загрузка проекта с вкладками. Заменяет список вкладок целиком —
+   * это чтение файла, а не правка текущей, поэтому прежние вкладки не
+   * смешиваются с новыми.
+   */
+  loadProjectWithTabs: (tabs: ProjectTabEntry[], activeTabId: string) => {
+    const safeTabs = tabs.length > 0 ? tabs : [];
+    const first = safeTabs[0];
+    if (!first) return;
+    const format = getFormatById(first.labelDesign.formatId) || LABEL_FORMATS[0];
+    const active =
+      safeTabs.find(t => t.id === activeTabId) || first;
+    const activeFormat = getFormatById(active.labelDesign.formatId) || format;
+    set({
+      selectedFormat: activeFormat,
+      labelDesign: active.labelDesign,
+      sheetSettings: active.sheetSettings,
+      projectName: active.name || active.labelDesign.metadata.name,
+      tabs: safeTabs,
+      activeTabId: active.id,
+      tabHistories: {},
+      // Масштаб в файле не хранится: все вкладки открываются с базового 2.0
+      tabZooms: {},
+      editorZoom: 2.0,
+      isDirty: false,
+      history: [],
+      historyIndex: -1,
+      selectedObject: null,
+      loadRevision: get().loadRevision + 1,
+    });
+  },
+  
+  /**
+   * Добавить новую вкладку с пустой этикеткой того же формата.
+   * Текущая вкладка сначала снимается (свежий канвас → запись вкладки),
+   * поэтому ничто из несохранённого не теряется.
+   */
+  addTab: () => {
+    const s = get();
+    // Лимит вкладок: каждая вкладка держит свою копию дизайна в памяти.
+    if (s.tabs.length >= 20) return;
+
+    // Стартовое состояние ещё не оформлено вкладкой (tabs пуст) — не создавать
+    // вторую пустую: текущее состояние само становится первой вкладкой.
+    if (s.tabs.length === 0 && !s.activeTabId) {
+      const id = newTabId();
+      const entry: ProjectTabEntry = makeTabEntry({
+        activeTabId: id,
+        projectName: s.projectName,
+        labelDesign: s.labelDesign,
+        sheetSettings: s.sheetSettings,
+      });
+      set({
+        tabs: [entry],
+        activeTabId: id,
+        tabHistories: {},
+        tabZooms: {},
+        // Только оформление существующего состояния вкладкой: контент не менялся.
+        isDirty: s.isDirty,
+      });
+      return;
+    }
+
+    const snap = snapshotActiveTab(s);
+    const tabs = snap.tabs;
+    const id = newTabId();
+    const name = `Этикетка ${tabs.length + 1}`;
+    const design = createEmptyDesign(s.selectedFormat.id, name);
+    const freshSettings = createDefaultSettings();
+
+    set({
+      tabs: [
+        ...tabs,
+        { id, name, labelDesign: design, sheetSettings: freshSettings },
+      ],
+      activeTabId: id,
+      tabHistories: snap.tabHistories,
+      tabZooms: { ...snap.tabZooms, [s.activeTabId]: s.editorZoom },
+      // Новая вкладка всегда стартует с базового масштаба
+      editorZoom: 2.0,
+      projectName: name,
+      labelDesign: design,
+      sheetSettings: freshSettings,
+      selectedFormat: s.selectedFormat,
+      history: [],
+      historyIndex: -1,
+      selectedObject: null,
+      isDirty: true,
+      loadRevision: get().loadRevision + 1,
+    });
+  },
+  
+  /**
+   * Переключиться на вкладку. Снимок уходящей вкладки пишется в список, а
+   * канвас перезагружается через loadRevision — LabelCanvas применит
+   * canvasJSON выбранной вкладки.
+   */
+  switchTab: (tabId: string) => {
+    const s = get();
+    if (tabId === s.activeTabId) return;
+    const target = s.tabs.find(t => t.id === tabId);
+    if (!target) return;
+
+    // snapshotActiveTab уже прячет историю уходящей вкладки в tabHistories.
+    const snap = snapshotActiveTab(s);
+    const hist = snap.tabHistories[tabId] ?? { history: [], historyIndex: -1 };
+
+    set({
+      tabs: snap.tabs,
+      tabHistories: snap.tabHistories,
+      // Масштаб уходящей вкладки прячется, масштаб целевой достаётся
+      // (если его ещё нет — базовый 2.0).
+      tabZooms: { ...snap.tabZooms, [s.activeTabId]: s.editorZoom },
+      editorZoom: snap.tabZooms[tabId] ?? 2.0,
+      activeTabId: tabId,
+      projectName: target.name || target.labelDesign.metadata.name,
+      labelDesign: target.labelDesign,
+      sheetSettings: target.sheetSettings,
+      selectedFormat: getFormatById(target.labelDesign.formatId) || LABEL_FORMATS[0],
+      history: hist.history,
+      historyIndex: hist.historyIndex,
+      selectedObject: null,
+      // Само переключение контент не меняет: снимок уходящей вкладки уже был
+      // отражён в состоянии, isDirty не трогаем.
+      loadRevision: get().loadRevision + 1,
+    });
+  },
+  
+  /**
+   * Закрыть вкладку. Если закрывают активную — активной становится соседняя
+   * (следующая, иначе предыдущая). Последнюю вкладку закрыть нельзя: она
+   * сбрасывается в пустую этикетку, чтобы редактор всегда что-то показывал.
+   */
+  closeTab: (tabId: string) => {
+    const s = get();
+    if (s.tabs.length === 0) {
+      // Единственная (ещё не материализованная) вкладка = resetProject.
+      get().resetProject();
+      return;
+    }
+
+    const snap = snapshotActiveTab(s);
+    const idx = snap.tabs.findIndex(t => t.id === tabId);
+    if (idx === -1) return;
+
+    let nextTabs = snap.tabs.filter(t => t.id !== tabId);
+    const nextHistories = { ...snap.tabHistories };
+    delete nextHistories[tabId];
+    const nextZooms = { ...snap.tabZooms };
+    delete nextZooms[tabId];
+
+    // Закрыли активную — выбираем соседнюю.
+    if (tabId === s.activeTabId) {
+      const neighbor = nextTabs[Math.min(idx, nextTabs.length - 1)];
+      if (!neighbor) {
+        // Закрыта последняя вкладка: проект превращается в одну пустую.
+        const design = createEmptyDesign(s.selectedFormat.id, 'Новый проект');
+        const id = newTabId();
+        const fresh: ProjectTabEntry = {
+          id,
+          name: 'Новый проект',
+          labelDesign: design,
+          sheetSettings: createDefaultSettings(),
+        };
+        nextTabs = [fresh];
+        set({
+          tabs: nextTabs,
+          tabHistories: {},
+          tabZooms: {},
+          activeTabId: id,
+          projectName: fresh.name,
+          labelDesign: design,
+          sheetSettings: fresh.sheetSettings,
+          selectedFormat: s.selectedFormat,
+          // Свежая пустая этикетка — базовый масштаб
+          editorZoom: 2.0,
+          history: [],
+          historyIndex: -1,
+          selectedObject: null,
+          isDirty: true,
+          loadRevision: get().loadRevision + 1,
+        });
+        return;
+      }
+
+      const activeFormat = getFormatById(neighbor.labelDesign.formatId) || LABEL_FORMATS[0];
+      const hist = nextHistories[neighbor.id] ?? { history: [], historyIndex: -1 };
+      set({
+        tabs: nextTabs,
+        tabHistories: nextHistories,
+        tabZooms: nextZooms,
+        activeTabId: neighbor.id,
+        projectName: neighbor.name || neighbor.labelDesign.metadata.name,
+        labelDesign: neighbor.labelDesign,
+        sheetSettings: neighbor.sheetSettings,
+        selectedFormat: activeFormat,
+        history: hist.history,
+        historyIndex: hist.historyIndex,
+        // Масштаб соседней вкладки — её собственный
+        editorZoom: nextZooms[neighbor.id] ?? 2.0,
+        selectedObject: null,
+        // Список вкладок изменился (удалена запись) — проект действительно
+        // изменился, помечаем грязным.
+        isDirty: true,
+        loadRevision: get().loadRevision + 1,
+      });
+      return;
+    }
+
+    // Закрыта неактивная — просто удаляем её.
+    set({ tabs: nextTabs, tabHistories: nextHistories, tabZooms: nextZooms, isDirty: true });
+  },
+  
+  renameTab: (tabId: string, name: string) => {
+    const trimmed = name.trim() || 'Без названия';
+    set((state) => {
+      const idx = state.tabs.findIndex(t => t.id === tabId);
+      if (idx === -1) return {};
+      const next = state.tabs.slice();
+      next[idx] = { ...next[idx], name: trimmed };
+      const is_active = tabId === state.activeTabId;
+      return {
+        tabs: next,
+        ...(is_active
+          ? {
+              projectName: trimmed,
+              labelDesign: {
+                ...state.labelDesign,
+                metadata: { ...state.labelDesign.metadata, name: trimmed },
+              },
+            }
+          : {}),
+        isDirty: true,
+      };
+    });
+  },
+  
+  countTabs: () => get().tabs.length,
+  
   setSelectedObject: (obj: any) => {
     set({ selectedObject: obj });
   },
   
   bumpObjectRevision: () => {
     set((state) => ({ objectRevision: state.objectRevision + 1 }));
+  },
+  
+  bumpCanvasContentRevision: () => {
+    set((state) => ({ canvasContentRevision: state.canvasContentRevision + 1 }));
   },
   
   setEditorCanvas: (canvas: fabric.Canvas | null) => {

@@ -642,6 +642,8 @@ export function LabelCanvas() {
       // Скрываем средние точки для всех уже загруженных объектов
       canvas.getObjects().forEach(hideMiddleControls);
       canvas.requestRenderAll();
+      // Состояние фактически применено — предпросмотр может строить лист
+      useProjectStore.getState().bumpCanvasContentRevision();
     };
 
     loadSavedState();
@@ -683,6 +685,8 @@ export function LabelCanvas() {
       c.getObjects().forEach(hideMiddleControls);
       c.discardActiveObject();
       c.requestRenderAll();
+      // Состояние вкладки фактически применено — предпросмотр может строить лист
+      useProjectStore.getState().bumpCanvasContentRevision();
     });
   }, [loadRevision]);
 

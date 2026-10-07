@@ -9,6 +9,8 @@ interface HotkeyHandlers {
   onPreview?: () => void;
   onPrint?: () => void;
   onExport?: () => void;
+  /** Alt+1..9 — перейти к вкладке с этим номером. */
+  onSwitchTab?: (index: number) => void;
 }
 
 export function useHotkeys(handlers: HotkeyHandlers) {
@@ -65,6 +67,14 @@ export function useHotkeys(handlers: HotkeyHandlers) {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'E') {
         e.preventDefault();
         handlers.onExport?.();
+      }
+
+      // Alt+1..9 — переключение вкладок. Цифра берётся из e.code (Digit1..9):
+      // с Alt раскладка может быть любой, и e.key менялся бы.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && /^Digit[1-9]$/.test(e.code)) {
+        const index = Number(e.code.slice(5)) - 1;
+        e.preventDefault();
+        handlers.onSwitchTab?.(index);
       }
     };
 

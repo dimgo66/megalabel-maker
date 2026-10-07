@@ -101,6 +101,13 @@ export const Circle = (p: IconProps) => (
   </Icon>
 );
 
+/** Новая вкладка / добавление: крестик под 45°. */
+export const Plus = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Icon>
+);
+
 /* ── Действия ─────────────────────────────────────────────────────────── */
 
 export const Save = (p: IconProps) => (

@@ -8,6 +8,7 @@ import { useProjectStore } from './store/useProjectStore';
 import { useHotkeys } from './hooks/useHotkeys';
 import { useProjectFile } from './hooks/useProjectFile';
 import { useAutosave } from './hooks/useAutosave';
+import { TabBar } from './components/TabBar';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
 import { injectEmbeddedFontFaces, ensureEmbeddedFontsLoaded } from './utils/embeddedFontLoader';
@@ -76,6 +77,17 @@ function App() {
 
   const { showRestoreBanner, restoreAutosave, discardAutosave } = useAutosave();
 
+  // Стартовая вкладка: список вкладок материализуется лениво, при первом
+  // рендере из начального состояния. Без этого панель вкладок пуста до
+  // первого сохранения/переключения.
+  useEffect(() => {
+    const s = useProjectStore.getState();
+    if (s.tabs.length === 0 && !s.activeTabId) {
+      s.addTab();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useHotkeys({
     onSave: handleSave,
     onSaveAs: handleSaveAs,
@@ -86,6 +98,12 @@ function App() {
     onPreview: () => setIsPreviewOpen(prev => !prev),
     onPrint: () => setIsPreviewOpen(true),
     onExport: () => setIsPreviewOpen(true),
+    // Alt+1..9 — переключение вкладок (вкладка с этим порядковым номером)
+    onSwitchTab: (index: number) => {
+      const s = useProjectStore.getState();
+      const tab = s.tabs[index];
+      if (tab) s.switchTab(tab.id);
+    },
   });
 
   return (
@@ -102,6 +120,9 @@ function App() {
 
         {/* Center - Canvas */}
         <main className="flex-1 flex flex-col overflow-hidden bg-gray-100">
+          {/* Tabs — каждая вкладка: своя этикетка */}
+          <TabBar />
+
           {/* Canvas header */}
           <div className="h-12 bg-white border-b border-gray-200 flex items-center px-6 justify-between shrink-0">
             <span className="type-region">Редактор этикетки</span>
