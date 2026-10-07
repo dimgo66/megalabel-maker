@@ -169,6 +169,15 @@ export function createEmptyDesign(formatId: string, name: string = 'Untitled'): 
 }
 
 /**
+ * Безопасное поле нового проекта, мм.
+ *
+ * Совпадает с аварийным отступом в `textFitter` (`DEFAULT_INSET_MM`), который
+ * применяется, когда безопасные поля выключены нулём: при значении по умолчанию
+ * вставка текста и подгонка кегля идут по одной и той же зоне.
+ */
+export const DEFAULT_SAFETY_MARGIN_MM = 1;
+
+/**
  * Create default SheetSettings
  */
 export function createDefaultSettings(): SheetSettings {
@@ -176,6 +185,6 @@ export function createDefaultSettings(): SheetSettings {
     orientation: 'portrait',
     showCutLines: true,
     mirrorPrint: false,
-    safetyMargin_mm: 2,
+    safetyMargin_mm: DEFAULT_SAFETY_MARGIN_MM,
   };
 }
