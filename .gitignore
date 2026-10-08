@@ -15,6 +15,5 @@ _tools/dist_safety.txt
 .dsh/
 
 # Временные диагностические скрипты и вывод (не часть проекта)
-_tmp_regress.mjs
-_tmp_regress.tsx
+_tmp_regress*
 _tools/
