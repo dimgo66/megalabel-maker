@@ -161,6 +161,11 @@ interface ProjectState {
   setPreviewZoom: (zoom: number) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
   loadProjectWithTabs: (tabs: ProjectTabEntry[], activeTabId: string) => void;
+  /**
+   * Загрузить файл в «пустую» активную вкладку: вкладки из файла занимают её
+   * место (первая наследует id), соседние вкладки остаются как были.
+   */
+  loadFileIntoEmptyTab: (tabs: ProjectTabEntry[], activeTabId: string) => void;
   setSelectedObject: (obj: any) => void;
   bumpObjectRevision: () => void;
   setEditorCanvas: (canvas: fabric.Canvas | null) => void;
@@ -475,6 +480,62 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     });
   },
   
+  /**
+   * Файл загружают, пока активна пустая вкладка (например, только что созданная
+   * через «+»). Тогда вкладки из файла занимают её место: первая вкладка файла
+   * наследует id пустой, остальные добавляются следом, а соседние вкладки
+   * остаются нетронутыми — «Загрузить» не должен стирать чужую работу.
+   *
+   * Полная замена списка (loadProjectWithTabs) нужна лишь тогда, когда файл
+   * открывают «с нуля», поверх единственной стартовой пустой вкладки.
+   */
+  loadFileIntoEmptyTab: (tabs: ProjectTabEntry[], activeTabId: string) => {
+    const s = get();
+    const emptyId = s.activeTabId;
+    if (!emptyId) return;
+    const first = tabs[0];
+    if (!first) return;
+
+    // Первая вкладка файла занимает место пустой: наследует её id, чтобы
+    // сохранялся порядок ярлыков и никакая другая вкладка не сместилась.
+    const rebased = tabs.map((t, i) => (i === 0 ? { ...t, id: emptyId } : t));
+    const idx = s.tabs.findIndex(t => t.id === emptyId);
+    // Защита от дубля id: если пустую запись вдруг не нашли, она всё равно
+    // вычищается из списка — её место занимает вкладка из файла.
+    const before =
+      idx === -1 ? s.tabs.filter(t => t.id !== emptyId) : s.tabs.slice(0, idx);
+    const after = idx === -1 ? [] : s.tabs.slice(idx + 1);
+
+    const active = rebased.find(t => t.id === activeTabId) || rebased[0];
+    const activeFormat = getFormatById(active.labelDesign.formatId) || LABEL_FORMATS[0];
+
+    // История и масштаб пустой вкладки заменяются данными первой вкладки файла;
+    // остальные вкладки файла открываются с пустой историей и базовым масштабом.
+    const tabHistories: Record<string, TabHistory> = { ...s.tabHistories };
+    delete tabHistories[emptyId];
+    const tabZooms: Record<string, number> = { ...s.tabZooms };
+    delete tabZooms[emptyId];
+
+    set({
+      selectedFormat: activeFormat,
+      labelDesign: active.labelDesign,
+      sheetSettings: active.sheetSettings,
+      projectName: active.name || active.labelDesign.metadata.name,
+      tabs: [...before, ...rebased, ...after],
+      activeTabId: active.id,
+      tabHistories,
+      tabZooms,
+      editorZoom: 2.0,
+      // Как и остальные загрузки: состояние считается синхронизированным
+      // с только что открытым файлом.
+      isDirty: false,
+      history: [],
+      historyIndex: -1,
+      selectedObject: null,
+      loadRevision: get().loadRevision + 1,
+    });
+  },
+
   /**
    * Добавить новую вкладку с пустой этикеткой того же формата.
    * Текущая вкладка сначала снимается (свежий канвас → запись вкладки),

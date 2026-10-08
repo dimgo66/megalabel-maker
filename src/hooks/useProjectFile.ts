@@ -172,35 +172,69 @@ async function saveProjectAs(currentName: string): Promise<boolean> {
 }
 
 /**
+ * Активная вкладка пуста (в неё можно «положить» файл, не спрашивая
+ * подтверждения): у неё нет содержимого и нет несохранённых правок.
+ *
+ * «+» и закрытие последней вкладки создают вкладку с пустым canvasJSON;
+ * после загрузки файла она уже не пуста — объекты и правки её заполнят.
+ */
+function isEmptyTabActive(s: {
+  labelDesign: { canvasJSON: object };
+  tabs: { id: string }[];
+  activeTabId: string;
+}): boolean {
+  if (!s.activeTabId) return false;
+  if (!s.tabs.some(t => t.id === s.activeTabId)) return false;
+  return Object.keys(s.labelDesign.canvasJSON ?? {}).length === 0;
+}
+
+/**
  * Загрузка разобранного файла в стор, с фолбэком имени по имени файла.
+ *
+ * Если активна пустая вкладка (только что созданная через «+» или сброшенная
+ * крестиком), файл занимает её место, а соседние вкладки остаются как были.
+ * Иначе загруженный проект заменяет всё открытое состояние.
  *
  * @returns false, если проект не загружен (например, формат из файла неизвестен):
  *          тогда вызывающий код не должен считать этот файл текущим, иначе
  *          Ctrl+S перезапишет только что выбранный файл старым проектом.
  */
 function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
-  // Файл с вкладками: загружаем все вкладки целиком.
+  const s = useProjectStore.getState();
+  const intoEmpty = isEmptyTabActive(s);
+
+  // Вкладки из файла: валидация формата. Неизвестный формат — файл целиком
+  // не принимаем, чтобы не вставлять в проект «половину» этикеток.
   if (project.tabs && project.tabs.length > 0) {
     const invalid = project.tabs.find(t => !getFormatById(t.labelDesign.formatId));
     if (invalid) {
       alert('Формат одной из вкладок не найден в списке доступных');
       return false;
     }
+
     const name = projectNameFromFileName(fileName);
-    const tabs = project.tabs.map((t, i) => ({
+    const prepared = project.tabs.map((t, i) => ({
       ...t,
       name:
         t.name?.trim() ||
         t.labelDesign.metadata.name?.trim() ||
         (name ? `${name} ${i + 1}` : `Этикетка ${i + 1}`),
     }));
-    useProjectStore.getState().loadProjectWithTabs(tabs, project.activeTabId || tabs[0].id);
+    const activeTabId = project.activeTabId || prepared[0].id;
+
+    if (intoEmpty) {
+      // Файл загружают в пустую вкладку: она заменяется вкладками из файла,
+      // соседние вкладки не трогаются.
+      useProjectStore.getState().loadFileIntoEmptyTab(prepared, activeTabId);
+    } else {
+      // Обычная загрузка «поверх всего открытого».
+      useProjectStore.getState().loadProjectWithTabs(prepared, activeTabId);
+    }
     return true;
   }
 
-  // Файл без вкладок (старый формат) → проект с одной вкладкой.
-  const format = getFormatById(project.labelDesign.formatId);
-  if (!format) {
+  // Файл без вкладок (старый формат).
+  if (!getFormatById(project.labelDesign.formatId)) {
     alert('Формат из файла не найден в списке доступных');
     return false;
   }
@@ -213,7 +247,23 @@ function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
     metadata: { ...project.labelDesign.metadata, name: name || 'Новый проект' },
   };
 
-  useProjectStore.getState().loadProject(design, project.sheetSettings);
+  if (intoEmpty) {
+    // Старый файл в пустую вкладку: оформляем его одной вкладкой и занимаем
+    // ею место пустой, соседние вкладки не трогаются.
+    useProjectStore.getState().loadFileIntoEmptyTab(
+      [
+        {
+          id: '',
+          name: design.metadata.name,
+          labelDesign: design,
+          sheetSettings: project.sheetSettings,
+        },
+      ],
+      ''
+    );
+  } else {
+    useProjectStore.getState().loadProject(design, project.sheetSettings);
+  }
   return true;
 }
 
@@ -268,7 +318,9 @@ export function useProjectFile() {
 
   const handleLoad = useCallback(async () => {
     const state = useProjectStore.getState();
-    if (state.isDirty) {
+    // На пустой вкладке подтверждение не нужно: там нечего терять, а вопрос
+    // перед загрузкой в новую вкладку сбивал с толку (выглядел как ошибка).
+    if (state.isDirty && !isEmptyTabActive(state)) {
       const confirmed = window.confirm('Есть несохранённые изменения. Загрузить проект без сохранения?');
       if (!confirmed) return;
     }
