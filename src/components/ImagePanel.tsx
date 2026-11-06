@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { handleFileUpload } from '../utils/imageLoader';
+import { describePdfError, isPdfPasswordError } from '../utils/pdfImageLoader';
 import * as fabric from 'fabric';
 import { ImageIcon } from './icons';
 
@@ -11,6 +12,38 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isProcessingRef = useRef(false);
 
+  /**
+   * Загрузка одного файла. Защищённый PDF переспрашивает пароль и пробует
+   * снова; остальные ошибки показываются с причиной, а не общим «не удалось».
+   */
+  const loadFile = async (file: File) => {
+    if (!canvas) return;
+
+    try {
+      await handleFileUpload(file, canvas);
+    } catch (error) {
+      if (isPdfPasswordError(error)) {
+        const password = window.prompt(
+          `PDF «${file.name}» защищён паролем.\nВведите пароль:`,
+          ''
+        );
+        if (!password) return;
+
+        try {
+          await handleFileUpload(file, canvas, { password });
+          return;
+        } catch (retryError) {
+          console.error('Ошибка загрузки PDF после ввода пароля:', retryError);
+          alert(`Не удалось загрузить файл «${file.name}»: ${describePdfError(retryError)}`);
+          return;
+        }
+      }
+
+      console.error('Ошибка загрузки файла:', error);
+      alert(`Не удалось загрузить файл «${file.name}»: ${describePdfError(error)}`);
+    }
+  };
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isProcessingRef.current) return;
 
@@ -21,12 +54,7 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
 
     try {
       for (const file of files) {
-        try {
-          await handleFileUpload(file, canvas);
-        } catch (error) {
-          console.error('Ошибка загрузки файла:', error);
-          alert(`Не удалось загрузить файл: ${file.name}`);
-        }
+        await loadFile(file);
       }
     } finally {
       if (fileInputRef.current) {

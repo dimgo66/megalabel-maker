@@ -2,8 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { Canvas, Textbox } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { mmToPx } from '../utils/layoutCalculator';
-import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
-import { BARCODE_NORM_VERSION } from '../utils/barcodeGenerator';
+import { isOutdatedBarcode, recreateBarcodeObject } from '../utils/barcodeObjectFactory';
 import { serializeCanvas, isHistorySuspended, withoutHistory } from '../utils/canvasHelpers';
 import {
   COMPACT_WIDTH_RATIO,
@@ -33,45 +32,23 @@ async function applyStateToCanvas(c: Canvas, json: object): Promise<void> {
 
   await withoutHistory(() => c.loadFromJSON(json as any));
 
-  // Миграция: пересоздаём старые штрих-коды (без barcodeNorm или с устаревшей геометрией)
-  const objects = c.getObjects();
-  const oldBarcodeObjects = objects.filter((obj: any) =>
-    obj.barcodeValue && obj.barcodeFormat &&
-    (!obj.barcodeNorm || obj.barcodeNorm.version !== BARCODE_NORM_VERSION)
-  );
+  // Миграция: пересоздаём старые штрих-коды (без barcodeNorm или с устаревшей
+  // нормой). Так проекты, сохранённые генератором с ошибкой в таблице чётности
+  // EAN-13, исправляются сами при открытии.
+  const oldBarcodeObjects = c.getObjects().filter(isOutdatedBarcode);
 
   if (oldBarcodeObjects.length > 0) {
     console.log(`Миграция: пересоздаём ${oldBarcodeObjects.length} старых штрих-кодов через фабрику`);
 
     for (const oldObj of oldBarcodeObjects) {
-      const oldAny = oldObj as any;
-      const format = oldAny.barcodeFormat;
-      const value = oldAny.barcodeValue;
+      const newGroup = recreateBarcodeObject(oldObj);
+      if (!newGroup) continue;
 
-      if (!format || !value) continue;
-
-      // Сохраняем позицию и трансформации
-      const left = oldObj.left || 0;
-      const top = oldObj.top || 0;
-      const scaleX = oldObj.scaleX || 1;
-      const scaleY = oldObj.scaleY || 1;
-      const angle = oldObj.angle || 0;
-
-      // Создаём новый штрих-код через фабрику
-      const newGroup = buildBarcodeGroup(value, format);
-
-      // Восстанавливаем позицию и трансформации
-      newGroup.set({
-        left,
-        top,
-        scaleX,
-        scaleY,
-        angle,
-      });
-
-      // Заменяем старый объект
+      // Заменяем старый объект на том же месте в стопке слоёв
+      const index = c.getObjects().indexOf(oldObj);
       c.remove(oldObj);
-      c.add(newGroup);
+      if (index >= 0) c.insertAt(index, newGroup);
+      else c.add(newGroup);
     }
 
     c.renderAll();

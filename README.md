@@ -68,6 +68,14 @@ npm run build
 npm run typecheck
 ```
 
+### Ассеты PDF
+
+Wasm-декодеры pdf.js (JPEG2000, JBIG2, ICC-профили), таблицы CMap и стандартные
+шрифты копируются из `node_modules/pdfjs-dist` в `public/pdfjs` автоматически
+перед `dev` и `build` скриптом `scripts/sync-pdfjs-assets.mjs`. Без них PDF с
+JPEG2000/JBIG2 вставляются с потерянными изображениями. Отдельный запуск —
+`npm run pdfjs:sync`.
+
 ## 📦 Деплой на Vercel
 
 ### Автоматический деплой

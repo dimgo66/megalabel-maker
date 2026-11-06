@@ -4,6 +4,7 @@ import { useLibraryStore, LibraryItem, LIBRARY_THUMBNAIL_VERSION } from "../stor
 import { useProjectStore } from "../store/useProjectStore";
 import { CUSTOM_PROPS, serializeCanvas, sceneWidth, sceneHeight } from "../utils/canvasHelpers";
 import { downloadLibraryFile, readLibraryFile } from "../utils/librarySerializer";
+import { isOutdatedBarcode, recreateBarcodeObject } from "../utils/barcodeObjectFactory";
 import { ensureTextFrame } from "../utils/textFitter";
 import { CollapsibleSection } from "./CollapsibleSection";
 import {
@@ -188,7 +189,14 @@ export function LibraryPanel() {
 
     // Элементы, сохранённые до появления фреймов, лежат как IText: у него нет
     // ширины переноса, и за боковые ручки он не тянется. Переводим во фрейм.
-    const obj = raw.type === "i-text" ? ensureTextFrame(raw as any) : raw;
+    let obj = raw.type === "i-text" ? ensureTextFrame(raw as any) : raw;
+
+    // Штрих-код из библиотеки мог быть сохранён прежней версией нормы (в том
+    // числе с неверной таблицей чётности EAN-13). Вставляем пересозданный:
+    // иначе ошибка вернулась бы в проект вместе с элементом.
+    if (isOutdatedBarcode(obj)) {
+      obj = recreateBarcodeObject(obj) ?? obj;
+    }
 
     // Размещаем по центру сцены
     const cw = sceneWidth(editorCanvas);

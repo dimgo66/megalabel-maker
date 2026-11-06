@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   validateBarcode,
   addCheckDigit,
+  checkDigitExpected,
 } from '../utils/barcodeGenerator';
 import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
 import { BarcodeFormat } from '../types';
@@ -23,6 +24,7 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
   const [code, setCode] = useState('');
   const [fullCode, setFullCode] = useState('');
   const [error, setError] = useState('');
+  const [checkDigitWarning, setCheckDigitWarning] = useState('');
 
   // Загрузка данных существующего штрихкода
   useEffect(() => {
@@ -41,6 +43,7 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     if (!code || code.trim() === '') {
       setError('');
       setFullCode('');
+      setCheckDigitWarning('');
       return;
     }
 
@@ -48,14 +51,33 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
     if (!validation.valid) {
       setError(validation.error || 'Некорректный код');
       setFullCode('');
+      setCheckDigitWarning('');
       return;
     }
 
     setError('');
-    
+
+    const fullLength = format === 'ean13' ? 13 : 14;
+    const expected = checkDigitExpected(code, format);
+
+    // Код введён целиком, но контрольная цифра не совпадает с расчётной.
+    // Не блокируем ввод, но предупреждаем и исправляем цифру: без верной
+    // контрольной сканер не прочтёт штрих-код.
+    if (code.length === fullLength && expected !== null) {
+      const entered = Number(code[fullLength - 1]);
+      if (entered !== expected) {
+        setFullCode(code.slice(0, fullLength - 1) + expected);
+        setCheckDigitWarning(
+          `Контрольная цифра не совпадает: по расчёту ${expected}, введена ${entered}. Код будет исправлен.`
+        );
+        return;
+      }
+    }
+
+    setCheckDigitWarning('');
+
     // Добавляем контрольную цифру если нужно
-    const finalCode = addCheckDigit(code, format);
-    setFullCode(finalCode);
+    setFullCode(addCheckDigit(code, format));
   }, [code, format]);
 
   const handleAdd = async () => {
@@ -77,17 +99,25 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
         const top = existingObject.top || 0;
         const scaleX = existingObject.scaleX || 1;
         const scaleY = existingObject.scaleY || 1;
+        const index = editorCanvas.getObjects().indexOf(existingObject);
         
         editorCanvas.remove(existingObject);
         
+        // Точку привязки и поворот переносим как есть: группа могла быть
+        // вставлена с originX/originY = center, и сброс к left/top сдвинул бы её.
         group.set({
           left,
           top,
           scaleX,
           scaleY,
+          angle: existingObject.angle || 0,
+          originX: existingObject.originX ?? 'left',
+          originY: existingObject.originY ?? 'top',
         });
         
-        editorCanvas.add(group);
+        // Возвращаем объект на прежнее место в стопке слоёв
+        if (index >= 0) editorCanvas.insertAt(index, group);
+        else editorCanvas.add(group);
         editorCanvas.setActiveObject(group);
         editorCanvas.renderAll();
         
@@ -226,6 +256,9 @@ export function BarcodeModal({ isOpen, onClose, existingObject }: BarcodeModalPr
               />
               {error && (
                 <p className="text-sm text-red-600 mt-1">{error}</p>
+              )}
+              {checkDigitWarning && (
+                <p className="text-sm text-amber-600 mt-1">{checkDigitWarning}</p>
               )}
             </div>
 

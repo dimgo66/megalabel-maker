@@ -5,11 +5,22 @@ import { serializeCanvas } from '../utils/canvasHelpers';
 
 const AUTOSAVE_KEY = 'label-maker-autosave';
 const AUTOSAVE_INTERVAL = 30000; // 30 секунд
+/**
+ * localStorage даёт ~5 МБ на домен, а JSON проекта с вставленным PDF (растр
+ * страницы в base64) легко перекрывает этот лимит. Такой снапшот не пытаемся
+ * записать: пользователь получает честное предупреждение вместо тихого сбоя.
+ */
+const AUTOSAVE_MAX_CHARS = 4_500_000;
+
+const TOO_BIG_WARNING =
+  'Автосохранение пропущено: проект с крупными изображениями не помещается в хранилище браузера. ' +
+  'Сохраните проект в файл (Ctrl+S), чтобы не потерять работу.';
 
 export function useAutosave() {
   const { isDirty, labelDesign, sheetSettings, tabs, activeTabId, editorCanvas } = useProjectStore();
   const [showRestoreBanner, setShowRestoreBanner] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
+  const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
 
   // Проверяем наличие автосохранения при загрузке
   useEffect(() => {
@@ -45,9 +56,25 @@ export function useAutosave() {
           snapshotTabs,
           activeTabId
         );
+
+        if (json.length > AUTOSAVE_MAX_CHARS) {
+          setAutosaveWarning(TOO_BIG_WARNING);
+          return;
+        }
+
         localStorage.setItem(AUTOSAVE_KEY, json);
+        setAutosaveWarning(null);
         console.log('Автосохранение выполнено');
       } catch (error) {
+        const isQuota =
+          error instanceof DOMException &&
+          (error.name === 'QuotaExceededError' ||
+            error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+            error.code === 22);
+        if (isQuota) {
+          setAutosaveWarning(TOO_BIG_WARNING);
+          return;
+        }
         console.error('Ошибка автосохранения:', error);
       }
     }, AUTOSAVE_INTERVAL);
@@ -85,10 +112,14 @@ export function useAutosave() {
     setHasAutosave(false);
   };
 
+  const dismissAutosaveWarning = () => setAutosaveWarning(null);
+
   return {
     showRestoreBanner,
     hasAutosave,
     restoreAutosave,
     discardAutosave,
+    autosaveWarning,
+    dismissAutosaveWarning,
   };
 }

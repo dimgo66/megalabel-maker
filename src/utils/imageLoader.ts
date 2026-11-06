@@ -79,9 +79,14 @@ export function loadSvgFile(file: File): Promise<fabric.FabricObject> {
 
 /**
  * Загрузка PDF файла как изображения
+ * @param password — пароль для защищённых PDF (запрашивается при повторной попытке)
  */
-export async function loadPdfFile(file: File, pageNumber: number = 1): Promise<fabric.FabricImage> {
-  const result = await loadPdfAsImage(file, pageNumber);
+export async function loadPdfFile(
+  file: File,
+  pageNumber: number = 1,
+  password?: string
+): Promise<fabric.FabricImage> {
+  const result = await loadPdfAsImage(file, pageNumber, 3, password);
   const dataUrl = result.canvas.toDataURL('image/png');
   
   return new Promise((resolve, reject) => {
@@ -134,12 +139,18 @@ export function fitImageToCanvas(
   });
 }
 
+export interface FileUploadOptions {
+  /** Пароль для защищённых PDF — передаётся при повторной попытке. */
+  password?: string;
+}
+
 /**
  * Обработка загруженного файла и добавление на канвас
  */
 export async function handleFileUpload(
   file: File,
-  canvas: fabric.Canvas
+  canvas: fabric.Canvas,
+  options: FileUploadOptions = {}
 ): Promise<void> {
   const fileType = file.type.toLowerCase();
   const fileName = file.name.toLowerCase();
@@ -149,7 +160,7 @@ export async function handleFileUpload(
 
     // PDF файлы — всегда загружаем первую страницу
     if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      fabricObject = await loadPdfFile(file, 1);
+      fabricObject = await loadPdfFile(file, 1, options.password);
     }
     // SVG файлы
     else if (fileType === 'image/svg+xml' || fileName.endsWith('.svg')) {

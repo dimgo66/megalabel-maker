@@ -75,7 +75,7 @@ function App() {
   const { undo, redo } = useProjectStore();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
-  const { showRestoreBanner, restoreAutosave, discardAutosave } = useAutosave();
+  const { showRestoreBanner, restoreAutosave, discardAutosave, autosaveWarning, dismissAutosaveWarning } = useAutosave();
 
   // Стартовая вкладка: список вкладок материализуется лениво, при первом
   // рендере из начального состояния. Без этого панель вкладок пуста до
@@ -302,6 +302,19 @@ function App() {
             className="px-4 py-2 bg-blue-700 text-white rounded-lg font-medium hover:bg-blue-800"
           >
             Удалить
+          </button>
+        </div>
+      )}
+
+      {/* Предупреждение, что проект не помещается в автосохранение */}
+      {autosaveWarning && (
+        <div className="fixed bottom-4 left-4 bg-amber-50 border border-amber-300 text-amber-900 px-5 py-3 rounded-lg shadow-lg z-50 flex items-start gap-3 max-w-md">
+          <span className="text-sm leading-snug">{autosaveWarning}</span>
+          <button
+            onClick={dismissAutosaveWarning}
+            className="text-amber-700 hover:text-amber-900 text-sm font-medium shrink-0"
+          >
+            Скрыть
           </button>
         </div>
       )}

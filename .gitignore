@@ -17,3 +17,7 @@ _tools/dist_safety.txt
 # Временные диагностические скрипты и вывод (не часть проекта)
 _tmp_regress*
 _tools/
+
+# Ассеты pdf.js (wasm/cmaps/шрифты) копируются из node_modules
+# скриптом scripts/sync-pdfjs-assets.mjs перед dev/build
+public/pdfjs/

@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { BarcodeModal } from './BarcodeModal';
-import { BarcodeFormat } from '../types';
-import { buildBarcodeGroup } from '../utils/barcodeObjectFactory';
+import { recreateBarcodeObject } from '../utils/barcodeObjectFactory';
 import { serializeCanvas } from '../utils/canvasHelpers';
 import { Lightbulb, Pencil, RefreshCw, Trash } from './icons';
 
@@ -59,63 +58,28 @@ export function BarcodePropertiesPanel() {
 
   const handleRecreate = async () => {
     if (!selectedObject || !editorCanvas) return;
-    
-    const barcodeData = selectedObject as any;
-    const format: BarcodeFormat = barcodeData.barcodeFormat;
-    const code: string = barcodeData.barcodeValue;
-    
-    if (!format || !code) {
-      alert('Не удалось получить данные штрих-кода');
-      return;
-    }
-    
+
     try {
-      // Сохраняем позицию и масштаб старого объекта
-      const left = selectedObject.left || 0;
-      const top = selectedObject.top || 0;
-      const scaleX = selectedObject.scaleX || 1;
-      const scaleY = selectedObject.scaleY || 1;
-      const angle = selectedObject.angle || 0;
-      
-      // Создаём новый штрих-код через фабрику
-      const newGroup = buildBarcodeGroup(code, format);
-      
-      // Восстанавливаем позицию и масштаб
-      newGroup.set({
-        left,
-        top,
-        scaleX,
-        scaleY,
-        angle,
-      });
-      
-      // Удаляем старый объект и добавляем новый
+      // Пересоздаём принудительно: кнопка нужна и для объектов, у которых норма
+      // формально актуальна (например, после ручной правки кода в JSON).
+      const newGroup = recreateBarcodeObject(selectedObject, { force: true });
+      if (!newGroup) {
+        alert('Не удалось получить данные штрих-кода');
+        return;
+      }
+
+      // Удаляем старый объект и ставим новый на его место в стопке слоёв
+      // (позиция, масштаб, поворот и точка привязки уже перенесены фабрикой)
+      const index = editorCanvas.getObjects().indexOf(selectedObject);
       editorCanvas.remove(selectedObject);
-      editorCanvas.add(newGroup);
+      if (index >= 0) editorCanvas.insertAt(index, newGroup);
+      else editorCanvas.add(newGroup);
       editorCanvas.setActiveObject(newGroup);
       editorCanvas.renderAll();
-      
+
       // Сохраняем изменения
-      const json = serializeCanvas(editorCanvas);
-      if (json.objects) {
-        json.objects = json.objects.map((obj: any) => {
-          if (obj.barcodeFormat) {
-            return {
-              ...obj,
-              barcodeFormat: obj.barcodeFormat,
-              barcodeValue: obj.barcodeValue,
-              barcodeSVG: obj.barcodeSVG,
-              barcodeTextYFrac: obj.barcodeTextYFrac,
-              barcodeFontSizeFrac: obj.barcodeFontSizeFrac,
-              barcodeBaseW: obj.barcodeBaseW,
-              barcodeBaseH: obj.barcodeBaseH,
-            };
-          }
-          return obj;
-        });
-      }
-      useProjectStore.getState().setCanvasJSON(json);
-      
+      useProjectStore.getState().setCanvasJSON(serializeCanvas(editorCanvas));
+
       alert('Штрих-код пересоздан успешно');
     } catch (error) {
       console.error('Ошибка пересоздания штрих-кода:', error);

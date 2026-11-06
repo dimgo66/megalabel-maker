@@ -70,11 +70,15 @@ End guard: 101 (3 модуля)
 
 **G-коды** = reverse(R) (чётные цифры в левой половине)
 
-**Таблица чётности** по первой цифре:
+**Таблица чётности** по первой цифре (стандарт EAN-13):
 ```
-0: LLLLLL  1: LLGLGG  2: LGLGLG  3: LGLLGG  4: GGLLLG
-5: GLLLGG  6: GLGGLG  7: GLGLGG  8: GGLGLG  9: GGLLGG
+0: LLLLLL  1: LLGLGG  2: LLGGLG  3: LLGGGL  4: LGLLGG
+5: LGGLLG  6: LGGGLL  7: LGLGLG  8: LGLGGL  9: LGGLGL
 ```
+
+> Исправлено в версии нормы 3: здесь была таблица с ошибкой для цифр 2–9
+> (`2: LGLGLG  3: LGLLGG  4: GGLLLG …`), из-за чего штрихи кодировали чужие
+> цифры. Теперь таблица совпадает с JsBarcode `EAN13_STRUCTURE`.
 
 ### Позиции цифр
 

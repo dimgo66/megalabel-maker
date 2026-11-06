@@ -33,18 +33,20 @@ const R_CODES = [
 // G-коды = reverse(R) (для чётных цифр в левой половине)
 const G_CODES = R_CODES.map(code => code.split('').reverse().join(''));
 
-// Таблица чётности по первой цифре
+// Таблица чётности по первой цифре (стандарт EAN-13, ср. JsBarcode EAN13_STRUCTURE).
+// Первая цифра не кодируется отдельным символом: она восстанавливается сканером
+// именно по комбинации L/G в левой половине. Ошибка здесь = чужие штрихи.
 const PARITY = [
   'LLLLLL', // 0
   'LLGLGG', // 1
-  'LGLGLG', // 2
-  'LGLLGG', // 3
-  'GGLLLG', // 4
-  'GLLLGG', // 5
-  'GLGGLG', // 6
-  'GLGLGG', // 7
-  'GGLGLG', // 8
-  'GGLLGG', // 9
+  'LLGGLG', // 2
+  'LLGGGL', // 3
+  'LGLLGG', // 4
+  'LGGLLG', // 5
+  'LGGGLL', // 6
+  'LGLGLG', // 7
+  'LGLGGL', // 8
+  'LGGLGL', // 9
 ];
 
 /**
@@ -90,10 +92,15 @@ function generateEan13Bits(code: string): string {
 }
 
 /**
- * Версия геометрии штрих-кода. Увеличивать при изменении высот штрихов/цифр,
- * чтобы старые проекты пересоздавались при загрузке.
+ * Версия нормы штрих-кода. Увеличивать при любом изменении геометрии ИЛИ
+ * кодирования, чтобы старые проекты пересоздавались при загрузке.
+ *
+ * 2 → 3: исправлена таблица чётности EAN-13 (для первой цифры 2–9 штрихи
+ * кодировали чужие цифры — сканер читал другой код или не читал вовсе).
+ * 3 → 4: ITF-14 — 135 модулей вместо 77, пары по 18 модулей, цифры по центрам
+ * половин, штрихи на полную высоту; код нормализуется по контрольной цифре.
  */
-export const BARCODE_NORM_VERSION = 2;
+export const BARCODE_NORM_VERSION = 4;
 
 /**
  * Константы вертикальной геометрии EAN-13
@@ -342,7 +349,9 @@ export function buildItf14Norm(
   const symH = bbox.maxY - bbox.minY;
 
   const fontMod = fontSize;
-  const barHMod = symH * 0.85;  // высота штрихов — 85% высоты SVG
+  // Штрихи занимают всю высоту символа — как в SVG от JsBarcode: bbox
+  // прямоугольников и есть высота штрихов.
+  const barHMod = symH;
 
   const barsModules = bars.map(r => ({
     xMod: r.x - bbox.minX,
@@ -350,25 +359,29 @@ export function buildItf14Norm(
     hMod: barHMod,
   }));
 
-  const ITF_MODULES = 77;
+  // Структура ITF-14 в модулях: start «1010» (4) + 7 пар × 18 + stop «11101» (5).
+  // Пара = 5 штрихов и 5 пробелов (4 широких по 3 модуля + 6 узких по 1) = 18.
+  const ITF_MODULES = 135;
   const START_MODS = 4;
-  const PAIR_MODS = 10;
+  const PAIR_MODS = 18;
   const modW = symW / ITF_MODULES;
-  const charHalfSpan = modW * 2.2;
+  // Цифры пары стоят по центрам своих половин: 4.5 и 13.5 модуля от начала пары.
+  const charHalfSpan = modW * 4.5;
 
   const digits: Array<{ char: string; xMod: number }> = [];
 
   for (let pair = 0; pair < 7; pair++) {
-    const pairCenterPx = (START_MODS + pair * PAIR_MODS + PAIR_MODS / 2) * modW;
+    const pairStartPx = (START_MODS + pair * PAIR_MODS) * modW;
     const leftChar  = code[pair * 2];
     const rightChar = code[pair * 2 + 1];
-    digits.push({ char: leftChar,  xMod: pairCenterPx - charHalfSpan });
-    digits.push({ char: rightChar, xMod: pairCenterPx + charHalfSpan });
+    digits.push({ char: leftChar,  xMod: pairStartPx + charHalfSpan });
+    digits.push({ char: rightChar, xMod: pairStartPx + PAIR_MODS * modW - charHalfSpan });
   }
 
-  // digitYMod = низ штрихов + зазор 2px + высота шрифта
-  // originY: 'bottom' в fabric, поэтому это базовая линия (низ) текста
-  const digitYMod = barHMod + fontMod * 1.6; // зазор ~0.6×fontSize между штрихами и цифрами
+  // Базовая линия цифр — из самого SVG (JsBarcode: height + textMargin + fontSize).
+  // Если текста в SVG не было, оставляем штрихи + шрифт + стандартный зазор 2 px.
+  // originY: 'bottom' в fabric, поэтому это низ текста.
+  const digitYMod = textY > 0 ? textY : symH + fontMod + 2;
 
   return {
     format: 'itf14',
@@ -439,10 +452,13 @@ export function generateBarcodeSVG(
     throw new Error('Для EAN-13 используйте buildEan13Norm вместо generateBarcodeSVG');
   }
 
-  // Для ITF-14 используем JsBarcode
+  // Для ITF-14 используем JsBarcode. Код нормализуем: JsBarcode отвергает
+  // 14-значный ITF-14 с неверной контрольной цифрой исключением.
+  const normalized = normalizeBarcodeCode(code, 'itf14');
+
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   
-  JsBarcode(svg, code, {
+  JsBarcode(svg, normalized, {
     format: 'ITF14',
     displayValue: options.displayValue ?? true,
     width: 2,
@@ -474,36 +490,66 @@ export function validateBarcode(code: string, format: BarcodeFormat): { valid: b
 }
 
 /**
+ * Ожидаемая контрольная цифра для EAN-13 (12 знаков) и ITF-14 (13 знаков).
+ * Возвращает null, если цифр для расчёта не хватает.
+ *
+ * Формула GTIN: сумма цифр с весами 1/3 (EAN-13 — первая ×1, ITF-14 —
+ * первая ×3), дополнение до ближайшего десятка. Та же арифметика, что в
+ * `addCheckDigit`, — вынесена отдельно, чтобы проверять уже введённый код.
+ */
+export function checkDigitExpected(code: string, format: BarcodeFormat): number | null {
+  const cleanCode = code.replace(/\D/g, '');
+
+  if (format === 'ean13') {
+    if (cleanCode.length < 12) return null;
+    const digits = cleanCode.slice(0, 12).split('').map(Number);
+    let sum = 0;
+    for (let i = 0; i < 12; i++) sum += digits[i] * (i % 2 === 0 ? 1 : 3);
+    return (10 - (sum % 10)) % 10;
+  }
+
+  if (format === 'itf14') {
+    if (cleanCode.length < 13) return null;
+    const digits = cleanCode.slice(0, 13).split('').map(Number);
+    let sum = 0;
+    for (let i = 0; i < 13; i++) sum += digits[i] * (i % 2 === 0 ? 3 : 1);
+    return (10 - (sum % 10)) % 10;
+  }
+
+  return null;
+}
+
+/**
  * Добавление контрольной цифры, если она отсутствует
  */
 export function addCheckDigit(code: string, format: BarcodeFormat): string {
   const cleanCode = code.replace(/\s/g, '');
-  
-  if (format === 'ean13' && cleanCode.length === 12) {
-    // Добавляем контрольную цифру для EAN-13
-    const digits = cleanCode.split('').map(Number);
-    let sum = 0;
-    
-    for (let i = 0; i < 12; i++) {
-      sum += digits[i] * (i % 2 === 0 ? 1 : 3);
-    }
-    
-    const checkDigit = (10 - (sum % 10)) % 10;
-    return cleanCode + checkDigit;
+  const fullLength = format === 'ean13' ? 13 : 14;
+
+  if (cleanCode.length === fullLength - 1) {
+    const checkDigit = checkDigitExpected(cleanCode, format);
+    return checkDigit === null ? cleanCode : cleanCode + checkDigit;
   }
-  
-  if (format === 'itf14' && cleanCode.length === 13) {
-    // Добавляем контрольную цифру для ITF-14
-    const digits = cleanCode.split('').map(Number);
-    let sum = 0;
-    
-    for (let i = 0; i < 13; i++) {
-      sum += digits[i] * (i % 2 === 0 ? 3 : 1);
-    }
-    
-    const checkDigit = (10 - (sum % 10)) % 10;
-    return cleanCode + checkDigit;
-  }
-  
+
   return cleanCode;
+}
+
+/**
+ * Приводит код к полному виду с верной контрольной цифрой.
+ *
+ * EAN-13: 12 цифр — добавляется контрольная, 13 — пересчитывается (введённая
+ * могла быть неверной). ITF-14: 13 — добавляется, 14 — пересчитывается.
+ *
+ * Нужно и для миграции старых проектов, и для ITF-14 в JsBarcode: он отвергает
+ * 14-значный код с неверной контрольной цифрой исключением.
+ */
+export function normalizeBarcodeCode(code: string, format: BarcodeFormat): string {
+  const clean = code.replace(/\D/g, '');
+  const baseLength = format === 'ean13' ? 12 : 13;
+
+  if (clean.length < baseLength) return clean;
+
+  const base = clean.slice(0, baseLength);
+  const expected = checkDigitExpected(base, format);
+  return expected === null ? clean : base + expected;
 }
