@@ -13,6 +13,7 @@ import {
   normalizeText,
   sanitizePastedFragment,
   syncFrameGeometry,
+  syncFrameGeometryKeepingTop,
   whenPastedTextInserted,
 } from '../utils/textFitter';
 import { calcSnapGuides, sameGuides, type GuideLine } from '../utils/smartGuides';
@@ -188,10 +189,13 @@ export function LabelCanvas() {
 
     // Рамка обязана помнить собственную высоту: fabric пересчитывает height из
     // содержимого при каждой правке текста и каждом переносе строк. Поэтому
-    // после такого пересчёта возвращаем высоту рамки и обрезку.
+    // после такого пересчёта возвращаем высоту рамки и обрезку — но верхний край
+    // оставляем там, где он был до нажатия. Без этого у рамки с ручной высотой
+    // каждое нажатие сдвигало её на половину разницы «содержимое − рамка»: при
+    // рамке выше текста она уезжала вверх, при рамке ниже — вниз.
     const handleFrameTextChanged = (e: any) => {
       if (e?.target?.type !== 'textbox') return;
-      syncFrameGeometry(e.target);
+      syncFrameGeometryKeepingTop(e.target);
     };
     canvas.on('text:changed', handleFrameTextChanged);
 

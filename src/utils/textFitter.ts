@@ -533,6 +533,10 @@ export function applyFrameScale(
  * Обрезка: `clipPath` по прямоугольнику рамки. Так текст за пределами рамки не
  * только выглядит обрезанным, но и реально не рисуется — включая растровый
  * экспорт.
+ *
+ * ВНИМАНИЕ: высота меняется без компенсации позиции. Если высота задаётся не
+ * самим fabric (рамка с ручной высотой), верхний край от этого съезжает — для
+ * правки текста нужен `syncFrameGeometryKeepingTop`, а не прямой вызов.
  */
 export function syncFrameGeometry(frame: fabric.Textbox): void {
   const frameWidth = frame.width ?? MIN_FRAME_WIDTH;
@@ -572,6 +576,72 @@ export function syncFrameGeometry(frame: fabric.Textbox): void {
 
   frame.setCoords();
   frame.canvas?.requestRenderAll();
+}
+
+/**
+ * Точка верхнего края рамки и ось, по которой она закреплена.
+ *
+ * Берём через `getPositionByOrigin`, а не арифметикой `top - height / 2`: только
+ * так точка считается верно и для повёрнутой рамки. Ось по X — та же, что у
+ * fabric при вводе текста: абзац прижат к `textAlign`, и якорем служит
+ * соответствующий край (или середина).
+ */
+function frameTopAnchor(object: fabric.Textbox | fabric.IText): {
+  point: fabric.Point;
+  originX: 'left' | 'right' | 'center';
+} {
+  const align = String(object.textAlign ?? 'left').replace('justify-', '');
+  const originX = align === 'right' ? 'right' : align === 'center' ? 'center' : 'left';
+  return { point: object.getPositionByOrigin(originX, 'top'), originX };
+}
+
+/** Возвращает верхний край рамки в сохранённую точку. */
+function restoreFrameTopAnchor(
+  object: fabric.Textbox | fabric.IText,
+  anchor: { point: fabric.Point; originX: 'left' | 'right' | 'center' }
+): void {
+  object.setPositionByOrigin(anchor.point, anchor.originX, 'top');
+  object.setCoords();
+  object.canvas?.requestRenderAll();
+}
+
+/**
+ * Синхронизирует геометрию рамки, удерживая её верхний край на месте.
+ *
+ * Зачем: fabric при каждой правке текста запоминает верхний край и возвращает
+ * его после пересчёта высоты. Но `syncFrameGeometry` затем ставит собственную
+ * высоту рамки (`frameHeight`) — и у рамки с ручной высотой верхний край
+ * съезжает на половину разницы между содержимым и рамкой. Повторяется это на
+ * каждом нажатии, поэтому рамка быстро уезжает: при рамке выше текста — вверх,
+ * при рамке ниже — вниз.
+ *
+ * Для авто-высоты вызов ничего не меняет: после синхронизации высота та же, что
+ * посчитал fabric.
+ */
+export function syncFrameGeometryKeepingTop(frame: fabric.Textbox): void {
+  const anchor = frameTopAnchor(frame);
+  syncFrameGeometry(frame);
+  restoreFrameTopAnchor(frame, anchor);
+}
+
+/**
+ * Программная правка текста (поле «Текст» панели «Свойства»): рамка остаётся на
+ * месте верхним краем.
+ *
+ * Ввод на холсте fabric якорит сам, а `set('text')` из панели — нет: рамка
+ * создаётся с `originY: 'center'`, высота пересчитывается от центра, и каждая
+ * новая строка приподнимает рамку на половину строки. Заодно синхронизируется
+ * геометрия: без этого `frameHeight`/`clipPath` остаются от прежнего текста и
+ * обрезают дописанное.
+ */
+export function editTextKeepingFrameTop(
+  object: fabric.Textbox | fabric.IText,
+  edit: () => void
+): void {
+  const anchor = frameTopAnchor(object);
+  edit();
+  if (object.type === 'textbox') syncFrameGeometry(object as fabric.Textbox);
+  restoreFrameTopAnchor(object, anchor);
 }
 
 /**

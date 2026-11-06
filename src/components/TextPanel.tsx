@@ -3,6 +3,7 @@ import { IText } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { serializeCanvas, invalidateTextCache } from '../utils/canvasHelpers';
 import {
+  editTextKeepingFrameTop,
   fitTextToLabel,
   fitOptionsFromStore,
   normalizeText,
@@ -15,6 +16,24 @@ import {
   AlignRight,
   ChevronDown,
 } from './icons';
+
+/**
+ * Свойства текста, меняющие его вёрстку.
+ *
+ * После них рамка обязана подтянуть высоту и обрезку, но остаться на месте
+ * верхним краем: `set()` из панели fabric не якорит (в отличие от ввода на
+ * холсте), и без этого каждая новая строка приподнимала рамку.
+ */
+const TEXT_LAYOUT_PROPS = new Set([
+  'text',
+  'fontSize',
+  'fontFamily',
+  'fontWeight',
+  'fontStyle',
+  'lineHeight',
+  'textAlign',
+  'textTransform',
+]);
 
 export function TextPanel() {
   const { selectedObject, objectRevision } = useProjectStore();
@@ -190,10 +209,18 @@ export function TextPanel() {
   const updateObject = (property: string, value: any) => {
     if (!selectedObject) return;
 
-    selectedObject.set(property, value);
-    // `set()` у текста сам помечает кэш грязным только для свойств вёрстки;
-    // для остальных (например, поворота) инвалидация нужна явная.
-    invalidateTextCache(selectedObject);
+    const apply = () => {
+      selectedObject.set(property, value);
+      // `set()` у текста сам помечает кэш грязным только для свойств вёрстки;
+      // для остальных (например, поворота) инвалидация нужна явная.
+      invalidateTextCache(selectedObject);
+    };
+
+    // Свойства вёрстки меняют высоту текста: рамка остаётся на месте верхним
+    // краем и подтягивает геометрию (иначе она уезжает и обрезает дописанное).
+    if (TEXT_LAYOUT_PROPS.has(property)) editTextKeepingFrameTop(selectedObject, apply);
+    else apply();
+
     selectedObject.canvas?.renderAll();
 
     // Триггерим событие для сохранения
@@ -212,15 +239,23 @@ export function TextPanel() {
 
     const textObj = selectedObject as IText;
 
-    if (textObj.selectionStart !== textObj.selectionEnd) {
-      const styles: any = {};
-      styles[property] = value;
-      textObj.setSelectionStyles(styles);
-    } else {
-      textObj.set(property, value);
-    }
+    const apply = () => {
+      if (textObj.selectionStart !== textObj.selectionEnd) {
+        const styles: any = {};
+        styles[property] = value;
+        textObj.setSelectionStyles(styles);
+      } else {
+        textObj.set(property, value);
+      }
 
-    invalidateTextCache(textObj);
+      invalidateTextCache(textObj);
+    };
+
+    // Кегль и начертание меняют метрики строки — рамка должна подтянуть
+    // геометрию, не съезжая верхним краем (см. TEXT_LAYOUT_PROPS).
+    if (TEXT_LAYOUT_PROPS.has(property)) editTextKeepingFrameTop(textObj, apply);
+    else apply();
+
     textObj.canvas?.renderAll();
     textObj.fire('modified');
   };
@@ -350,10 +385,12 @@ export function TextPanel() {
             : selected;
 
       const newText = before + transformedSlice + after;
-      obj.set('text', newText);
-      // Восстанавливаем выделение после изменения
-      obj.selectionStart = selStart;
-      obj.selectionEnd = selEnd;
+      editTextKeepingFrameTop(obj, () => {
+        obj.set('text', newText);
+        // Восстанавливаем выделение после изменения
+        obj.selectionStart = selStart;
+        obj.selectionEnd = selEnd;
+      });
       setText(newText);
       // Не меняем состояние textTransform — оно отражает режим всего объекта
     } else {
@@ -372,7 +409,9 @@ export function TextPanel() {
             ? source.toLowerCase()
             : source;
 
-      obj.set('text', displayText);
+      editTextKeepingFrameTop(obj, () => {
+        obj.set('text', displayText);
+      });
       setText(displayText);
     }
 
@@ -387,11 +426,12 @@ export function TextPanel() {
     const start = obj.selectionStart ?? (obj.text?.length ?? 0);
     const currentText = obj.text || '';
     const newText = currentText.slice(0, start) + char + currentText.slice(obj.selectionEnd ?? start);
-    obj.set('text', newText);
+    editTextKeepingFrameTop(obj, () => {
+      obj.set('text', newText);
+      obj.selectionStart = start + char.length;
+      obj.selectionEnd = start + char.length;
+    });
     setText(newText);
-    obj.selectionStart = start + char.length;
-    obj.selectionEnd = start + char.length;
-    obj.setCoords();
     obj.canvas?.renderAll();
     obj.fire('modified');
   };
