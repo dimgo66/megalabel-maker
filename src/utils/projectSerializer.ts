@@ -89,6 +89,62 @@ export function projectNameFromFileName(fileName: string): string {
     .trim();
 }
 
+const isNonEmptyString = (value: unknown): value is string =>
+  typeof value === 'string' && value.trim() !== '';
+
+const boolOr = (value: unknown, fallback: boolean): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+/**
+ * Приведение этикетки из файла к полному виду.
+ *
+ * Файлы старых версий и чужие файлы приходят без части полей. Раньше
+ * отсутствие `metadata.name` роняло загрузку (TypeError на `.trim()`), а
+ * пропущенные настройки листа давали `undefined` в интерфейсе. Здесь все поля
+ * получают безопасные значения; содержимое и версия формата не меняются.
+ */
+function normalizeDesign(raw: LabelDesign): LabelDesign {
+  const now = new Date().toISOString();
+  const metadata = (raw.metadata ?? {}) as Partial<LabelDesign['metadata']>;
+  return {
+    ...raw,
+    canvasJSON:
+      raw.canvasJSON && typeof raw.canvasJSON === 'object' ? raw.canvasJSON : {},
+    metadata: {
+      name: isNonEmptyString(metadata.name) ? metadata.name.trim() : '',
+      createdAt: isNonEmptyString(metadata.createdAt) ? metadata.createdAt : now,
+      updatedAt: isNonEmptyString(metadata.updatedAt) ? metadata.updatedAt : now,
+      customFonts: Array.isArray(metadata.customFonts)
+        ? metadata.customFonts.filter(isNonEmptyString)
+        : [],
+    },
+  };
+}
+
+/** Настройки листа: отсутствующие поля берутся по умолчанию, 0 мм — законное значение. */
+function normalizeSheetSettings(raw: SheetSettings): SheetSettings {
+  const defaults = createDefaultSettings();
+  const margin = Number(raw?.safetyMargin_mm);
+  return {
+    orientation: raw?.orientation === 'landscape' ? 'landscape' : 'portrait',
+    showCutLines: boolOr(raw?.showCutLines, defaults.showCutLines),
+    mirrorPrint: boolOr(raw?.mirrorPrint, defaults.mirrorPrint),
+    safetyMargin_mm:
+      Number.isFinite(margin) && margin >= 0 ? margin : defaults.safetyMargin_mm,
+  };
+}
+
+/** Вкладка файла: своя этикетка и свои настройки, оба поля нормализуются. */
+function normalizeTab(tab: ProjectTabEntry): ProjectTabEntry {
+  const labelDesign = normalizeDesign(tab.labelDesign);
+  return {
+    ...tab,
+    name: isNonEmptyString(tab.name) ? tab.name.trim() : labelDesign.metadata.name,
+    labelDesign,
+    sheetSettings: normalizeSheetSettings(tab.sheetSettings),
+  };
+}
+
 /**
  * Deserialize project from JSON string
  */
@@ -115,19 +171,25 @@ export function deserializeProject(json: string): ProjectFile {
       if (!Array.isArray(project.tabs)) {
         throw new Error('Invalid tabs data');
       }
-      project.tabs = project.tabs.filter(
-        t =>
-          t &&
-          typeof t.id === 'string' &&
-          t.labelDesign &&
-          t.labelDesign.formatId &&
-          t.sheetSettings &&
-          !!t.sheetSettings.orientation
-      );
+      project.tabs = project.tabs
+        .filter(
+          t =>
+            t &&
+            typeof t.id === 'string' &&
+            t.labelDesign &&
+            t.labelDesign.formatId &&
+            t.sheetSettings &&
+            !!t.sheetSettings.orientation
+        )
+        .map(normalizeTab);
       if (!project.tabs.some(t => t.id === project.activeTabId)) {
         project.activeTabId = project.tabs[0]?.id ?? '';
       }
     }
+
+    // Верхний уровень — активная вкладка: нормализуется так же, как вкладки.
+    project.labelDesign = normalizeDesign(project.labelDesign);
+    project.sheetSettings = normalizeSheetSettings(project.sheetSettings);
 
     return project;
   } catch (error) {

@@ -17,6 +17,7 @@ import {
   whenPastedTextInserted,
 } from '../utils/textFitter';
 import { calcSnapGuides, sameGuides, type GuideLine } from '../utils/smartGuides';
+import { refreshPdfPreviews } from '../utils/pdfPreview';
 
 /**
  * Применяет сериализованное состояние к канвасу и мигрирует устаревшие штрих-коды.
@@ -116,6 +117,25 @@ export function LabelCanvas() {
   const fabricCanvasRef = useRef<Canvas | null>(null);
   const [guideLines, setGuideLines] = useState<GuideLine[]>([]);
 
+  /**
+   * Счётчик идущих загрузок состояния в холст (переключение вкладки, загрузка
+   * файла, автосохранения). Пока он больше нуля, сохранение и автосохранение
+   * берут canvasJSON из стора, а не снимок с холста: во время loadFromJSON
+   * холст пуст или заполнен наполовину, и такой снимок затёр бы этикетку в
+   * файле.
+   */
+  const canvasLoadsRef = useRef(0);
+  const beginCanvasLoad = useCallback(() => {
+    canvasLoadsRef.current += 1;
+    useProjectStore.getState().setCanvasLoading(true);
+  }, []);
+  const endCanvasLoad = useCallback(() => {
+    canvasLoadsRef.current = Math.max(0, canvasLoadsRef.current - 1);
+    if (canvasLoadsRef.current === 0) {
+      useProjectStore.getState().setCanvasLoading(false);
+    }
+  }, []);
+
   const {
     selectedFormat,
     editorZoom,
@@ -144,6 +164,18 @@ export function LabelCanvas() {
     }
     canvas.requestRenderAll();
   }, [selectedFormat, editorZoom]);
+
+  // Превью вставленных PDF — растр фиксированной плотности, поэтому при
+  // увеличении зума страница дорисована резче (дебаунс: не рендерим на каждый
+  // шаг зума). Физический размер объектов в мм при этом не меняется.
+  useEffect(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const timer = window.setTimeout(() => {
+      void refreshPdfPreviews(canvas, editorZoom);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [editorZoom, loadRevision]);
 
   // Инициализация канваса
   useEffect(() => {
@@ -618,7 +650,12 @@ export function LabelCanvas() {
     // Загрузка сохранённого состояния (при первичном монтировании)
     let disposed = false;
     const loadSavedState = async () => {
-      await applyStateToCanvas(canvas, labelDesign.canvasJSON || {});
+      beginCanvasLoad();
+      try {
+        await applyStateToCanvas(canvas, labelDesign.canvasJSON || {});
+      } finally {
+        endCanvasLoad();
+      }
       if (disposed) return;
       // Скрываем средние точки для всех уже загруженных объектов
       canvas.getObjects().forEach(hideMiddleControls);
@@ -657,6 +694,9 @@ export function LabelCanvas() {
 
     const design = useProjectStore.getState().labelDesign;
     const revisionAtStart = loadRevision;
+    // С этого момента и до конца загрузки холст не считается источником истины
+    // для сохранения и автосохранения (см. collectProjectState).
+    beginCanvasLoad();
     applyStateToCanvas(canvas, design.canvasJSON || {}).then(() => {
       // Если во время асинхронной загрузки началась другая загрузка — канвас не трогаем
       if (useProjectStore.getState().loadRevision !== revisionAtStart) return;
@@ -668,7 +708,15 @@ export function LabelCanvas() {
       c.requestRenderAll();
       // Состояние вкладки фактически применено — предпросмотр может строить лист
       useProjectStore.getState().bumpCanvasContentRevision();
-    });
+    })
+      .catch(error => {
+        // Битая этикетка не должна оставлять холст «вечно загружающимся»:
+        // флаг снимается в finally, но молчать об ошибке нельзя.
+        console.error('Не удалось применить состояние к холсту:', error);
+      })
+      .finally(() => {
+        endCanvasLoad();
+      });
   }, [loadRevision]);
 
   // Обновление размера при изменении формата или зума

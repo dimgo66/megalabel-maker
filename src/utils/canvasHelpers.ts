@@ -8,6 +8,13 @@ export const CUSTOM_PROPS = [
   'barcodeValue',
   'srcPdfId',
   'srcPdfPage',
+  // Размер первой отрисовки PDF-превью: плотность превью меняется с зумом,
+  // а «исходный размер» в панели изображения должен остаться прежним
+  'srcPdfPx',
+  // Низкоплотная копия превью (плотность вставки): в файл проекта и в
+  // автосохранение уходит она, а не резкая копия на 960 dpi — иначе проект
+  // с одним вставленным PDF весит десятки мегабайт и не влезает в хранилище
+  'srcPdfLowSrc',
   'id',
   'locked',
   'barcodeTextYFrac',
@@ -26,9 +33,31 @@ export const CUSTOM_PROPS = [
 /** Сериализация canvas с кастомными свойствами, без служебных объектов */
 export const serializeCanvas = (c: Canvas): any => {
   const json = c.toObject(CUSTOM_PROPS);
-  json.objects = (json.objects || []).filter(
-    (o: any) => o.name !== 'safeArea' && o.name !== 'safetyMargin'
-  );
+  json.objects = (json.objects || [])
+    .filter((o: any) => o.name !== 'safeArea' && o.name !== 'safetyMargin')
+    .map((o: any) => {
+      // Превью вставленного PDF уточняется вместе с зумом: холст может нести
+      // битмап 960 dpi, а в файл уходит копия плотности вставки. Размеры
+      // пересчитываются вместе с ней, чтобы физический размер не изменился.
+      const lowSrc = o.srcPdfLowSrc;
+      const low = o.srcPdfPx;
+      if (o.srcPdfId && lowSrc && low?.width && low?.height && o.width && o.width !== low.width) {
+        const { srcPdfLowSrc: _drop, ...rest } = o;
+        return {
+          ...rest,
+          src: lowSrc,
+          width: low.width,
+          height: low.height,
+          scaleX: (o.scaleX || 1) * (o.width / low.width),
+          scaleY: (o.scaleY || 1) * ((o.height || low.height) / low.height),
+        };
+      }
+      if ('srcPdfLowSrc' in o) {
+        const { srcPdfLowSrc: _drop, ...rest } = o;
+        return rest;
+      }
+      return o;
+    });
   return json;
 };
 

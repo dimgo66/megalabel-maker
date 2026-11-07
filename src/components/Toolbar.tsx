@@ -16,9 +16,18 @@ export function Toolbar({ onPreview }: ToolbarProps) {
     projectName,
     selectedFormat,
     isDirty,
-    setProjectName,
+    setProjectNameFromInput,
     setSelectedFormat,
   } = useProjectStore();
+
+  /**
+   * Название в поле изменено — это уже другая этикетка.
+   * «Сохранить» в этом состоянии открывает «Сохранить как», чтобы не затереть
+   * файл прежней этикетки; подсказка на кнопке объясняет это до нажатия.
+   */
+  const isNewLabel = useProjectStore(
+    s => s.pendingNameTabId !== null && s.pendingNameTabId === s.activeTabId
+  );
 
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -47,9 +56,15 @@ export function Toolbar({ onPreview }: ToolbarProps) {
       <input
         type="text"
         value={projectName}
-        onChange={(e) => setProjectName(e.target.value)}
+        onChange={(e) => setProjectNameFromInput(e.target.value)}
         aria-label="Название проекта"
-        title={isDirty ? 'Есть несохранённые изменения — Ctrl+S, чтобы сохранить' : 'Проект сохранён'}
+        title={
+          isNewLabel
+            ? 'Новое название — это новая этикетка: «Сохранить» предложит сохранить как новый файл'
+            : isDirty
+              ? 'Есть несохранённые изменения — Ctrl+S, чтобы сохранить'
+              : 'Проект сохранён'
+        }
         className={`flex-1 min-w-[14rem] max-w-[40rem] px-3 py-2 rounded-lg text-base text-gray-900 placeholder-gray-500 border transition-all duration-200 focus:outline-none focus:ring-2 ${
           isDirty
             ? 'bg-amber-50 border-amber-300 focus:border-amber-400 focus:ring-amber-400/30'
@@ -58,7 +73,11 @@ export function Toolbar({ onPreview }: ToolbarProps) {
         placeholder="Без названия"
       />
       <span role="status" aria-live="polite" className="sr-only">
-        {isDirty ? 'Есть несохранённые изменения' : 'Проект сохранён'}
+        {isNewLabel
+          ? 'Новое название — новая этикетка: сохранение создаст новый файл'
+          : isDirty
+            ? 'Есть несохранённые изменения'
+            : 'Проект сохранён'}
       </span>
 
       {/* Format selector */}
@@ -73,13 +92,19 @@ export function Toolbar({ onPreview }: ToolbarProps) {
       {/* Divider */}
       <div className="h-8 w-px bg-gray-200 shrink-0 hidden xl:block" />
 
-      {/* Save button — перезапись текущего файла без вопросов (Ctrl+S) */}
+      {/* Save button — перезапись текущего файла без вопросов (Ctrl+S).
+          После смены названия ведёт себя как «Сохранить как»: новая этикетка
+          не затирает файл прежней. */}
       <button
         type="button"
         onClick={handleSave}
         className="btn btn-primary flex items-center gap-2 shrink-0"
-        title="Сохранить (Ctrl+S)"
-        aria-label="Сохранить проект"
+        title={
+          isNewLabel
+            ? 'Новое название — откроется «Сохранить как» (Ctrl+S)'
+            : 'Сохранить (Ctrl+S)'
+        }
+        aria-label={isNewLabel ? 'Сохранить как новый проект' : 'Сохранить проект'}
       >
         <Save size={16} />
         <span className="hidden xl:inline">Сохранить</span>

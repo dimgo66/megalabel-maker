@@ -80,13 +80,15 @@ export function loadSvgFile(file: File): Promise<fabric.FabricObject> {
 /**
  * Загрузка PDF файла как изображения
  * @param password — пароль для защищённых PDF (запрашивается при повторной попытке)
+ * @param zoom — зум редактора: от него считается плотность превью
  */
 export async function loadPdfFile(
   file: File,
   pageNumber: number = 1,
-  password?: string
+  password?: string,
+  zoom: number = 2
 ): Promise<fabric.FabricImage> {
-  const result = await loadPdfAsImage(file, pageNumber, 3, password);
+  const result = await loadPdfAsImage(file, pageNumber, zoom, password);
   const dataUrl = result.canvas.toDataURL('image/png');
   
   return new Promise((resolve, reject) => {
@@ -99,6 +101,14 @@ export async function loadPdfFile(
       if (result.srcPdfId) {
         (fabricImg as any).srcPdfId = result.srcPdfId;
         (fabricImg as any).srcPdfPage = result.pageNumber;
+        // Размер первой отрисовки: плотность превью потом растёт вместе с
+        // зумом, а панель «Изображение» должна показывать исходный размер
+        (fabricImg as any).srcPdfPx = {
+          width: result.canvas.width,
+          height: result.canvas.height,
+        };
+        // Копия этой же плотности уходит в файл проекта и автосохранение
+        (fabricImg as any).srcPdfLowSrc = dataUrl;
       }
       
       resolve(fabricImg);
@@ -160,7 +170,7 @@ export async function handleFileUpload(
 
     // PDF файлы — всегда загружаем первую страницу
     if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      fabricObject = await loadPdfFile(file, 1, options.password);
+      fabricObject = await loadPdfFile(file, 1, options.password, canvas.getZoom() || 2);
     }
     // SVG файлы
     else if (fileType === 'image/svg+xml' || fileName.endsWith('.svg')) {

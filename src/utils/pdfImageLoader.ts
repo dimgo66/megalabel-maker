@@ -4,6 +4,7 @@
 // падает при открытии файла с «n.toHex is not a function».
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.min.mjs';
 import { useProjectStore } from '../store/useProjectStore';
+import { previewDpiFor } from './previewDensity';
 
 // Установить локальный воркер через new URL для Vite.
 // Воркер обязан быть из той же сборки, что и API: у modern/legacy свой набор
@@ -102,17 +103,49 @@ function safeRenderScale(page: pdfjsLib.PDFPageProxy, requested: number): number
 }
 
 /**
+ * Рендер одной страницы в canvas с заданной плотностью.
+ * PDF живёт в пунктах (1 pt = 1/72″), поэтому масштаб pdf.js = dpi / 72:
+ * scale 3 — это 216 dpi, scale 8,33 — 600 dpi. Масштаб подрезается под
+ * пределы canvas браузера (safeRenderScale).
+ */
+async function renderPageCanvas(
+  pdf: pdfjsLib.PDFDocumentProxy,
+  pageNumber: number,
+  dpi: number
+): Promise<HTMLCanvasElement> {
+  const page = await pdf.getPage(pageNumber);
+  const viewport = page.getViewport({ scale: safeRenderScale(page, dpi / 72) });
+
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('Не удалось получить контекст canvas');
+  }
+
+  canvas.width = Math.max(1, Math.round(viewport.width));
+  canvas.height = Math.max(1, Math.round(viewport.height));
+
+  await page.render({
+    canvasContext: context as any,
+    viewport: viewport
+  } as any).promise;
+
+  return canvas;
+}
+
+/**
  * Загрузка PDF файла как изображения
  * @param file - PDF файл
  * @param pageNumber - номер страницы (по умолчанию 1)
- * @param scale - масштаб рендеринга (по умолчанию 3 для высокого качества)
+ * @param zoom - зум редактора: от него считается плотность превью
  * @param password - пароль для защищённых PDF
  * @returns Результат с canvas и ID источника PDF
  */
 export async function loadPdfAsImage(
   file: File,
   pageNumber: number = 1,
-  scale: number = 3,
+  zoom: number = 2,
   password?: string
 ): Promise<PdfPageResult> {
   try {
@@ -140,24 +173,12 @@ export async function loadPdfAsImage(
 
     const page = await pdf.getPage(pageNumber);
 
-    // Масштаб для высокого качества (эквивалент 300 DPI), ограниченный
-    // возможностями canvas браузера.
-    const viewport = page.getViewport({ scale: safeRenderScale(page, scale) });
+    // Размер страницы в мм известен до рендера (масштаб 1 в pdf.js = 72 dpi):
+    // от него зависит, какую плотность выдержит память браузера.
+    const base = page.getViewport({ scale: 1 });
+    const dpi = previewDpiFor(zoom, (base.width / 72) * 25.4, (base.height / 72) * 25.4);
 
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-
-    if (!context) {
-      throw new Error('Не удалось получить контекст canvas');
-    }
-
-    canvas.width = Math.max(1, Math.round(viewport.width));
-    canvas.height = Math.max(1, Math.round(viewport.height));
-
-    await page.render({
-      canvasContext: context as any,
-      viewport: viewport
-    } as any).promise;
+    const canvas = await renderPageCanvas(pdf, pageNumber, dpi);
 
     // Рендер удался — только теперь держим исходные байты для векторного
     // экспорта (pdf-lib встраивает исходную страницу в итоговый PDF).
@@ -172,6 +193,36 @@ export async function loadPdfAsImage(
   } catch (error) {
     console.error('Ошибка загрузки PDF:', error);
     throw error;
+  }
+}
+
+/**
+ * Перерисовать страницу уже вставленного PDF в другой плотности.
+ * Превью на холсте — растр, поэтому при увеличении зума редактора штрихи
+ * «мылятся»; здесь страница рисуется заново из байтов, которые лежат в store.
+ */
+export async function renderPdfPageFromBytes(
+  bytes: ArrayBuffer,
+  pageNumber: number,
+  dpi: number
+): Promise<HTMLCanvasElement> {
+  // Воркер забирает буфер через transfer, поэтому в pdf.js уходит копия:
+  // исходные байты нужны pdf-lib для векторного экспорта.
+  const loadingTask = pdfjsLib.getDocument({
+    data: bytes.slice(0),
+    ...PDFJS_RESOURCES,
+  });
+  const pdf = await loadingTask.promise;
+
+  try {
+    if (pageNumber < 1 || pageNumber > pdf.numPages) {
+      throw new Error(`Неверный номер страницы: ${pageNumber}. PDF содержит ${pdf.numPages} страниц`);
+    }
+    return await renderPageCanvas(pdf, pageNumber, dpi);
+  } finally {
+    // Документ больше не нужен: без этого воркер и разобранные структуры
+    // копились бы при каждом шаге зума.
+    await loadingTask.destroy().catch(() => undefined);
   }
 }
 
@@ -197,25 +248,7 @@ export async function getPdfPageThumbnails(
     const thumbnails: HTMLCanvasElement[] = [];
 
     for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: safeRenderScale(page, scale) });
-
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
-
-      if (!context) {
-        throw new Error('Не удалось получить контекст canvas');
-      }
-
-      canvas.width = Math.max(1, Math.round(viewport.width));
-      canvas.height = Math.max(1, Math.round(viewport.height));
-
-      await page.render({
-        canvasContext: context as any,
-        viewport: viewport
-      } as any).promise;
-
-      thumbnails.push(canvas);
+      thumbnails.push(await renderPageCanvas(pdf, i, scale * 72));
     }
 
     return thumbnails;

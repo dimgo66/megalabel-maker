@@ -109,6 +109,28 @@ interface ProjectState {
   // UI state
   isDirty: boolean;
   projectName: string;
+  /**
+   * Имя этикетки в последнем сохранённом или открытом файле.
+   * '' — файла ещё не было (проект ни разу не сохраняли).
+   */
+  savedName: string;
+  /**
+   * Вкладка, название которой ещё не записано в файл под этим именем.
+   *
+   * Пока это активная вкладка, «Сохранить» идёт путём «Сохранить как»:
+   * название в поле — это уже другая этикетка, перезаписывать прежний файл
+   * нельзя. Флаг ставится только осознанным переименованием (ввод в поле или
+   * переименование активной вкладки), поэтому переключение вкладок его не
+   * поднимает.
+   */
+  pendingNameTabId: string | null;
+  /**
+   * Холст прямо сейчас применяет состояние (переключение вкладки, загрузка
+   * файла). Пока флаг поднят, снимать JSON с живого холста нельзя: в файл или
+   * автосохранение попал бы недогруженный лист. Источником истины тогда
+   * служит canvasJSON из стора.
+   */
+  canvasLoading: boolean;
   editorZoom: number;
   previewZoom: number;
   
@@ -155,7 +177,14 @@ interface ProjectState {
   setCanvasJSON: (json: object) => void;
   setSheetSettings: (settings: Partial<SheetSettings>) => void;
   setProjectName: (name: string) => void;
-  markSaved: () => void;
+  /** Название введено пользователем: этикетка считается новой, пока не сохранена. */
+  setProjectNameFromInput: (name: string) => void;
+  /**
+   * Проект записан в файл.
+   * @param savedName имя, под которым он записан (по умолчанию — текущее)
+   */
+  markSaved: (savedName?: string) => void;
+  setCanvasLoading: (loading: boolean) => void;
   resetProject: () => void;
   setEditorZoom: (zoom: number) => void;
   setPreviewZoom: (zoom: number) => void;
@@ -217,6 +246,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   // UI state
   isDirty: false,
   projectName: 'Новый проект',
+  // Файла ещё нет: первое «Сохранить» и так спрашивает место.
+  savedName: '',
+  pendingNameTabId: null,
+  canvasLoading: false,
   editorZoom: 2.0,
   previewZoom: 2.0,
   
@@ -310,6 +343,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     });
   },
   
+  /**
+   * Задать название программно (после сохранения, при загрузке). Название,
+   * набранное пользователем, идёт через setProjectNameFromInput.
+   */
   setProjectName: (name: string) => {
     const design = get().labelDesign;
     set({
@@ -336,9 +373,33 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       isDirty: true,
     });
   },
-  
-  markSaved: () => {
-    set({ isDirty: false });
+
+  /**
+   * Пользователь ввёл название в поле.
+   *
+   * Название, отличающееся от имени сохранённого файла, — это уже другая
+   * этикетка: «Сохранить» перезаписывать прежний файл не будет, а откроет
+   * «Сохранить как». Вернули прежнее название — отметка снимается.
+   */
+  setProjectNameFromInput: (name: string) => {
+    get().setProjectName(name);
+    const s = get();
+    const pending =
+      s.activeTabId !== '' && name.trim() !== s.savedName.trim() ? s.activeTabId : null;
+    set({ pendingNameTabId: pending });
+  },
+
+  markSaved: (savedName?: string) => {
+    set({
+      isDirty: false,
+      savedName: savedName ?? get().projectName,
+      // Имя записано в файл — «новой» этикетки больше нет.
+      pendingNameTabId: null,
+    });
+  },
+
+  setCanvasLoading: (loading: boolean) => {
+    set({ canvasLoading: loading });
   },
   
   resetProject: () => {
@@ -364,6 +425,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       sheetSettings: createDefaultSettings(),
       projectName: 'Новый проект',
       tabs,
+      // Пустая этикетка — это новая этикетка: снимаем привязку к прежнему
+      // файлу, чтобы «Сохранить» не записало в него пустую этикетку.
+      savedName: '',
+      pendingNameTabId: currentId || null,
       isDirty: false,
       history: [],
       historyIndex: -1,
@@ -433,6 +498,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       labelDesign: design,
       sheetSettings: settings,
       projectName: design.metadata.name,
+      // Только что открытый файл: название этикетки совпадает с именем файла.
+      savedName: design.metadata.name,
+      pendingNameTabId: null,
       // Файл без вкладок (старый формат) → проект с одной вкладкой.
       tabs: [{ id, name: design.metadata.name, labelDesign: design, sheetSettings: settings }],
       activeTabId: id,
@@ -461,11 +529,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const active =
       safeTabs.find(t => t.id === activeTabId) || first;
     const activeFormat = getFormatById(active.labelDesign.formatId) || format;
+    const activeName = active.name || active.labelDesign.metadata.name;
     set({
       selectedFormat: activeFormat,
       labelDesign: active.labelDesign,
       sheetSettings: active.sheetSettings,
-      projectName: active.name || active.labelDesign.metadata.name,
+      projectName: activeName,
+      // Проект только что прочитан из файла — название совпадает с его именем.
+      savedName: activeName,
+      pendingNameTabId: null,
       tabs: safeTabs,
       activeTabId: active.id,
       tabHistories: {},
@@ -508,6 +580,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     const active = rebased.find(t => t.id === activeTabId) || rebased[0];
     const activeFormat = getFormatById(active.labelDesign.formatId) || LABEL_FORMATS[0];
+    const activeName = active.name || active.labelDesign.metadata.name;
 
     // История и масштаб пустой вкладки заменяются данными первой вкладки файла;
     // остальные вкладки файла открываются с пустой историей и базовым масштабом.
@@ -520,7 +593,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       selectedFormat: activeFormat,
       labelDesign: active.labelDesign,
       sheetSettings: active.sheetSettings,
-      projectName: active.name || active.labelDesign.metadata.name,
+      projectName: activeName,
+      // Загруженные вкладки — содержимое только что открытого файла.
+      savedName: activeName,
+      pendingNameTabId: null,
       tabs: [...before, ...rebased, ...after],
       activeTabId: active.id,
       tabHistories,
@@ -654,6 +730,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     delete nextHistories[tabId];
     const nextZooms = { ...snap.tabZooms };
     delete nextZooms[tabId];
+    // Закрыли вкладку с ещё не сохранённым названием — отметка больше не нужна.
+    const pendingNameTabId = s.pendingNameTabId === tabId ? null : s.pendingNameTabId;
 
     // Закрыли активную — выбираем соседнюю.
     if (tabId === s.activeTabId) {
@@ -675,6 +753,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           tabZooms: {},
           activeTabId: id,
           projectName: fresh.name,
+          // Пустая этикетка — новая: прежний файл под неё не подставляется.
+          savedName: '',
+          pendingNameTabId: id,
           labelDesign: design,
           sheetSettings: fresh.sheetSettings,
           selectedFormat: s.selectedFormat,
@@ -697,6 +778,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         tabZooms: nextZooms,
         activeTabId: neighbor.id,
         projectName: neighbor.name || neighbor.labelDesign.metadata.name,
+        pendingNameTabId,
         labelDesign: neighbor.labelDesign,
         sheetSettings: neighbor.sheetSettings,
         selectedFormat: activeFormat,
@@ -714,30 +796,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
 
     // Закрыта неактивная — просто удаляем её.
-    set({ tabs: nextTabs, tabHistories: nextHistories, tabZooms: nextZooms, isDirty: true });
+    set({
+      tabs: nextTabs,
+      tabHistories: nextHistories,
+      tabZooms: nextZooms,
+      pendingNameTabId,
+      isDirty: true,
+    });
   },
   
   renameTab: (tabId: string, name: string) => {
     const trimmed = name.trim() || 'Без названия';
-    set((state) => {
-      const idx = state.tabs.findIndex(t => t.id === tabId);
-      if (idx === -1) return {};
-      const next = state.tabs.slice();
-      next[idx] = { ...next[idx], name: trimmed };
-      const is_active = tabId === state.activeTabId;
-      return {
-        tabs: next,
-        ...(is_active
-          ? {
-              projectName: trimmed,
-              labelDesign: {
-                ...state.labelDesign,
-                metadata: { ...state.labelDesign.metadata, name: trimmed },
+    const s = get();
+    const idx = s.tabs.findIndex(t => t.id === tabId);
+    if (idx === -1) return;
+    // Имя не изменилось — проект не менялся: без этой проверки любой клик по
+    // ярлыку оставлял бы ложные «несохранённые изменения».
+    if (s.tabs[idx].name === trimmed) return;
+
+    const next = s.tabs.slice();
+    next[idx] = { ...next[idx], name: trimmed };
+    const isActive = tabId === s.activeTabId;
+    set({
+      tabs: next,
+      ...(isActive
+        ? {
+            projectName: trimmed,
+            labelDesign: {
+              ...s.labelDesign,
+              metadata: {
+                ...s.labelDesign.metadata,
+                name: trimmed,
+                updatedAt: new Date().toISOString(),
               },
-            }
-          : {}),
-        isDirty: true,
-      };
+            },
+            // Переименовали текущую этикетку — под этим именем файла ещё нет,
+            // значит «Сохранить» должно идти путём «Сохранить как».
+            pendingNameTabId: trimmed === s.savedName.trim() ? null : tabId,
+          }
+        : {}),
+      isDirty: true,
     });
   },
   

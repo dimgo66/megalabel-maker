@@ -24,8 +24,12 @@ export function ImagePropertiesPanel() {
       setLeft(Math.round(img.left || 0));
       setTop(Math.round(img.top || 0));
       setAngle(Math.round(img.angle || 0));
-      setOriginalWidth(img.width || 0);
-      setOriginalHeight(img.height || 0);
+      // Для вставленного PDF ширина/высота объекта меняются вместе с
+      // плотностью превью при зуме, поэтому «исходный размер» берём из
+      // первой отрисовки страницы.
+      const srcPx = (img as any).srcPdfPx;
+      setOriginalWidth(srcPx?.width || img.width || 0);
+      setOriginalHeight(srcPx?.height || img.height || 0);
     }
     // objectRevision обязателен: left/top меняются и в обход этой панели —
     // стрелками на клавиатуре. Без него поля X/Y показывали бы старую позицию.

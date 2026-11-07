@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
 import { serializeProject, deserializeProject } from '../utils/projectSerializer';
 import { serializeCanvas } from '../utils/canvasHelpers';
+import {
+  readAutosaveSnapshot,
+  writeAutosaveSnapshot,
+  clearAutosaveSnapshot,
+  AUTOSAVE_CLEARED_EVENT,
+} from '../utils/autosaveStorage';
 
-const AUTOSAVE_KEY = 'label-maker-autosave';
 const AUTOSAVE_INTERVAL = 30000; // 30 секунд
 /**
  * localStorage даёт ~5 МБ на домен, а JSON проекта с вставленным PDF (растр
@@ -17,44 +22,65 @@ const TOO_BIG_WARNING =
   'Сохраните проект в файл (Ctrl+S), чтобы не потерять работу.';
 
 export function useAutosave() {
-  const { isDirty, labelDesign, sheetSettings, tabs, activeTabId, editorCanvas } = useProjectStore();
+  const isDirty = useProjectStore(state => state.isDirty);
   const [showRestoreBanner, setShowRestoreBanner] = useState(false);
   const [hasAutosave, setHasAutosave] = useState(false);
   const [autosaveWarning, setAutosaveWarning] = useState<string | null>(null);
 
   // Проверяем наличие автосохранения при загрузке
   useEffect(() => {
-    const autosave = localStorage.getItem(AUTOSAVE_KEY);
-    if (autosave) {
+    if (readAutosaveSnapshot()) {
       setHasAutosave(true);
       setShowRestoreBanner(true);
     }
   }, []);
 
-  // Автосохранение каждые 30 секунд при наличии изменений.
-  // Сохраняются ВСЕ вкладки: активная — с живым канвасом, остальные — как есть.
+  // Снимок стёрт извне (проект сохранили в файл или загрузили из файла) —
+  // баннер «Найден несохранённый проект» больше не актуален.
+  useEffect(() => {
+    const handleCleared = () => {
+      setShowRestoreBanner(false);
+      setHasAutosave(false);
+    };
+    window.addEventListener(AUTOSAVE_CLEARED_EVENT, handleCleared);
+    return () => window.removeEventListener(AUTOSAVE_CLEARED_EVENT, handleCleared);
+  }, []);
+
+  // Автосохранение каждые 30 секунд, пока проект изменён.
+  //
+  // Состояние читается из стора В МОМЕНТ срабатывания, а не через подписку.
+  // Раньше эффект зависел от labelDesign/tabs/sheetSettings и перезапускал
+  // таймер на каждую правку: при непрерывной работе 30 секунд тишины так и не
+  // наступало, и автосохранение не срабатывало вовсе.
   useEffect(() => {
     if (!isDirty) return;
 
-    const interval = setInterval(() => {
+    const saveSnapshot = () => {
+      const s = useProjectStore.getState();
+      if (!s.isDirty) return;
+      // Холст применяет новое состояние (переключение вкладки, загрузка) —
+      // снимок с него был бы недогруженным. Пропускаем такт: следующий будет
+      // уже после загрузки.
+      if (s.canvasLoading) return;
+
       try {
         const liveDesign =
-          editorCanvas && activeTabId
-            ? { ...labelDesign, canvasJSON: serializeCanvas(editorCanvas) }
-            : labelDesign;
+          s.editorCanvas && s.activeTabId
+            ? { ...s.labelDesign, canvasJSON: serializeCanvas(s.editorCanvas) }
+            : s.labelDesign;
         const snapshotTabs =
-          activeTabId && tabs.length > 0
-            ? tabs.map(t =>
-                t.id === activeTabId
-                  ? { ...t, labelDesign: liveDesign, sheetSettings }
+          s.activeTabId && s.tabs.length > 0
+            ? s.tabs.map(t =>
+                t.id === s.activeTabId
+                  ? { ...t, labelDesign: liveDesign, sheetSettings: s.sheetSettings }
                   : t
               )
-            : tabs;
+            : s.tabs;
         const json = serializeProject(
           liveDesign,
-          sheetSettings,
+          s.sheetSettings,
           snapshotTabs,
-          activeTabId
+          s.activeTabId
         );
 
         if (json.length > AUTOSAVE_MAX_CHARS) {
@@ -62,9 +88,8 @@ export function useAutosave() {
           return;
         }
 
-        localStorage.setItem(AUTOSAVE_KEY, json);
+        writeAutosaveSnapshot(json);
         setAutosaveWarning(null);
-        console.log('Автосохранение выполнено');
       } catch (error) {
         const isQuota =
           error instanceof DOMException &&
@@ -77,16 +102,22 @@ export function useAutosave() {
         }
         console.error('Ошибка автосохранения:', error);
       }
-    }, AUTOSAVE_INTERVAL);
+    };
 
-    return () => clearInterval(interval);
-  }, [isDirty, labelDesign, sheetSettings, tabs, activeTabId, editorCanvas]);
+    const interval = window.setInterval(saveSnapshot, AUTOSAVE_INTERVAL);
+    return () => window.clearInterval(interval);
+  }, [isDirty]);
 
   // Восстановление из автосохранения
   const restoreAutosave = () => {
     try {
-      const autosave = localStorage.getItem(AUTOSAVE_KEY);
-      if (!autosave) return;
+      const autosave = readAutosaveSnapshot();
+      if (!autosave) {
+        // Снимка уже нет (его стёрло сохранение в файл) — просто убираем баннер.
+        setShowRestoreBanner(false);
+        setHasAutosave(false);
+        return;
+      }
 
       const project = deserializeProject(autosave);
       if (project.tabs && project.tabs.length > 0) {
@@ -96,7 +127,7 @@ export function useAutosave() {
       } else {
         useProjectStore.getState().loadProject(project.labelDesign, project.sheetSettings);
       }
-      localStorage.removeItem(AUTOSAVE_KEY);
+      clearAutosaveSnapshot();
       setShowRestoreBanner(false);
       setHasAutosave(false);
     } catch (error) {
@@ -107,7 +138,7 @@ export function useAutosave() {
 
   // Удаление автосохранения
   const discardAutosave = () => {
-    localStorage.removeItem(AUTOSAVE_KEY);
+    clearAutosaveSnapshot();
     setShowRestoreBanner(false);
     setHasAutosave(false);
   };
