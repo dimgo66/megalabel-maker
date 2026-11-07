@@ -51,26 +51,85 @@ async function fetchFallbackFont(file: string): Promise<string> {
   const url = `${import.meta.env.BASE_URL}fonts/${file}`;
   const cached = fontCache.get(url);
   if (cached) return cached;
-  const res = await fetch(url);
+
+  let res: Response;
+  try {
+    res = await fetch(url);
+  } catch {
+    // Один повтор на сетевом сбое (прокси/антивирус/нестабильный канал).
+    res = await fetch(url);
+  }
   if (!res.ok) throw new Error(`Не удалось загрузить шрифт ${file} (${res.status})`);
   const b64 = toBase64(await res.arrayBuffer());
   fontCache.set(url, b64);
   return b64;
 }
 
+/** Семейства шрифтов, реально используемые текстовыми объектами на canvas */
+function usedFontFamilies(canvas: fabric.Canvas): Set<string> {
+  const families = new Set<string>();
+  const walk = (objects: any[]) => {
+    for (const o of objects) {
+      if (o.type === 'group' && Array.isArray(o._objects)) walk(o._objects);
+      else if (typeof o.fontFamily === 'string' && o.fontFamily) families.add(o.fontFamily);
+    }
+  };
+  walk(canvas.getObjects());
+  return families;
+}
+
 /**
- * Регистрирует в jsPDF все встроенные в приложение шрифты (Arial, Times New
- * Roman, Roboto и т.д.) и локальные TTF-шрифты пользователя.
- * Возвращает множество зарегистрированных имён семейств.
+ * Регистрирует в jsPDF шрифты, нужные для экспорта сцены:
+ *  1) fallback-шрифт (Roboto Condensed) — из вшитых в бандл байтов, без сети;
+ *  2) только те встроенные семейства, что реально используются на этикетке
+ *     (а не все 34 файла), с допуском сбоя: если семейство не загрузилось,
+ *     текст уходит в fallback вместо падения всего векторного экспорта;
+ *  3) локальные TTF-шрифты пользователя (IndexedDB), с допуском сбоя.
+ *
+ * Возвращает множество имён семейств, реально зарегистрированных в jsPDF
+ * (используется mapSvgFonts, чтобы неизвестные семьи уводить в fallback).
  */
-async function registerPdfFonts(doc: jsPDF): Promise<Set<string>> {
+async function registerPdfFonts(doc: jsPDF, canvas: fabric.Canvas): Promise<Set<string>> {
   const registered = new Set<string>();
 
+  // Fallback вшит в бандл — векторная печать не должна зависеть от сети.
+  // Динамический импорт: 294 КБ base64 попадают в отдельный чанк и грузятся
+  // только при печати/экспорте, не раздувая стартовую загрузку приложения.
+  const { FALLBACK_FONT_BASE64 } = await import('../config/fallbackFontData');
+  try {
+    doc.addFileToVFS('embedded-fallback-regular.ttf', FALLBACK_FONT_BASE64.RobotoCondensedRegular);
+    doc.addFont('embedded-fallback-regular.ttf', FALLBACK_FAMILY, 'normal');
+    doc.addFileToVFS('embedded-fallback-bold.ttf', FALLBACK_FONT_BASE64.RobotoCondensedBold);
+    doc.addFont('embedded-fallback-bold.ttf', FALLBACK_FAMILY, 'bold');
+    registered.add(FALLBACK_FAMILY);
+  } catch (e) {
+    console.warn('Не удалось зарегистрировать fallback-шрифт:', e);
+  }
+
+  const used = usedFontFamilies(canvas);
   for (const font of EMBEDDED_FONTS) {
-    for (const style of Object.keys(font.files) as FontStyleKey[]) {
-      const file = font.files[style]!;
+    if (font.family === FALLBACK_FAMILY || !used.has(font.family)) continue;
+
+    const styles = Object.keys(font.files) as FontStyleKey[];
+    const loaded: { style: FontStyleKey; b64: string }[] = [];
+    let ok = true;
+    for (const style of styles) {
+      try {
+        loaded.push({ style, b64: await fetchFallbackFont(font.files[style]!) });
+      } catch (e) {
+        console.warn(
+          `Шрифт ${font.files[style]} недоступен (${e instanceof Error ? e.message : e}) — ` +
+          `семья «${font.family}» будет заменена на ${FALLBACK_FAMILY}`
+        );
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+
+    for (const { style, b64 } of loaded) {
       const vfsName = `embedded-${font.family.replace(/\s+/g, '')}-${style}.ttf`;
-      doc.addFileToVFS(vfsName, await fetchFallbackFont(file));
+      doc.addFileToVFS(vfsName, b64);
       doc.addFont(vfsName, font.family, style);
     }
     registered.add(font.family);
@@ -147,7 +206,7 @@ async function buildScenePdf(
     orientation: format.width_mm > format.height_mm ? 'landscape' : 'portrait',
     compress: true,
   });
-  const registered = await registerPdfFonts(tmp);
+  const registered = await registerPdfFonts(tmp, editorCanvas);
   const svgText = mapSvgFonts(sceneSvg, registered);
 
   const host = document.createElement('div');
