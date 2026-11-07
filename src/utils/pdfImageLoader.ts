@@ -1,9 +1,15 @@
-import * as pdfjsLib from 'pdfjs-dist';
+// Legacy-сборка pdf.js: она транспилирована и несёт core-js-полифилы, поэтому
+// работает в браузерах без новых методов Uint8Array (Chrome/Edge до 140,
+// Firefox до 133, Яндекс Браузер на старом Chromium). Современная сборка в них
+// падает при открытии файла с «n.toHex is not a function».
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.min.mjs';
 import { useProjectStore } from '../store/useProjectStore';
 
-// Установить локальный воркер через new URL для Vite
+// Установить локальный воркер через new URL для Vite.
+// Воркер обязан быть из той же сборки, что и API: у modern/legacy свой набор
+// полифилов, а версии должны совпадать.
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
+  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
   import.meta.url
 ).toString();
 
@@ -71,6 +77,11 @@ export function describePdfError(error: unknown): string {
   }
   if (name === 'AbortException') {
     return 'загрузка прервана';
+  }
+  // Браузер без новых методов Uint8Array (Chrome/Edge < 140, Firefox < 133):
+  // pdf.js падает ещё до разбора файла, сообщение вида «n.toHex is not a function».
+  if (/\b(to|from|setFrom)(Hex|Base64) is not a function\b/.test(message)) {
+    return 'браузер устарел — обновите его (нужен Chrome или Edge 140+, Firefox 133+, Safari 18.2+)';
   }
   if (/Array buffer allocation|Invalid typed array length|out of memory/i.test(message)) {
     return 'файл слишком большой для обработки браузером';
