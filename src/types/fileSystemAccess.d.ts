@@ -38,7 +38,26 @@ interface OpenFilePickerOptions {
   id?: string;
 }
 
+/**
+ * Папка, выбранная пользователем через `showDirectoryPicker`. В lib.dom этого
+ * типа нет вовсе; здесь описан минимум, который нужен приложению: получить
+ * файл по имени (создать, если его нет) и запросить разрешение на запись.
+ */
+interface FileSystemDirectoryHandle {
+  readonly name: string;
+  readonly kind: 'directory';
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>;
+  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
+}
+
+interface DirectoryPickerOptions {
+  id?: string;
+  mode?: 'read' | 'readwrite';
+  startIn?: string;
+}
+
 interface Window {
   showSaveFilePicker(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
   showOpenFilePicker(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
+  showDirectoryPicker(options?: DirectoryPickerOptions): Promise<FileSystemDirectoryHandle>;
 }

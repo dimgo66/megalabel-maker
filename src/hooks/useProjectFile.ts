@@ -13,6 +13,7 @@ import { getFormatById } from '../config/labelFormats';
 import { ProjectFile } from '../types';
 import { serializeCanvas } from '../utils/canvasHelpers';
 import { clearAutosaveSnapshot } from '../utils/autosaveStorage';
+import { hasProjectDir, pickProjectDir, writeCompanionPdf } from '../utils/projectPdf';
 
 /**
  * Сохранение и загрузка проекта в файл — одна реализация на все входы:
@@ -224,6 +225,56 @@ function commitSaved(name: string): void {
 }
 
 /**
+ * PDF-спутник рядом с файлом проекта: Проводник и Finder показывают у PDF
+ * превью первой страницы, у `.json` — ничего. Файл производный: его отсутствие
+ * или сбой записи не влияет на проект, поэтому ошибки только логируются.
+ *
+ * Папка нужна потому, что `showSaveFilePicker` не сообщает путь к выбранному
+ * файлу — браузер прячет файловую систему. Она спрашивается один раз за сеанс
+ * (см. projectPdf) и только когда пользователь уже видел подсказку.
+ *
+ * @param showHint подсказать, как включить превью: только при явном сохранении,
+ *        а не на каждом автоматическом «Сохранить как» после смены названия.
+ */
+/** Подсказку о папке показываем один раз за сеанс, а не на каждое сохранение. */
+let previewHintShown = false;
+
+/** Снимок для спутника: формат, настройки листа и живой холст. */
+function companionInput(projectFileName: string) {
+  const s = useProjectStore.getState();
+  if (!s.editorCanvas) return null;
+  return {
+    projectFileName,
+    format: s.selectedFormat,
+    sheetSettings: s.sheetSettings,
+    editorCanvas: s.editorCanvas,
+  };
+}
+
+async function writeProjectPreviewPdf(projectFileName: string, showHint: boolean): Promise<void> {
+  // Папку ещё не выбирали — не дёргаем диалогом в спину, а объясняем один раз.
+  if (!hasProjectDir() && !showHint) return;
+
+  const input = companionInput(projectFileName);
+  if (!input) return;
+
+  const result = await writeCompanionPdf(input);
+
+  if (result !== 'no-dir' || !showHint || previewHintShown) return;
+
+  const want = window.confirm(
+    'Рядом с проектом можно сохранять PDF-копию этикетки — тогда Проводник и Finder ' +
+    'показывают у файла превью, как у обычного PDF.\n\n' +
+    'Выбрать папку для превью сейчас?'
+  );
+  previewHintShown = true;
+  if (!want) return;
+
+  const picked = await pickProjectDir();
+  if (picked) await writeCompanionPdf(input);
+}
+
+/**
  * «Сохранить как» — всегда новое место.
  *
  * @param keepTypedName набранное в поле название главнее имени файла:
@@ -280,6 +331,9 @@ async function saveProjectAs(currentName: string, keepTypedName: boolean): Promi
 
   bindActiveTabFile({ handle, fileName: handle.name });
   commitSaved(name);
+  // Спутник — после фиксации сохранения: превью не должно задерживать запись
+  // проекта и не должно влиять на её исход.
+  await writeProjectPreviewPdf(handle.name, true);
   return true;
 }
 
@@ -452,6 +506,9 @@ export function useProjectFile() {
       }
 
       commitSaved(s.design.metadata.name);
+      // Спутник пишется и на обычном «Сохранить»: файл проекта мог быть открыт
+      // до появления превью, и без этого PDF рядом так и не появился бы.
+      await writeProjectPreviewPdf(file.fileName, true);
     } finally {
       saving = false;
     }
