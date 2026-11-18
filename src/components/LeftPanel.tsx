@@ -3,6 +3,7 @@ import { Textbox } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { loadGoogleFont, loadLocalFonts } from '../utils/fontLoader';
 import { mmToPx } from '../utils/layoutCalculator';
+import { sceneHeight, sceneWidth } from '../utils/canvasHelpers';
 import { COMPACT_WIDTH_RATIO, syncFrameGeometry } from '../utils/textFitter';
 import { ImagePanel } from './ImagePanel';
 import { BarcodeModal } from './BarcodeModal';
@@ -106,10 +107,11 @@ export function LeftPanel() {
     const state = useProjectStore.getState();
     const margin = state.sheetSettings.safetyMargin_mm > 0 ? state.sheetSettings.safetyMargin_mm : 1;
     const inset = mmToPx(margin);
-    // Размер сцены в базовых координатах: зум редактора на геометрию не влияет.
-    const zoom = canvas.getZoom() || 1;
-    const sceneW = canvas.getWidth() / zoom;
-    const sceneH = canvas.getHeight() / zoom;
+    // Размер этикетки в базовых координатах: зум редактора на геометрию не
+    // влияет, а рабочая зона вокруг этикетки в размер сцены не входит
+    // (sceneWidth вычитает её из размера холста).
+    const sceneW = sceneWidth(canvas);
+    const sceneH = sceneHeight(canvas);
     const zoneWidth = Math.max(8, mmToPx(state.selectedFormat.width_mm) - inset * 2);
 
     const text = new Textbox('Текст', {

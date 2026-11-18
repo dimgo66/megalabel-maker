@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
@@ -21,6 +21,7 @@ function App() {
     selectedFormat,
     sheetSettings,
     editorZoom,
+    pasteboardPx,
     setEditorZoom,
     setLoadedGoogleFonts,
     setLocalFonts,
@@ -29,6 +30,27 @@ function App() {
 
   const DEFAULT_ZOOM = 2.0;
   const zoomPercent = Math.round((editorZoom / DEFAULT_ZOOM) * 100);
+
+  // Размеры этикетки на экране. Рабочая зона вокруг неё (pasteboardPx) приходит
+  // из LabelCanvas: холст шире этикетки, чтобы объекты, рамки и ручки за краем
+  // были видны и доступны мышью.
+  const labelPxW = mmToPx(selectedFormat.width_mm) * editorZoom;
+  const labelPxH = mmToPx(selectedFormat.height_mm) * editorZoom;
+
+  // Рабочая зона растёт/сжимается после правок. Пока содержимое меньше окна,
+  // оно центрируется само (m-auto) и этикетка стоит на месте. Когда содержимое
+  // уже прокручивается, симметричный рост сдвинул бы этикетку вправо/вниз —
+  // компенсируем прокруткой, чтобы вид не прыгал под курсором.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevPasteboardRef = useRef(pasteboardPx);
+  useEffect(() => {
+    const delta = pasteboardPx - prevPasteboardRef.current;
+    prevPasteboardRef.current = pasteboardPx;
+    const el = scrollRef.current;
+    if (!el || delta === 0) return;
+    if (el.scrollWidth > el.clientWidth) el.scrollLeft += delta;
+    if (el.scrollHeight > el.clientHeight) el.scrollTop += delta;
+  }, [pasteboardPx]);
 
   const handleZoomIn = () => setEditorZoom(Math.min(10.0, editorZoom + 0.5));
   const handleZoomReset = () => setEditorZoom(DEFAULT_ZOOM);
@@ -161,18 +183,35 @@ function App() {
               justify-center`: при центрировании flex-контейнером увеличенный
               холст уходит выше/левее начала области прокрутки, и эта часть
               становится недостижимой для скролла. */}
-          <div className="flex-1 flex overflow-auto p-8">
+          <div className="flex-1 flex overflow-auto p-8" ref={scrollRef}>
+            {/* Рабочая зона вокруг этикетки (pasteboard).
+                Холст редактора шире этикетки на `pasteboardPx` с каждой стороны:
+                иначе объект, рамку и ручки за краем просто негде нарисовать.
+                Белый лист этикетки — отдельный слой ПОД холстом (холст
+                прозрачный), поэтому всё, что вышло за лист, видно на серой зоне,
+                но в печать и PDF не попадает (экспорт кадрируется по формату). */}
             <div
-              className={`bg-white shadow-xl flex items-center justify-center relative overflow-hidden shrink-0 m-auto ${
-                selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg border border-gray-300'
-              }`}
+              className="relative shrink-0 m-auto"
               style={{
-                width: `${mmToPx(selectedFormat.width_mm) * editorZoom}px`,
-                height: `${mmToPx(selectedFormat.height_mm) * editorZoom}px`,
+                width: `${labelPxW + pasteboardPx * 2}px`,
+                height: `${labelPxH + pasteboardPx * 2}px`,
                 flexShrink: 0,
-                ...(selectedFormat.shape === 'circle' ? { boxShadow: '0 0 0 2px #d1d5db, 0 10px 15px -3px rgba(0, 0, 0, 0.1)' } : {}),
               }}
             >
+              {/* Лист этикетки под холстом */}
+              <div
+                className={`absolute bg-white shadow-xl ${
+                  selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg border border-gray-300'
+                }`}
+                style={{
+                  left: `${pasteboardPx}px`,
+                  top: `${pasteboardPx}px`,
+                  width: `${labelPxW}px`,
+                  height: `${labelPxH}px`,
+                  ...(selectedFormat.shape === 'circle' ? { boxShadow: '0 0 0 2px #d1d5db, 0 10px 15px -3px rgba(0, 0, 0, 0.1)' } : {}),
+                }}
+              />
+
               {/* Fabric.js Canvas.
                   ВАЖНО: LabelCanvas изолирован в собственном div. fabric.js
                   заменяет <canvas> своей обёрткой (canvas-container) и переносит
@@ -189,8 +228,20 @@ function App() {
               {/* Безопасные поля - визуализация.
                   Контейнер смонтирован ВСЕГДА (не условно): меняется только его
                   внутреннее содержимое, а число React-соседей canvas остаётся
-                  неизменным. */}
-              <div className="absolute inset-0 z-10 pointer-events-none">
+                  неизменным. Слой накрывает ТОЛЬКО лист этикетки, рабочая зона
+                  остаётся чистой; overflow-hidden + скругление не дают штриховке
+                  вылезти за скруглённые углы и за круг. */}
+              <div
+                className={`absolute z-10 pointer-events-none overflow-hidden ${
+                  selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg'
+                }`}
+                style={{
+                  left: `${pasteboardPx}px`,
+                  top: `${pasteboardPx}px`,
+                  width: `${labelPxW}px`,
+                  height: `${labelPxH}px`,
+                }}
+              >
                 {sheetSettings.safetyMargin_mm > 0 && (() => {
                   const marginPx = mmToPx(sheetSettings.safetyMargin_mm) * editorZoom;
                   const w = mmToPx(selectedFormat.width_mm) * editorZoom;

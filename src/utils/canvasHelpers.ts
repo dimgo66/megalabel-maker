@@ -17,6 +17,10 @@ export const CUSTOM_PROPS = [
   'srcPdfLowSrc',
   'id',
   'locked',
+  // Позиция объекта закреплена: его можно выделить и править, но не сдвинуть
+  // мышью или стрелками. Отдельно от `locked` (полный замок слоя) — это две
+  // разные вещи, как «Заблокировать» и «Заблокировать позицию» в InDesign.
+  'positionLocked',
   'barcodeTextYFrac',
   'barcodeFontSizeFrac',
   'barcodeBaseW',
@@ -78,6 +82,15 @@ export async function withoutHistory<T>(fn: () => Promise<T> | T): Promise<T> {
 }
 
 /**
+ * Признак «идёт экспорт»: `withHidden` временно сбрасывает viewportTransform в
+ * единичный, а пересчёт рабочей зоны (pasteboard) в этот момент обязан молчать —
+ * иначе он выставит свой вьюпорт, а `withHidden` вернёт старый, и холст останется
+ * с чужим сдвигом.
+ */
+let hiddenRenderDepth = 0;
+export const isHiddenRender = () => hiddenRenderDepth > 0;
+
+/**
  * Временно скрывает объекты по предикату и сбрасывает viewportTransform.
  * Восстановление гарантировано (finally), в том числе при ошибке.
  */
@@ -90,10 +103,12 @@ export async function withHidden<T>(
   hid.forEach((o: FabricObject) => o.set('visible', false));
   const vpt = canvas.viewportTransform.slice() as typeof canvas.viewportTransform;
   canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+  hiddenRenderDepth++;
   canvas.renderAll();
   try {
     return await fn();
   } finally {
+    hiddenRenderDepth--;
     hid.forEach((o: FabricObject) => o.set('visible', true));
     canvas.viewportTransform = vpt;
     canvas.requestRenderAll();
@@ -131,6 +146,68 @@ export function invalidateTextCache(object: FabricObject | null | undefined): vo
   object.canvas?.requestRenderAll();
 }
 
-/** Размер сцены в базовых координатах (не зависит от зума редактора) */
-export const sceneWidth = (c: Canvas) => c.getWidth() / (c.getZoom() || 1);
-export const sceneHeight = (c: Canvas) => c.getHeight() / (c.getZoom() || 1);
+/**
+ * Рабочая зона вокруг этикетки (pasteboard), в CSS-пикселях холста.
+ *
+ * Холст редактора больше этикетки: вокруг неё есть поле, на котором видны
+ * объекты, рамки выделения и ручки, вышедшие за край. Размер поля хранится на
+ * самом экземпляре холста, а не в JSON проекта: это свойство редактора, а не
+ * этикетки. Живёт на экземпляре потому, что `sceneWidth`/`sceneHeight`
+ * вызываются из утилит, куда холст передаётся без доступа к стору.
+ */
+export const getPasteboardPx = (c: Canvas): number => {
+  const value = (c as Canvas & { __pasteboardPx?: number }).__pasteboardPx;
+  return typeof value === 'number' && value > 0 ? value : 0;
+};
+
+export const setPasteboardPx = (c: Canvas, px: number): void => {
+  (c as Canvas & { __pasteboardPx?: number }).__pasteboardPx = px;
+};
+
+/**
+ * Размер сцены ЭТИКЕТКИ в базовых координатах: без рабочей зоны и без учёта
+ * зума. Раньше это был просто `getWidth()/zoom`, но теперь холст шире этикетки
+ * на поле с каждой стороны — без вычитания поля центрирование объектов,
+ * направляющие и вставка из буфера считались бы по рабочей зоне.
+ */
+export const sceneWidth = (c: Canvas) =>
+  Math.max(0, c.getWidth() - 2 * getPasteboardPx(c)) / (c.getZoom() || 1);
+export const sceneHeight = (c: Canvas) =>
+  Math.max(0, c.getHeight() - 2 * getPasteboardPx(c)) / (c.getZoom() || 1);
+
+/**
+ * Полный замок объекта (иконка «Слои», как «Заблокировать» в InDesign): объект
+ * нельзя ни выделить на холсте, ни сдвинуть, ни отредактировать.
+ *
+ * Флаг `locked` живёт в JSON, а `selectable/evented/hasControls` fabric не
+ * сериализует — поэтому состояние нужно не только записать, но и применить.
+ * Иначе после перезагрузки проекта слой показывался замком, а объект спокойно
+ * тянулся мышью.
+ */
+export function setObjectLocked(object: any, locked: boolean): void {
+  object.locked = locked;
+  object.set({ selectable: !locked, evented: !locked, hasControls: !locked });
+  const canvas = object.canvas;
+  if (locked && canvas?.getActiveObject?.() === object) canvas.discardActiveObject();
+  object.setCoords();
+  canvas?.requestRenderAll?.();
+}
+
+/**
+ * Закрепление позиции (панель «Свойства»): объект остаётся выделяемым и
+ * редактируемым, но мышью и стрелками не двигается — только после снятия
+ * закрепления. Прямой ответ на «слишком подвижный фрейм»: случайное касание
+ * больше не сдвигает содержимое.
+ */
+export function setObjectPositionLocked(object: any, locked: boolean): void {
+  object.positionLocked = locked;
+  object.set({ lockMovementX: locked, lockMovementY: locked });
+  object.setCoords();
+  object.canvas?.requestRenderAll?.();
+}
+
+/** Восстанавливает оба вида замка из сериализованного состояния объекта. */
+export function applyStoredLocks(object: any): void {
+  if (object?.positionLocked) setObjectPositionLocked(object, true);
+  if (object?.locked) setObjectLocked(object, true);
+}

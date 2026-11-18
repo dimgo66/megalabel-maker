@@ -625,6 +625,31 @@ export function syncFrameGeometryKeepingTop(frame: fabric.Textbox): void {
 }
 
 /**
+ * Пересчитывает метрики текста после фактической загрузки шрифтов, не сдвигая
+ * рамку.
+ *
+ * Зачем: перед предпросмотром, PDF и печатью `ensureCanvasFonts` дожидается
+ * загрузки гарнитур и просит каждый текстовый объект заново измерить себя —
+ * иначе перенос строк и высота остаются посчитанными по подставленному шрифту.
+ * Но `Textbox.initDimensions()` пересчитывает `height` из содержимого: у рамки с
+ * ручной высотой (`frameAutoHeight: false`) это расходится с `frameHeight`, а
+ * при `originY: 'center'` верхний край съезжает на половину разницы. Побочный
+ * эффект был виден как «фрейм уехал после отправки на просмотр».
+ *
+ * Порядок важен: точку верхнего края надо снять ДО `initDimensions`, иначе она
+ * будет снята с уже смещённой рамки.
+ */
+export function refreshTextFrameGeometry(frame: fabric.Textbox): void {
+  const anchor = frameTopAnchor(frame);
+  (frame as any).initDimensions?.();
+  // initDimensions не помечает кэш грязным — без этого на холсте остаётся
+  // отрисовка по старым метрикам до первой посторонней перерисовки.
+  frame.dirty = true;
+  syncFrameGeometry(frame);
+  restoreFrameTopAnchor(frame, anchor);
+}
+
+/**
  * Программная правка текста (поле «Текст» панели «Свойства»): рамка остаётся на
  * месте верхним краем.
  *

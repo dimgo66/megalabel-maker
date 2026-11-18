@@ -35,18 +35,46 @@ const PICKER_TYPES: FilePickerAcceptType[] = [
 ];
 
 /**
- * Текущий файл проекта и его имя.
+ * Файл каждой вкладки: имя файла на диске и ручка для записи.
+ *
+ * Файл описывает одну этикетку (текущую вкладку), поэтому и привязка к файлу у
+ * каждой вкладки своя. Общая на всё приложение привязка давала худший из
+ * возможных багов: сохранили этикетку во второй вкладке, закрыли её, нажали
+ * Ctrl+S (поле ведь стало «изменённым») — и первая этикетка молча легла в файл
+ * второй. При открытии такого файла появлялась первая этикетка.
  *
  * Хранится в модульных переменных, а не в состоянии React: ручка обязана
  * переживать ре-рендеры и повторные вызовы хука (хук вызывается и в App.tsx,
  * и в Toolbar.tsx — это два независимых вызова с одним модульным состоянием).
  *
  * `handle === null` в браузерах без File System Access API: там «то же место»
- * недостижимо, сохранение = скачивание с тем же именем, а `savedOnce` отделяет
- * первое сохранение (спрашиваем имя) от последующих (без вопросов).
+ * недостижимо, сохранение = повторное скачивание файла с тем же именем.
  */
-let saveTarget: FileSystemFileHandle | null = null;
-let savedOnce = false;
+interface TabFile {
+  handle: FileSystemFileHandle | null;
+  /** Имя файла на диске (с расширением), как его вернул диалог или открытие. */
+  fileName: string;
+}
+
+const tabFiles = new Map<string, TabFile>();
+
+/**
+ * Забыть файлы вкладок, которых больше нет (вкладку закрыли, сбросили или
+ * заменили загрузкой из файла). Ключ — id вкладки, поэтому запись закрытой
+ * вкладки не может достаться другой этикетке.
+ */
+function pruneTabFiles(): void {
+  const ids = new Set(useProjectStore.getState().tabs.map(t => t.id));
+  for (const tabId of [...tabFiles.keys()]) {
+    if (!ids.has(tabId)) tabFiles.delete(tabId);
+  }
+}
+
+/** Запомнить файл активной вкладки: следующий Ctrl+S пишет уже в него. */
+function bindActiveTabFile(file: TabFile): void {
+  const tabId = useProjectStore.getState().activeTabId;
+  if (tabId) tabFiles.set(tabId, file);
+}
 
 /**
  * Идёт сохранение: открыт диалог выбора файла или пишется файл.
@@ -113,8 +141,8 @@ async function writeProjectToHandle(handle: FileSystemFileHandle, json: string):
 }
 
 /**
- * Полный снимок стора для записи в файл: активная вкладка с живым канвасом
- * (без него последние штрихи на холсте не попали бы в файл) плюс все вкладки.
+ * Снимок активной вкладки для записи в файл: этикетка с живого канваса (без
+ * него последние штрихи на холсте не попали бы в файл) и одна запись в `tabs`.
  *
  * Пока холст применяет состояние (переключение вкладки, загрузка файла), он не
  * источник истины: снимок был бы недогруженным. В этом случае берётся
@@ -134,26 +162,18 @@ function collectProjectState(nameOverride?: string) {
     : liveDesign;
 
   const activeTabId = s.activeTabId || 'tab-active';
-  // Активная вкладка снимается из живого канваса; остальные — как есть.
-  const tabs = s.activeTabId
-    ? s.tabs.map(t =>
-        t.id === s.activeTabId
-          ? {
-              ...t,
-              name: nameOverride ?? t.name,
-              labelDesign: design,
-              sheetSettings: s.sheetSettings,
-            }
-          : t
-      )
-    : [
-        {
-          id: activeTabId,
-          name: nameOverride ?? s.projectName,
-          labelDesign: design,
-          sheetSettings: s.sheetSettings,
-        },
-      ];
+  // В файл пишется ровно одна этикетка — та, из которой сохраняют. Соседние
+  // вкладки живут в своих файлах: иначе файл второй этикетки содержал бы ещё и
+  // первую, а сохранение из одной вкладки решало бы судьбу остальных.
+  const current = s.tabs.find(t => t.id === s.activeTabId);
+  const tabs = [
+    {
+      id: activeTabId,
+      name: nameOverride ?? current?.name ?? s.projectName,
+      labelDesign: design,
+      sheetSettings: s.sheetSettings,
+    },
+  ];
 
   return {
     design,
@@ -226,7 +246,9 @@ async function saveProjectAs(currentName: string, keepTypedName: boolean): Promi
       buildProjectFile(s.design, s.settings, s.tabs, s.activeTabId),
       projectFileName(name)
     );
-    savedOnce = true;
+    // Скачанный файл — файл этой вкладки: следующее «Сохранить» повторит
+    // скачивание под тем же именем, не спрашивая.
+    bindActiveTabFile({ handle: null, fileName: projectFileName(name) });
     commitSaved(name);
     return true;
   }
@@ -256,8 +278,7 @@ async function saveProjectAs(currentName: string, keepTypedName: boolean): Promi
     return false;
   }
 
-  saveTarget = handle;
-  savedOnce = true;
+  bindActiveTabFile({ handle, fileName: handle.name });
   commitSaved(name);
   return true;
 }
@@ -280,17 +301,30 @@ function isEmptyTabActive(s: {
 }
 
 /**
+ * Чем закончилась загрузка файла.
+ *
+ * `tabCount` — сколько этикеток было в файле. Файл из одной этикетки становится
+ * файлом открытой вкладки; файл из нескольких не привязываем: сохранение из
+ * него записало бы одну этикетку и потеряло остальные.
+ */
+interface LoadedProjectInfo {
+  ok: boolean;
+  tabCount: number;
+}
+
+/**
  * Загрузка разобранного файла в стор, с фолбэком имени по имени файла.
  *
  * Если активна пустая вкладка (только что созданная через «+» или сброшенная
  * крестиком), файл занимает её место, а соседние вкладки остаются как были.
  * Иначе загруженный проект заменяет всё открытое состояние.
  *
- * @returns false, если проект не загружен (например, формат из файла неизвестен):
- *          тогда вызывающий код не должен считать этот файл текущим, иначе
- *          Ctrl+S перезапишет только что выбранный файл старым проектом.
+ * @returns ok: false, если проект не загружен (например, формат из файла
+ *          неизвестен): тогда вызывающий код не должен считать этот файл
+ *          текущим, иначе Ctrl+S перезапишет только что выбранный файл старым
+ *          проектом.
  */
-function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
+function applyLoadedProject(project: ProjectFile, fileName: string): LoadedProjectInfo {
   const s = useProjectStore.getState();
   const intoEmpty = isEmptyTabActive(s);
 
@@ -300,7 +334,7 @@ function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
     const invalid = project.tabs.find(t => !getFormatById(t.labelDesign.formatId));
     if (invalid) {
       alert('Формат одной из вкладок не найден в списке доступных');
-      return false;
+      return { ok: false, tabCount: 0 };
     }
 
     const name = projectNameFromFileName(fileName);
@@ -321,13 +355,13 @@ function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
       // Обычная загрузка «поверх всего открытого».
       useProjectStore.getState().loadProjectWithTabs(prepared, activeTabId);
     }
-    return true;
+    return { ok: true, tabCount: prepared.length };
   }
 
   // Файл без вкладок (старый формат).
   if (!getFormatById(project.labelDesign.formatId)) {
     alert('Формат из файла не найден в списке доступных');
-    return false;
+    return { ok: false, tabCount: 0 };
   }
 
   // Имя из метаданных приоритетно, но старые/чужие файлы могут прийти без него —
@@ -356,15 +390,16 @@ function applyLoadedProject(project: ProjectFile, fileName: string): boolean {
   } else {
     useProjectStore.getState().loadProject(design, project.sheetSettings);
   }
-  return true;
+  return { ok: true, tabCount: 1 };
 }
 
 export function useProjectFile() {
   /**
-   * «Сохранить»: перезаписывает текущий файл тем же именем без вопросов.
+   * «Сохранить»: перезаписывает файл этой вкладки без вопросов.
    *
    * Два исключения, когда место всё-таки спрашивается:
-   *  - файла ещё нет (первое сохранение);
+   *  - у этикетки ещё нет своего файла (новая вкладка, только что закрытая
+   *    вкладка, сброс). Файл другой этикетки при этом не трогается;
    *  - название в поле изменили. Новая этикетка не должна затирать файл
    *    прежней: «Сохранить» работает как «Сохранить как», старый файл остаётся
    *    нетронутым, а новое название не теряется.
@@ -375,26 +410,31 @@ export function useProjectFile() {
     const state = useProjectStore.getState();
     const isNewLabel =
       state.pendingNameTabId !== null && state.pendingNameTabId === state.activeTabId;
+    // Файл ищется по активной вкладке: у каждой этикетки свой файл, и поиск по
+    // одной общей привязке — то, из-за чего сохранение уходило в чужой файл.
+    pruneTabFiles();
+    const tabId = state.activeTabId;
+    const file = tabId ? tabFiles.get(tabId) : undefined;
 
     saving = true;
     try {
-      if (!savedOnce || isNewLabel) {
+      if (!file || isNewLabel) {
         await saveProjectAs(state.projectName, isNewLabel);
         return;
       }
 
-      if (!saveTarget) {
+      if (!file.handle) {
         // Fallback-режим: «то же место» недостижимо, повторяем скачивание под тем же именем.
         const s = collectProjectState();
         downloadProjectFile(
           buildProjectFile(s.design, s.settings, s.tabs, s.activeTabId),
-          projectFileName(s.design.metadata.name)
+          projectFileName(file.fileName)
         );
         commitSaved(s.design.metadata.name);
         return;
       }
 
-      if (!(await ensureWritePermission(saveTarget))) {
+      if (!(await ensureWritePermission(file.handle))) {
         // Разрешение не выдали — выходим на путь «Сохранить как»: молча ничего не теряем.
         await saveProjectAs(state.projectName, false);
         return;
@@ -403,7 +443,7 @@ export function useProjectFile() {
       const s = collectProjectState();
       try {
         await writeProjectToHandle(
-          saveTarget,
+          file.handle,
           serializeProject(s.design, s.settings, s.tabs, s.activeTabId)
         );
       } catch (error) {
@@ -450,22 +490,30 @@ export function useProjectFile() {
       const handle = handles[0];
       if (!handle) return;
 
-      let loaded = false;
+      let info: LoadedProjectInfo = { ok: false, tabCount: 0 };
       try {
         const file = await handle.getFile();
         // Имя берём у ручки, а не у File: ручка всегда его знает, а имя файла —
         // единственный фолбэк для проектов, сохранённых без metadata.name.
-        loaded = applyLoadedProject(deserializeProject(await file.text()), handle.name);
+        info = applyLoadedProject(deserializeProject(await file.text()), handle.name);
       } catch (error) {
         alert(`Ошибка загрузки: ${errorMessage(error)}`);
         return;
       }
       // Проект не принят (неизвестный формат) — файл текущим не делаем.
-      if (!loaded) return;
+      if (!info.ok) return;
 
-      // Файл открыт — следующие Ctrl+S пишут в него же, без диалогов.
-      saveTarget = handle;
-      savedOnce = true;
+      // Вкладки, которых больше нет в проекте, теряют свои файлы.
+      pruneTabFiles();
+      // Файл из одной этикетки становится файлом открытой вкладки: следующие
+      // Ctrl+S пишут в него же, без диалогов. Файл из нескольких этикеток не
+      // привязываем: сохранение из него записало бы одну этикетку и потеряло
+      // остальные.
+      const activeId = useProjectStore.getState().activeTabId;
+      if (activeId) {
+        tabFiles.delete(activeId);
+        if (info.tabCount === 1) tabFiles.set(activeId, { handle, fileName: handle.name });
+      }
       // Загруженный файл — новая точка отсчёта: снимок прежней сессии больше
       // не «несохранённая работа» этого проекта.
       clearAutosaveSnapshot();
@@ -481,10 +529,18 @@ export function useProjectFile() {
       if (!file) return;
 
       try {
-        if (applyLoadedProject(await readProjectFile(file), file.name)) {
-          savedOnce = true;
-          clearAutosaveSnapshot();
+        const info = applyLoadedProject(await readProjectFile(file), file.name);
+        if (!info.ok) return;
+
+        pruneTabFiles();
+        const activeId = useProjectStore.getState().activeTabId;
+        if (activeId) {
+          tabFiles.delete(activeId);
+          if (info.tabCount === 1) {
+            tabFiles.set(activeId, { handle: null, fileName: file.name });
+          }
         }
+        clearAutosaveSnapshot();
       } catch (err) {
         alert(`Ошибка загрузки: ${errorMessage(err)}`);
       }

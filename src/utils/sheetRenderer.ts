@@ -2,6 +2,7 @@ import * as fabric from 'fabric';
 import { LabelFormat } from '../types';
 import { mmToPx } from './layoutCalculator';
 import { isEditorOnly, withHidden } from './canvasHelpers';
+import { refreshTextFrameGeometry } from './textFitter';
 
 const MAX_PIXELS = 16_000_000; // Safari iOS режет canvas около 16.7 МП
 const MAX_SIDE = 16384;
@@ -17,10 +18,16 @@ export async function ensureCanvasFonts(canvas: fabric.Canvas): Promise<void> {
     )
   );
   canvas.getObjects().forEach((o: any) => {
-    if (o.fontFamily) {
-      o.dirty = true;
-      o.initDimensions?.();
+    if (!o.fontFamily) return;
+    // Текстовый фрейм пересчитывается вместе с рамкой и обрезкой: «голый»
+    // initDimensions менял height у рамки с ручной высотой и сдвигал её верхний
+    // край (originY: 'center'), из-за чего после предпросмотра фрейм уезжал.
+    if (o.type === 'textbox') {
+      refreshTextFrameGeometry(o);
+      return;
     }
+    o.dirty = true;
+    o.initDimensions?.();
   });
 }
 
@@ -46,8 +53,12 @@ export async function renderLabelAtDpi(
   if (dpi < targetDpi) console.warn(`DPI снижен ${targetDpi} → ${dpi} (лимит памяти canvas)`);
 
   const multiplier = (w_in * dpi) / baseW;
+  // Холст редактора прозрачный: белый лист этикетки — DOM-слой, а вокруг
+  // рабочая зона (объекты за краем этикетки). В растр этикетки фон надо
+  // вернуть: прямоугольной — белый, круглой — прозрачный (её обрезает
+  // композиция листа при отрисовке).
   const originalBg = editorCanvas.backgroundColor;
-  if (format.shape === 'circle') editorCanvas.backgroundColor = 'transparent';
+  editorCanvas.backgroundColor = format.shape === 'circle' ? 'transparent' : '#FFFFFF';
 
   try {
     return await withHidden(editorCanvas, isEditorOnly, () =>

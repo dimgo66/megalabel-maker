@@ -3,7 +3,9 @@ import { Canvas, Textbox } from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
 import { mmToPx } from '../utils/layoutCalculator';
 import { isOutdatedBarcode, recreateBarcodeObject } from '../utils/barcodeObjectFactory';
-import { serializeCanvas, isHistorySuspended, withoutHistory } from '../utils/canvasHelpers';
+import { applyStoredLocks, isHiddenRender, serializeCanvas, isHistorySuspended, withoutHistory, sceneWidth, sceneHeight, setPasteboardPx as writePasteboardPx } from '../utils/canvasHelpers';
+import { copySelectionToClipboard, pasteObjectsFromClipboard } from '../utils/clipboardPaste';
+import { getClipboardEntry, readClipboardToken } from '../utils/objectClipboard';
 import {
   COMPACT_WIDTH_RATIO,
   applyFrameScale,
@@ -17,6 +19,7 @@ import {
   whenPastedTextInserted,
 } from '../utils/textFitter';
 import { calcSnapGuides, sameGuides, type GuideLine } from '../utils/smartGuides';
+import { computePasteboardPx } from '../utils/pasteboard';
 import { refreshPdfPreviews } from '../utils/pdfPreview';
 
 /**
@@ -27,12 +30,18 @@ async function applyStateToCanvas(c: Canvas, json: object): Promise<void> {
   if (!json || Object.keys(json).length === 0) {
     // Пустое состояние: очищаем канвас (для «нового проекта»)
     await withoutHistory(() => c.clear());
-    c.backgroundColor = '#FFFFFF';
+    // Холст прозрачный: белый лист этикетки — DOM-слой под холстом, вокруг —
+    // рабочая зона. Фон холста закрасил бы её целиком.
+    c.backgroundColor = '';
     c.requestRenderAll();
     return;
   }
 
   await withoutHistory(() => c.loadFromJSON(json as any));
+
+  // Проект мог хранить фон холста (старые сохранения кладут background в JSON):
+  // в редакторе фон обязан быть прозрачным, иначе рабочая зона станет белой.
+  c.backgroundColor = '';
 
   // Миграция: пересоздаём старые штрих-коды (без barcodeNorm или с устаревшей
   // нормой). Так проекты, сохранённые генератором с ошибкой в таблице чётности
@@ -79,6 +88,9 @@ async function applyStateToCanvas(c: Canvas, json: object): Promise<void> {
   await withoutHistory(async () => {
     for (const obj of c.getObjects()) {
       if (obj.type === 'textbox') syncFrameGeometry(obj as any);
+      // Замки: fabric не сериализует selectable/evented/lockMovement, поэтому
+      // закреплённая позиция и замок слоя пришлось бы включать заново вручную.
+      applyStoredLocks(obj as any);
     }
   });
 }
@@ -118,6 +130,87 @@ export function LabelCanvas() {
   const [guideLines, setGuideLines] = useState<GuideLine[]>([]);
 
   /**
+   * Рабочая зона вокруг этикетки (pasteboard).
+   *
+   * Холст редактора больше этикетки: вокруг неё есть поле, на котором fabric
+   * рисует объекты, вышедшие за край, их рамки выделения и ручки. Без этого
+   * поля ручки объекта, который больше этикетки, физически не нарисовать и не
+   * поймать мышью — контролы рисуются только внутри холста.
+   *
+   * Пересчёт откладывается до конца жеста: менять размер холста посреди drag
+   * или scaling нельзя — координата под курсором съедет.
+   */
+  const geometryRef = useRef('');
+  const geometryTimerRef = useRef<number | null>(null);
+  /**
+   * Мышь/палец сейчас зажат. Пока это так, размер холста менять нельзя: fabric
+   * считает координату под курсором от текущего вьюпорта, и смена размера
+   * посреди жеста сдвинула бы объект. Пересчёт отложится до отпускания.
+   */
+  const pointerDownRef = useRef(false);
+
+  /**
+   * Приводит холст к формату, зуму и фактическому выходу объектов за этикетку.
+   *
+   * Сцена остаётся в координатах ЭТИКЕТКИ (0,0 — её левый верх): меняются
+   * только размер холста и сдвиг вьюпорта. Поэтому JSON проекта, история,
+   * экспорт и печать от размера рабочей зоны не зависят.
+   */
+  const applyCanvasGeometry = useCallback(() => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    // Идёт экспорт: withHidden временно держит единичный вьюпорт, свой сдвиг
+    // выставим после него (его requestRenderAll снова вызовет пересчёт).
+    if (isHiddenRender()) return;
+
+    const { selectedFormat: format, editorZoom: zoom } = useProjectStore.getState();
+    const labelW = mmToPx(format.width_mm);
+    const labelH = mmToPx(format.height_mm);
+    const pasteboard = computePasteboardPx(canvas, labelW, labelH, zoom);
+
+    const width = labelW * zoom + pasteboard * 2;
+    const height = labelH * zoom + pasteboard * 2;
+    const key = `${width}x${height}@${zoom}`;
+    if (key === geometryRef.current) return;
+    geometryRef.current = key;
+
+    // Размер поля живёт на холсте: по нему `sceneWidth`/`sceneHeight` отдают
+    // размеры этикетки, а не всего холста с полем.
+    writePasteboardPx(canvas, pasteboard);
+
+    canvas.setDimensions({ width, height });
+    // Этикетка остаётся на месте в сцене, а в пикселях холста сдвигается на
+    // размер поля: сцена (0,0) → (pasteboard, pasteboard).
+    canvas.setViewportTransform([zoom, 0, 0, zoom, pasteboard, pasteboard]);
+    // Элемент переехал и изменился — без пересчёта смещения мышь считалась бы
+    // от старой позиции, и попадание по объектам уезжало бы.
+    canvas.calcOffset();
+
+    // App по этому значению расставляет белый лист этикетки и безопасные поля.
+    const store = useProjectStore.getState();
+    if (store.pasteboardPx !== pasteboard) store.setPasteboardPx(pasteboard);
+
+    canvas.requestRenderAll();
+  }, []);
+
+  /**
+   * Отложенный пересчёт геометрии. `after:render` покрывает все причины
+   * изменения рамки — drag, тягу за ручки, правку текста и кегля из панели,
+   * добавление и удаление объектов, загрузку, undo/redo, зум; задержка
+   * гарантирует, что размер холста не меняется посреди трансформации.
+   */
+  const scheduleGeometrySync = useCallback(() => {
+    if (geometryTimerRef.current !== null) window.clearTimeout(geometryTimerRef.current);
+    geometryTimerRef.current = window.setTimeout(() => {
+      geometryTimerRef.current = null;
+      // Кнопка мыши ещё зажата — пересчёт отложен до mouse:up, иначе холст
+      // изменит размер посреди перетаскивания.
+      if (pointerDownRef.current) return;
+      applyCanvasGeometry();
+    }, 160);
+  }, [applyCanvasGeometry]);
+
+  /**
    * Счётчик идущих загрузок состояния в холст (переключение вкладки, загрузка
    * файла, автосохранения). Пока он больше нуля, сохранение и автосохранение
    * берут canvasJSON из стора, а не снимок с холста: во время loadFromJSON
@@ -139,6 +232,7 @@ export function LabelCanvas() {
   const {
     selectedFormat,
     editorZoom,
+    pasteboardPx,
     labelDesign,
     loadRevision,
     setCanvasJSON,
@@ -146,24 +240,8 @@ export function LabelCanvas() {
     setEditorCanvas,
   } = useProjectStore();
 
-  // Размер и зум: сцена всегда в базовых координатах (96 dpi), масштаб — через setZoom.
-  // Retina-масштабирование fabric делает сам.
-  const updateCanvasSize = useCallback(() => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-
-    canvas.setDimensions({
-      width: mmToPx(selectedFormat.width_mm) * editorZoom,
-      height: mmToPx(selectedFormat.height_mm) * editorZoom,
-    });
-    canvas.setZoom(editorZoom);
-
-    if (canvas.wrapperEl) {
-      canvas.wrapperEl.style.borderRadius = selectedFormat.shape === 'circle' ? '50%' : '0';
-      canvas.wrapperEl.style.overflow = selectedFormat.shape === 'circle' ? 'hidden' : '';
-    }
-    canvas.requestRenderAll();
-  }, [selectedFormat, editorZoom]);
+  // Формат и зум применяются эффектом ниже, ПОСЛЕ инициализации холста:
+  // applyCanvasGeometry работает с живым экземпляром fabric.
 
   // Превью вставленных PDF — растр фиксированной плотности, поэтому при
   // увеличении зума страница дорисована резче (дебаунс: не рендерим на каждый
@@ -182,9 +260,13 @@ export function LabelCanvas() {
     if (!canvasRef.current) return;
 
     const canvas = new Canvas(canvasRef.current, {
-      backgroundColor: '#FFFFFF',
+      // Фон прозрачный: белый лист этикетки и серая рабочая зона — DOM-слои
+      // под холстом (см. App), а объекты за краем рисуются поверх зоны.
       preserveObjectStacking: true,
     });
+
+    // Новый холст — геометрию (размер этикетки + рабочая зона) применяем заново.
+    geometryRef.current = '';
 
     fabricCanvasRef.current = canvas;
     
@@ -218,6 +300,26 @@ export function LabelCanvas() {
       applyFrameScale(target);
     };
     canvas.on('object:scaling', handleFrameScaling);
+
+    // Рабочая зона вокруг этикетки: пересчитываем её после каждой отрисовки
+    // холста (с задержкой). `after:render` — единственная точка, покрывающая
+    // все причины: drag, тягу за ручки, правку текста, кегль из панели,
+    // добавление/удаление объектов, загрузку, undo/redo и зум. Собственного
+    // рендера здесь не происходит, поэтому рекурсии нет: следующий вызов
+    // увидит тот же размер и ничего не изменит.
+    canvas.on('after:render', scheduleGeometrySync);
+
+    // Пока кнопка мыши зажата, пересчёт рабочей зоны откладывается: смена
+    // размера холста посреди жеста сдвинула бы координату под курсором.
+    const handlePointerDown = () => {
+      pointerDownRef.current = true;
+    };
+    const handlePointerUp = () => {
+      pointerDownRef.current = false;
+      scheduleGeometrySync();
+    };
+    canvas.on('mouse:down', handlePointerDown);
+    canvas.on('mouse:up', handlePointerUp);
 
     // Рамка обязана помнить собственную высоту: fabric пересчитывает height из
     // содержимого при каждой правке текста и каждом переносе строк. Поэтому
@@ -283,6 +385,15 @@ export function LabelCanvas() {
     };
     canvas.on('object:removed', handleObjectRemoved);
 
+    // ── Порог случайного сдвига ────────────────────────────────────────────
+    // Мышь задевает объект на 1–2 px при обычном клике, и содержимое уезжает.
+    // Пока смещение меньше порога, объект возвращается на место: сдвиг требует
+    // осознанного жеста. Значение в пикселях сцены — при базовом масштабе 96 dpi
+    // 3 px ≈ 0.8 мм, заметно меньше любого осмысленного перемещения.
+    const DRAG_THRESHOLD_PX = 3;
+    let dragStart: { obj: any; left: number; top: number } | null = null;
+    let dragArmed = false;
+
     // ── Alt+drag: дублирование объекта ─────────────────────────────────────
     // cloneRef хранит готовый клон между mouse:down и первым object:moving
     let cloneRef: any = null;
@@ -291,6 +402,9 @@ export function LabelCanvas() {
     canvas.on('mouse:down', (opt: any) => {
       cloneRef = null;
       altDragDone = false;
+      dragArmed = false;
+      const target = opt.target as any;
+      dragStart = target ? { obj: target, left: target.left ?? 0, top: target.top ?? 0 } : null;
       const e = opt.e as MouseEvent;
       if (!e.altKey) return;
       const active = canvas.getActiveObject();
@@ -308,6 +422,20 @@ export function LabelCanvas() {
     canvas.on('object:moving', (e: any) => {
       const target = e.target;
       if (!target) return;
+
+      // Случайное касание: пока смещение меньше порога, объект стоит на месте.
+      // Проверка идёт ДО Alt+drag и направляющих — иначе клон создавался бы от
+      // простого клика с дрожанием руки.
+      if (dragStart && !dragArmed && dragStart.obj === target) {
+        const dx = (target.left ?? 0) - dragStart.left;
+        const dy = (target.top ?? 0) - dragStart.top;
+        if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) {
+          target.set({ left: dragStart.left, top: dragStart.top });
+          target.setCoords();
+          return;
+        }
+        dragArmed = true;
+      }
 
       // Alt+drag: при первом движении добавляем клон вместо оригинала
       if (cloneRef && !altDragDone) {
@@ -342,6 +470,8 @@ export function LabelCanvas() {
     canvas.on('mouse:up', () => {
       cloneRef = null;
       altDragDone = false;
+      dragStart = null;
+      dragArmed = false;
       setGuideLines([]);
     });
 
@@ -479,8 +609,8 @@ export function LabelCanvas() {
       // Режим ввода текста: стрелки — навигация по символам
       if (active.isEditing) return;
       // Заблокированный слой: мышью он не двигается (evented=false) — с
-      // клавиатуры тоже не должен
-      if (active.locked) return;
+      // клавиатуры тоже не должен. Закреплённая позиция — то же самое.
+      if (active.locked || active.positionLocked) return;
 
       e.preventDefault();
 
@@ -539,8 +669,75 @@ export function LabelCanvas() {
       return el.getAttribute('data-fabric') !== 'textarea';
     };
 
+    // ── Копирование и вырезание объектов ───────────────────────────────────
+    // Слушаем события `copy`/`cut`, а не keydown: только здесь браузер даёт
+    // записать в системный буфер без разрешений и без промисов. Объекты при
+    // этом кладутся в буфер приложения (objectClipboard), поэтому переключение
+    // вкладки их не теряет — холст перезагружается, а модуль живёт.
+    //
+    // Ctrl+C не наш, когда: идёт правка текста в объекте, выделен текст на
+    // странице (справка, подписи), фокус в поле панели, холст закрыт модалкой.
+    const isCanvasCopyContext = (): boolean => {
+      const active = canvas.getActiveObject() as any;
+      if (!active || active.isEditing) return false;
+      if (isForeignInputField(document.activeElement as HTMLElement | null)) return false;
+      if ((window.getSelection()?.toString() ?? '').trim()) return false;
+      return !isCanvasCovered();
+    };
+
+    const handleClipboardCut = (mode: 'copy' | 'cut') => (e: ClipboardEvent) => {
+      if (!isCanvasCopyContext()) return;
+      if (!copySelectionToClipboard(canvas, e.clipboardData, mode)) return;
+      e.preventDefault();
+    };
+
+    const handleCopy = handleClipboardCut('copy');
+    const handleCut = handleClipboardCut('cut');
+
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('cut', handleCut);
+
+    /**
+     * Поле ввода не должно получить метку буфера как текст.
+     *
+     * В системном буфере после копирования объекта лежит служебная строка
+     * (`MEGALABEL-OBJECT-CLIP:…`). Без этого перехвата Ctrl+V в поле названия
+     * или в панели «Текст» вставил бы её как обычный текст. Перехват — в фазе
+     * захвата: он обязан сработать раньше обработчика вставки самой панели.
+     */
+    const handleMarkerPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || typeof target.tagName !== 'string') return;
+      const isField =
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (!isField) return;
+      if (!readClipboardToken(e.clipboardData)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    document.addEventListener('paste', handleMarkerPaste, true);
+
     const handlePaste = (e: ClipboardEvent) => {
       if (isForeignInputField(document.activeElement as HTMLElement | null)) return;
+
+      // Объект, скопированный в приложении (в том числе в другой вкладке).
+      // Метка — единственный признак: в буфере лежит служебная строка, и
+      // вставлять её на этикетку текстом нельзя ни в каком случае.
+      const token = readClipboardToken(e.clipboardData);
+      if (token) {
+        e.preventDefault();
+        const entry = getClipboardEntry(token);
+        // В режиме правки текста объекта клавиша принадлежит тексту: объект в
+        // него не вставляем, но и метку в текст не пускаем.
+        const editing = (canvas.getActiveObject() as any)?.isEditing;
+        // Холст закрыт модалкой (предпросмотр, справка) — вставка относилась бы
+        // к ней, а не к этикетке: объект появился бы «за» окном.
+        if (entry && !editing && !isCanvasCovered()) {
+          void pasteObjectsFromClipboard(canvas, entry);
+        }
+        return;
+      }
 
       const active = canvas.getActiveObject() as any;
       const isTextField = !!active && (active.type === 'i-text' || active.type === 'textbox');
@@ -582,11 +779,12 @@ export function LabelCanvas() {
         const zoneWidth = Math.max(8, mmToPx(state.selectedFormat.width_mm) - inset * 2);
         const initialWidth = Math.max(32, zoneWidth * COMPACT_WIDTH_RATIO);
         // Блок встаёт в центр этикетки, как и при добавлении через панель:
-        // левый верхний угол читался как «уехавший за край» блок.
-        const zoom = canvas.getZoom() || 1;
+        // левый верхний угол читался как «уехавший за край» блок. Размер сцены
+        // берём без рабочей зоны (sceneWidth): иначе центр считался бы по всему
+        // холсту и блок встал бы за краем этикетки.
         const textbox = new Textbox(fragment, {
-          left: canvas.getWidth() / zoom / 2,
-          top: canvas.getHeight() / zoom / 2,
+          left: sceneWidth(canvas) / 2,
+          top: sceneHeight(canvas) / 2,
           originX: 'center',
           originY: 'center',
           width: initialWidth,
@@ -670,10 +868,22 @@ export function LabelCanvas() {
       // Незафиксированная серия сдвигов должна попасть в историю и в
       // canvasJSON до размонтирования, иначе последний сдвиг потеряется.
       flushNudgeHistory();
+      // Пересчёт рабочей зоны идёт по таймеру «после отрисовки»: снимаем
+      // подписку и гасим таймер, иначе он дёрнет уже уничтоженный холст.
+      canvas.off('after:render', scheduleGeometrySync);
+      canvas.off('mouse:down', handlePointerDown);
+      canvas.off('mouse:up', handlePointerUp);
+      if (geometryTimerRef.current !== null) {
+        window.clearTimeout(geometryTimerRef.current);
+        geometryTimerRef.current = null;
+      }
       window.removeEventListener('keydown', handleKeyDelete);
       window.removeEventListener('keydown', handleKeyNudge, true);
       window.removeEventListener('blur', handleNudgeBlur);
       document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('cut', handleCut);
+      document.removeEventListener('paste', handleMarkerPaste, true);
       canvas.off('mouse:down', handleNudgeMouseDown);
       canvas.dispose();
       setEditorCanvas(null);
@@ -719,10 +929,12 @@ export function LabelCanvas() {
       });
   }, [loadRevision]);
 
-  // Обновление размера при изменении формата или зума
+  // Формат и зум: сцена всегда в базовых координатах (96 dpi), масштаб — через
+  // viewportTransform, а вокруг этикетки — рабочая зона. Эффект объявлен после
+  // инициализации холста, чтобы к первому вызову экземпляр fabric уже был.
   useEffect(() => {
-    updateCanvasSize();
-  }, [updateCanvasSize]);
+    applyCanvasGeometry();
+  }, [applyCanvasGeometry, selectedFormat, editorZoom]);
 
   // Обработчик колеса мыши для зума
   useEffect(() => {
@@ -760,9 +972,10 @@ export function LabelCanvas() {
   // PreviewModal.tsx (окно предпросмотра). Локальные копии были объявлены, но
   // ни к чему не подключены.
 
-  // Размеры холста в пикселях (с учётом zoom) для рендера направляющих
-  const canvasPxW = mmToPx(selectedFormat.width_mm) * editorZoom;
-  const canvasPxH = mmToPx(selectedFormat.height_mm) * editorZoom;
+  // Размеры холста в пикселях (этикетка + рабочая зона) для рендера направляющих.
+  // Сами направляющие живут в координатах этикетки, поэтому сдвигаются на поле.
+  const canvasPxW = mmToPx(selectedFormat.width_mm) * editorZoom + pasteboardPx * 2;
+  const canvasPxH = mmToPx(selectedFormat.height_mm) * editorZoom + pasteboardPx * 2;
 
   return (
     <>
@@ -785,12 +998,12 @@ export function LabelCanvas() {
       >
         {guideLines.map((guide, i) =>
           guide.orientation === 'v' ? (
-            // Вертикальная направляющая (x = pos * zoom)
+            // Вертикальная направляющая: x = поле + pos * zoom
             <line
               key={`v${i}`}
-              x1={guide.pos * editorZoom}
+              x1={pasteboardPx + guide.pos * editorZoom}
               y1={0}
-              x2={guide.pos * editorZoom}
+              x2={pasteboardPx + guide.pos * editorZoom}
               y2={canvasPxH}
               stroke="#3b82f6"
               strokeWidth={1}
@@ -798,13 +1011,13 @@ export function LabelCanvas() {
               opacity={0.85}
             />
           ) : (
-            // Горизонтальная направляющая (y = pos * zoom)
+            // Горизонтальная направляющая: y = поле + pos * zoom
             <line
               key={`h${i}`}
               x1={0}
-              y1={guide.pos * editorZoom}
+              y1={pasteboardPx + guide.pos * editorZoom}
               x2={canvasPxW}
-              y2={guide.pos * editorZoom}
+              y2={pasteboardPx + guide.pos * editorZoom}
               stroke="#3b82f6"
               strokeWidth={1}
               strokeDasharray="4 3"

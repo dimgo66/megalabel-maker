@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as fabric from 'fabric';
 import { useProjectStore } from '../store/useProjectStore';
+import { setObjectLocked } from '../utils/canvasHelpers';
 import { CollapsibleSection } from './CollapsibleSection';
 import {
   ArrowDown,
@@ -159,13 +160,9 @@ export function LayersPanel({ canvas }: LayersPanelProps) {
   const handleToggleLock = (layer: LayerItem) => {
     if (!canvas) return;
     const isLocked = !(layer.object as any).locked;
-    (layer.object as any).locked = isLocked;
-    layer.object.set({
-      selectable: !isLocked,
-      evented: !isLocked,
-      hasControls: !isLocked,
-    });
-    canvas.renderAll();
+    // Общая точка входа: она же применяется при загрузке проекта. Без неё
+    // замок оставался только флагом в JSON и после перезагрузки не действовал.
+    setObjectLocked(layer.object, isLocked);
     setLayers((prev) =>
       prev.map((l) =>
         l.object === layer.object ? { ...l, locked: isLocked } : l

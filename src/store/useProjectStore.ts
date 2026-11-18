@@ -5,6 +5,7 @@ import { LABEL_FORMATS, getFormatById } from '../config/labelFormats';
 import { createEmptyDesign, createDefaultSettings } from '../utils/projectSerializer';
 import { FontConfig, LocalFontInfo, FONT_CONFIGS } from '../config/fonts';
 import { serializeCanvas, withoutHistory } from '../utils/canvasHelpers';
+import { tabDigest } from '../utils/tabDigest';
 
 const EMPTY_CANVAS = { version: '7', objects: [], background: '#FFFFFF' };
 
@@ -91,6 +92,34 @@ function makeTabEntry(s: {
   };
 }
 
+/**
+ * Отпечаток активной вкладки «как она выглядит сейчас» — для отметки «сохранена».
+ *
+ * Живой холст важнее последней записи в стор (как и в snapshotActiveTab): без
+ * этого только что сделанная правка не попала бы в отпечаток, и вкладка
+ * считалась бы сохранённой.
+ */
+function digestOfActiveTab(s: {
+  tabs: ProjectTabEntry[];
+  activeTabId: string;
+  projectName: string;
+  labelDesign: LabelDesign;
+  sheetSettings: SheetSettings;
+  editorCanvas: fabric.Canvas | null;
+  canvasLoading: boolean;
+}): string {
+  const liveDesign =
+    s.editorCanvas && s.activeTabId && !s.canvasLoading
+      ? { ...s.labelDesign, canvasJSON: serializeCanvas(s.editorCanvas) }
+      : s.labelDesign;
+  const entry = s.tabs.find(t => t.id === s.activeTabId);
+  return tabDigest({
+    name: entry?.name ?? s.projectName,
+    labelDesign: liveDesign,
+    sheetSettings: s.sheetSettings,
+  });
+}
+
 interface ProjectState {
   // Format
   selectedFormat: LabelFormat;
@@ -125,6 +154,21 @@ interface ProjectState {
    */
   pendingNameTabId: string | null;
   /**
+   * Имя, под которым каждая вкладка записана в свой файл ('' — не сохранялась).
+   *
+   * Файл описывает одну этикетку, поэтому «сохранено» — свойство вкладки, а не
+   * всего проекта: в памяти сеанса это надо помнить по вкладкам, иначе после
+   * переключения или закрытия вкладки поле сравнивало бы название с именем
+   * чужого файла. В файл проекта это поле не пишется.
+   */
+  tabSavedNames: Record<string, string>;
+  /**
+   * Отпечаток содержимого вкладки на момент её записи или открытия файла.
+   * По нему видно, есть ли в вкладке несохранённые правки (закрытие вкладки
+   * спрашивает подтверждение именно об этом). В файл не пишется.
+   */
+  tabSavedDigests: Record<string, string>;
+  /**
    * Холст прямо сейчас применяет состояние (переключение вкладки, загрузка
    * файла). Пока флаг поднят, снимать JSON с живого холста нельзя: в файл или
    * автосохранение попал бы недогруженный лист. Источником истины тогда
@@ -132,6 +176,15 @@ interface ProjectState {
    */
   canvasLoading: boolean;
   editorZoom: number;
+  /**
+   * Рабочая зона вокруг этикетки в CSS-пикселях холста.
+   *
+   * Холст редактора шире этикетки на это поле: на нём видны объекты, рамки
+   * выделения и ручки, вышедшие за край. Ставит `LabelCanvas` после пересчёта;
+   * `App` по этому значению расставляет лист этикетки и безопасные поля.
+   * Свойство редактора, а не этикетки: в проект и JSON не пишется.
+   */
+  pasteboardPx: number;
   previewZoom: number;
   
   // Fonts
@@ -187,6 +240,7 @@ interface ProjectState {
   setCanvasLoading: (loading: boolean) => void;
   resetProject: () => void;
   setEditorZoom: (zoom: number) => void;
+  setPasteboardPx: (px: number) => void;
   setPreviewZoom: (zoom: number) => void;
   loadProject: (design: LabelDesign, settings: SheetSettings) => void;
   loadProjectWithTabs: (tabs: ProjectTabEntry[], activeTabId: string) => void;
@@ -249,8 +303,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   // Файла ещё нет: первое «Сохранить» и так спрашивает место.
   savedName: '',
   pendingNameTabId: null,
+  tabSavedNames: {},
+  tabSavedDigests: {},
   canvasLoading: false,
   editorZoom: 2.0,
+  // Размер рабочей зоны считает LabelCanvas — здесь только значение по умолчанию
+  // до первого пересчёта.
+  pasteboardPx: 0,
   previewZoom: 2.0,
   
   // Fonts
@@ -390,9 +449,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   markSaved: (savedName?: string) => {
+    const s = get();
+    const name = savedName ?? s.projectName;
+    const tabId = s.activeTabId;
+    const tabSavedNames = { ...s.tabSavedNames };
+    const tabSavedDigests = { ...s.tabSavedDigests };
+    if (tabId) {
+      tabSavedNames[tabId] = name;
+      // Отпечаток снимается после записи: именно это содержимое лежит в файле.
+      tabSavedDigests[tabId] = digestOfActiveTab(s);
+    }
     set({
       isDirty: false,
-      savedName: savedName ?? get().projectName,
+      savedName: name,
+      tabSavedNames,
+      tabSavedDigests,
       // Имя записано в файл — «новой» этикетки больше нет.
       pendingNameTabId: null,
     });
@@ -420,11 +491,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           return next;
         })()
       : get().tabs;
+    // Сброшенная вкладка — новая этикетка: её файл и отпечаток больше не её.
+    const tabSavedNames = { ...get().tabSavedNames };
+    const tabSavedDigests = { ...get().tabSavedDigests };
+    if (currentId) {
+      delete tabSavedNames[currentId];
+      delete tabSavedDigests[currentId];
+    }
     set({
       labelDesign: createEmptyDesign(format.id, 'Новый проект'),
       sheetSettings: createDefaultSettings(),
       projectName: 'Новый проект',
       tabs,
+      tabSavedNames,
+      tabSavedDigests,
       // Пустая этикетка — это новая этикетка: снимаем привязку к прежнему
       // файлу, чтобы «Сохранить» не записало в него пустую этикетку.
       savedName: '',
@@ -441,6 +521,16 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setEditorZoom: (zoom: number) => {
     const DEFAULT_ZOOM = 2.0;
     set({ editorZoom: Math.max(DEFAULT_ZOOM, Math.min(10.0, zoom)) });
+  },
+
+  /**
+   * Ширина рабочей зоны вокруг этикетки (CSS px). Значение ставит LabelCanvas
+   * после пересчёта; сравнение с текущим — чтобы не дёргать ре-рендер App на
+   * каждом событии холста, когда размер поля не изменился.
+   */
+  setPasteboardPx: (px: number) => {
+    if (get().pasteboardPx === px) return;
+    set({ pasteboardPx: px });
   },
   
   setPreviewZoom: (zoom: number) => {
@@ -504,6 +594,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       // Файл без вкладок (старый формат) → проект с одной вкладкой.
       tabs: [{ id, name: design.metadata.name, labelDesign: design, sheetSettings: settings }],
       activeTabId: id,
+      // Открытый файл — файл этой вкладки; отпечаток снят с его содержимого.
+      tabSavedNames: { [id]: design.metadata.name },
+      tabSavedDigests: {
+        [id]: tabDigest({ name: design.metadata.name, labelDesign: design, sheetSettings: settings }),
+      },
       tabHistories: {},
       tabZooms: {},
       isDirty: false,
@@ -540,6 +635,15 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       pendingNameTabId: null,
       tabs: safeTabs,
       activeTabId: active.id,
+      // Файл открыт из вкладки active — её и считаем записанной. Остальные
+      // вкладки файла на диске не имеют: сохранять их надо в свои файлы.
+      tabSavedNames: { [active.id]: activeName },
+      tabSavedDigests: Object.fromEntries(
+        safeTabs.map(t => [
+          t.id,
+          tabDigest({ name: t.name, labelDesign: t.labelDesign, sheetSettings: t.sheetSettings }),
+        ])
+      ),
       tabHistories: {},
       // Масштаб в файле не хранится: все вкладки открываются с базового 2.0
       tabZooms: {},
@@ -589,6 +693,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const tabZooms: Record<string, number> = { ...s.tabZooms };
     delete tabZooms[emptyId];
 
+    // Записана в файл здесь только активная вкладка файла; соседние вкладки
+    // (и свои, и из файла) остаются без собственного файла на диске.
+    const tabSavedNames: Record<string, string> = { ...s.tabSavedNames };
+    delete tabSavedNames[emptyId];
+    tabSavedNames[active.id] = activeName;
+
+    const tabSavedDigests: Record<string, string> = { ...s.tabSavedDigests };
+    delete tabSavedDigests[emptyId];
+    for (const t of rebased) {
+      tabSavedDigests[t.id] = tabDigest({
+        name: t.name,
+        labelDesign: t.labelDesign,
+        sheetSettings: t.sheetSettings,
+      });
+    }
+
     set({
       selectedFormat: activeFormat,
       labelDesign: active.labelDesign,
@@ -599,6 +719,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       pendingNameTabId: null,
       tabs: [...before, ...rebased, ...after],
       activeTabId: active.id,
+      tabSavedNames,
+      tabSavedDigests,
       tabHistories,
       tabZooms,
       editorZoom: 2.0,
@@ -661,6 +783,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       // Новая вкладка всегда стартует с базового масштаба
       editorZoom: 2.0,
       projectName: name,
+      // У новой этикетки своего файла ещё нет: «Сохранить» спросит имя.
+      savedName: '',
+      pendingNameTabId: id,
       labelDesign: design,
       sheetSettings: freshSettings,
       selectedFormat: s.selectedFormat,
@@ -686,6 +811,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     // snapshotActiveTab уже прячет историю уходящей вкладки в tabHistories.
     const snap = snapshotActiveTab(s);
     const hist = snap.tabHistories[tabId] ?? { history: [], historyIndex: -1 };
+    const targetName = target.name || target.labelDesign.metadata.name;
+    // У каждой вкладки свой файл: вместе с вкладкой переключается и то, под
+    // каким именем она сохранена (иначе «Сохранить» сравнивало бы название с
+    // именем файла другой этикетки).
+    const savedName = s.tabSavedNames[tabId] ?? '';
 
     set({
       tabs: snap.tabs,
@@ -695,7 +825,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       tabZooms: { ...snap.tabZooms, [s.activeTabId]: s.editorZoom },
       editorZoom: snap.tabZooms[tabId] ?? 2.0,
       activeTabId: tabId,
-      projectName: target.name || target.labelDesign.metadata.name,
+      projectName: targetName,
+      savedName,
+      // Вкладка без файла (или с другим названием) — новая: сохранится как новый файл.
+      pendingNameTabId: savedName && targetName.trim() === savedName.trim() ? null : tabId,
       labelDesign: target.labelDesign,
       sheetSettings: target.sheetSettings,
       selectedFormat: getFormatById(target.labelDesign.formatId) || LABEL_FORMATS[0],
@@ -730,6 +863,13 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     delete nextHistories[tabId];
     const nextZooms = { ...snap.tabZooms };
     delete nextZooms[tabId];
+    // У закрытой вкладки больше нет ни имени в файле, ни отпечатка: её файл
+    // остаётся на диске как есть, но перезаписан из другой вкладки не будет
+    // (привязка к ручке файла живёт в useProjectFile и снимается по списку вкладок).
+    const nextSavedNames = { ...s.tabSavedNames };
+    delete nextSavedNames[tabId];
+    const nextDigests = { ...s.tabSavedDigests };
+    delete nextDigests[tabId];
     // Закрыли вкладку с ещё не сохранённым названием — отметка больше не нужна.
     const pendingNameTabId = s.pendingNameTabId === tabId ? null : s.pendingNameTabId;
 
@@ -753,6 +893,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
           tabZooms: {},
           activeTabId: id,
           projectName: fresh.name,
+          tabSavedNames: {},
+          tabSavedDigests: {},
           // Пустая этикетка — новая: прежний файл под неё не подставляется.
           savedName: '',
           pendingNameTabId: id,
@@ -772,13 +914,20 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
       const activeFormat = getFormatById(neighbor.labelDesign.formatId) || LABEL_FORMATS[0];
       const hist = nextHistories[neighbor.id] ?? { history: [], historyIndex: -1 };
+      const neighborName = neighbor.name || neighbor.labelDesign.metadata.name;
+      const neighborSaved = nextSavedNames[neighbor.id] ?? '';
       set({
         tabs: nextTabs,
         tabHistories: nextHistories,
         tabZooms: nextZooms,
         activeTabId: neighbor.id,
-        projectName: neighbor.name || neighbor.labelDesign.metadata.name,
-        pendingNameTabId,
+        projectName: neighborName,
+        // Соседняя вкладка могла уже иметь свой файл — поле показывает её имя.
+        savedName: neighborSaved,
+        pendingNameTabId:
+          neighborSaved && neighborName.trim() === neighborSaved.trim() ? null : neighbor.id,
+        tabSavedNames: nextSavedNames,
+        tabSavedDigests: nextDigests,
         labelDesign: neighbor.labelDesign,
         sheetSettings: neighbor.sheetSettings,
         selectedFormat: activeFormat,
@@ -787,9 +936,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         // Масштаб соседней вкладки — её собственный
         editorZoom: nextZooms[neighbor.id] ?? 2.0,
         selectedObject: null,
-        // Список вкладок изменился (удалена запись) — проект действительно
-        // изменился, помечаем грязным.
-        isDirty: true,
+        // Закрытие вкладки не меняет содержимое оставшихся этикеток (у каждой
+        // свой файл), поэтому «несохранённых изменений» оно не создаёт — иначе
+        // пользователь жмёт Ctrl+S и сохраняет то, что и так записано.
         loadRevision: get().loadRevision + 1,
       });
       return;
@@ -800,8 +949,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       tabs: nextTabs,
       tabHistories: nextHistories,
       tabZooms: nextZooms,
+      tabSavedNames: nextSavedNames,
+      tabSavedDigests: nextDigests,
       pendingNameTabId,
-      isDirty: true,
     });
   },
   
@@ -865,6 +1015,10 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const newIndex = historyIndex - 1;
     const state = newIndex >= 0 ? history[newIndex] : EMPTY_CANVAS;
     await withoutHistory(() => editorCanvas.loadFromJSON(state as any));
+    // Холст редактора прозрачный: белый лист этикетки — DOM-слой под холстом,
+    // вокруг — рабочая зона. Снимок истории мог сохранить background (старые
+    // версии), и без сброса холст стал бы белым целиком.
+    editorCanvas.backgroundColor = '';
     editorCanvas.discardActiveObject();
     editorCanvas.requestRenderAll();
     set({
@@ -882,6 +1036,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const newIndex = historyIndex + 1;
     const state = history[newIndex];
     await withoutHistory(() => editorCanvas.loadFromJSON(state as any));
+    // См. комментарий в undo: фон холста восстанавливается прозрачным.
+    editorCanvas.backgroundColor = '';
     editorCanvas.discardActiveObject();
     editorCanvas.requestRenderAll();
     set({

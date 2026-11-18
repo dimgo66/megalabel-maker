@@ -185,6 +185,22 @@ const sections: HelpSection[] = [
           </p>
         </div>
         <div>
+          <h3 className="font-semibold text-gray-900 mb-2">Закрепление позиции</h3>
+          <p className="text-sm text-gray-600 leading-relaxed">
+            Сдвиг мышью требует осознанного жеста: смещение меньше <strong>3 px</strong> игнорируется,
+            поэтому клик с дрожанием руки не перемещает блок.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Кнопка <strong>«Закрепить»</strong> в правой панели (вверху, рядом с названием блока)
+            запрещает перемещение полностью: блок по-прежнему выделяется, правится и меняет размеры,
+            но мышью и стрелками не двигается. Закрепление сохраняется в проекте.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Замок в разделе <strong>«Слои»</strong> запирает блок целиком — его нельзя ни выделить,
+            ни править. Он тоже сохраняется в проекте.
+          </p>
+        </div>
+        <div>
           <h3 className="font-semibold text-gray-900 mb-2">Свойства текста (правая панель)</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
             {[
@@ -219,6 +235,7 @@ const sections: HelpSection[] = [
           <p className="text-sm text-gray-600 leading-relaxed mt-2">
             Если на этикетке ничего не выделено, <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+V</kbd> создаст
             новый текстовый блок с содержимым буфера. Если выделен не текст (например, изображение), вставка не подменяется.
+            Если в буфере лежит скопированный объект этикетки, вставится он — текстом такой фрагмент не становится.
           </p>
         </div>
         <div className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-sm text-blue-800 flex items-start gap-2">
@@ -458,11 +475,12 @@ const sections: HelpSection[] = [
           </p>
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900 mb-2">Сохранение проекта в файл</h3>
+          <h3 className="font-semibold text-gray-900 mb-2">Сохранение этикетки в файл</h3>
           <p className="text-sm text-gray-600 leading-relaxed">
             Кнопка <strong>«Сохранить»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+S</kbd>.
-            Место и имя файла <code className="text-xs bg-gray-100 px-1 rounded">.json</code> спрашиваются один раз — при первом сохранении проекта.
-            Дальше файл перезаписывается на том же месте под тем же именем, без вопросов.
+            В файл <code className="text-xs bg-gray-100 px-1 rounded">.json</code> пишется <strong>одна этикетка — та,
+            что открыта</strong>: у каждой вкладки свой файл. Место и имя спрашиваются при первом сохранении
+            этой этикетки; дальше её файл перезаписывается на том же месте под тем же именем, без вопросов.
           </p>
           <p className="text-sm text-gray-600 leading-relaxed mt-2">
             Кнопка <strong>«Сохранить как»</strong> или <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+Shift+S</kbd> —
@@ -472,6 +490,10 @@ const sections: HelpSection[] = [
             Название в поле изменили — <strong>«Сохранить» работает как «Сохранить как»</strong>:
             прежний файл остаётся нетронутым, этикетка сохраняется в новый файл под набранным
             названием. После сохранения кнопка снова перезаписывает этот файл без вопросов.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Файл другой вкладки «Сохранить» не трогает. Если у этикетки своего файла ещё нет
+            (новая вкладка, закрыли прежнюю), приложение спросит имя, а не перезапишет чужой файл.
           </p>
         </div>
         <div>
@@ -508,8 +530,22 @@ const sections: HelpSection[] = [
           <p className="text-sm text-gray-600 leading-relaxed mt-2">
             <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Alt+1</kbd> …{' '}
             <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Alt+9</kbd> — перейти к вкладке по номеру.
-            В файл проекта сохраняются все вкладки сразу; файл со вкладками, открытый в старой версии приложения,
-            покажет только активную вкладку.
+            Каждая вкладка сохраняется <strong>в свой файл</strong>; файл закрытой вкладки остаётся на диске.
+            Закрытие вкладки с несохранёнными правками спрашивает подтверждение.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Объекты переносятся между вкладками: выделите фрейм, изображение, штрих-код или сразу несколько
+            объектов и нажмите <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+C</kbd>{' '}
+            (вырезать — <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+X</kbd>),
+            переключите вкладку и нажмите{' '}
+            <kbd className="bg-gray-100 border border-gray-300 rounded px-1 text-xs">Ctrl+V</kbd>. Копия встаёт
+            на место оригинала; если формат этикетки другой и объект не помещается — сдвигается внутрь. Замки
+            исходника на копию не переносятся.
+          </p>
+          <p className="text-sm text-gray-600 leading-relaxed mt-2">
+            Файл, в котором несколько этикеток (сохранён прежней версией приложения), открывается всеми
+            вкладками. Сохранение из такого файла спрашивает новое место, чтобы не потерять остальные
+            этикетки.
           </p>
           <p className="text-sm text-gray-600 leading-relaxed mt-2">
             «Загрузить» при активной <strong>пустой вкладке</strong> (только что созданной через «+») помещает
@@ -543,6 +579,9 @@ const sections: HelpSection[] = [
           { keys: 'Ctrl + Shift + P', desc: 'Открыть предпросмотр листа' },
           { keys: 'Ctrl + P', desc: 'Открыть предпросмотр (печать)' },
           { keys: 'Ctrl + Shift + E', desc: 'Открыть предпросмотр (экспорт PDF)' },
+          { keys: 'Ctrl + C', desc: 'Копировать выделенные объекты (вставляются и в другой вкладке)' },
+          { keys: 'Ctrl + X', desc: 'Вырезать выделенные объекты' },
+          { keys: 'Ctrl + V', desc: 'Вставить объект из буфера (если в буфере текст — создать или дополнить текст)' },
           { keys: 'Alt + 1…9', desc: 'Перейти к вкладке по номеру' },
           { keys: 'Ctrl + колесо мыши', desc: 'Масштабирование редактора' },
           { keys: 'Delete / Backspace', desc: 'Удалить выделенный объект' },

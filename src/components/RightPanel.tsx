@@ -4,6 +4,7 @@ import { TextPanel } from './TextPanel';
 import { ImagePropertiesPanel } from './ImagePropertiesPanel';
 import { BarcodePropertiesPanel } from './BarcodePropertiesPanel';
 import { LayersPanel } from './LayersPanel';
+import { ObjectPositionLock } from './ObjectPositionLock';
 
 export function RightPanel() {
   const safetyInputId = useId();
@@ -66,6 +67,10 @@ export function RightPanel() {
 
       {/* Прокручиваемая часть: свойства выбранного объекта и слои */}
       <div className="flex-1 overflow-y-auto min-h-0">
+        {/* Закрепление позиции — первым: это про объект целиком, а не про его
+            свойства, и нужно до того, как пользователь начнёт править текст. */}
+        <ObjectPositionLock />
+
         {/* Text properties - shown when text object is selected */}
         <TextPanel />
 

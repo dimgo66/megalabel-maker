@@ -27,6 +27,10 @@ const GEOMETRY_PRESETS: Record<string, SheetGeometry> = {
   // верхнее поле 1,31 см, боковые поля 0, шаг 7,0×6,77, сетка 3×4.
   // Проверка: 3×70 = 210 ровно; 13,1 + 4×67,7 + 13,1 = 297 ровно.
   '70x67.7_12': geometryFromMargins(0.0, 13.1, 70.0, 67.7, 3, 4, 70.0, 67.7),
+  // ── MEGA LABEL 105×42,4 / 14 шт (арт. 73623) ──
+  // Лист заполнен целиком: 2×105 = 210 ровно по ширине, 7×42,4 = 296,8 →
+  // поля 0 / 0,1 мм, шаг равен размеру этикетки (105,00 × 42,40), вплотную.
+  '105x42.4_14': geometryFromMargins(0.0, 0.1, 105.0, 42.4, 2, 7, 105.0, 42.4),
   // ── 73581-d-60-12.doc: круг ⌀60 на «шахматной» сетке Word ──
   // широкие ячейки 2410 tw, разделители 1361 tw → шаг 3771 tw = 66.52 мм по X и Y;
   // центры кругов: 2137 tw = 37.70 мм от левого края, 2719 tw = 47.96 мм от верха
@@ -39,6 +43,10 @@ export const LABEL_FORMATS: LabelFormat[] = [
   {
     id: '105x57_10', name: '105×57 мм / 10 шт', width_mm: 105, height_mm: 57,
     count: 10, shape: 'rect', layout: GEOMETRY_PRESETS['105x57_10'],
+  },
+  {
+    id: '105x42.4_14', name: '105×42.4 мм / 14 шт', width_mm: 105, height_mm: 42.4,
+    count: 14, shape: 'rect', layout: GEOMETRY_PRESETS['105x42.4_14'],
   },
   {
     id: '99x34_16', name: '99×34 мм / 16 шт', width_mm: 99, height_mm: 34,
@@ -80,7 +88,6 @@ export const INACTIVE_LABEL_FORMATS: LabelFormat[] = [
   { id: '99.1x57_10', name: '99.1×57 мм / 10 шт', width_mm: 99.1, height_mm: 57, count: 10, shape: 'rect' },
   { id: '105x48_12', name: '105×48 мм / 12 шт', width_mm: 105, height_mm: 48, count: 12, shape: 'rect' },
   { id: '99.1x42.3_12', name: '99.1×42.3 мм / 12 шт', width_mm: 99.1, height_mm: 42.3, count: 12, shape: 'rect' },
-  { id: '105x42.4_14', name: '105×42.4 мм / 14 шт', width_mm: 105, height_mm: 42.4, count: 14, shape: 'rect' },
   { id: '99.1x38.1_14', name: '99.1×38.1 мм / 14 шт', width_mm: 99.1, height_mm: 38.1, count: 14, shape: 'rect' },
   { id: '70x57_15', name: '70×57 мм / 15 шт', width_mm: 70, height_mm: 57, count: 15, shape: 'rect' },
   { id: '105x37_16', name: '105×37 мм / 16 шт', width_mm: 105, height_mm: 37, count: 16, shape: 'rect' },

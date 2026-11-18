@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useProjectStore } from '../store/useProjectStore';
+import { serializeCanvas } from '../utils/canvasHelpers';
+import { tabDigest } from '../utils/tabDigest';
 import { X, Plus } from './icons';
 
 /**
@@ -12,7 +14,9 @@ import { X, Plus } from './icons';
  *
  * Закрывать последнюю вкладку нельзя (крестик у неё не показывается): пустой
  * редактор без вкладок не предусмотрен. Переименование — двойным кликом по
- * ярлыку; имя вкладки совпадает с названием проекта в тулбаре.
+ * ярлыку; имя вкладки совпадает с названием проекта в тулбаре. У каждой
+ * вкладки свой файл, поэтому закрытие вкладки с несохранёнными правками
+ * спрашивает подтверждение.
  */
 export function TabBar() {
   const tabs = useProjectStore(s => s.tabs);
@@ -33,6 +37,40 @@ export function TabBar() {
   const commitEditing = () => {
     if (editingId) renameTab(editingId, draftName);
     setEditingId(null);
+  };
+
+  /**
+   * Закрытие вкладки с несохранёнными правками — только с подтверждением.
+   *
+   * У каждой этикетки свой файл, поэтому «сохранена» проверяется по вкладке:
+   * сравнивается отпечаток её текущего содержимого с отпечатком на момент
+   * записи/открытия файла. Пустая вкладка закрывается молча (в ней нечего терять).
+   */
+  const requestClose = (tabId: string) => {
+    const s = useProjectStore.getState();
+    const tab = s.tabs.find(t => t.id === tabId);
+    if (!tab) return;
+
+    const isActive = tabId === s.activeTabId;
+    // Живой холст важнее последней записи в стор: у активной вкладки он свежее.
+    const entry = {
+      name: isActive ? s.projectName : tab.name,
+      labelDesign:
+        isActive && s.editorCanvas && !s.canvasLoading
+          ? { ...s.labelDesign, canvasJSON: serializeCanvas(s.editorCanvas) }
+          : tab.labelDesign,
+      sheetSettings: isActive ? s.sheetSettings : tab.sheetSettings,
+    };
+
+    const empty = Object.keys(entry.labelDesign.canvasJSON ?? {}).length === 0;
+    if (!empty && s.tabSavedDigests[tabId] !== tabDigest(entry)) {
+      const confirmed = window.confirm(
+        `В этикетке «${tab.name}» есть несохранённые изменения. Закрыть без сохранения?`
+      );
+      if (!confirmed) return;
+    }
+
+    closeTab(tabId);
   };
 
   return (
@@ -88,7 +126,7 @@ export function TabBar() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      closeTab(tab.id);
+                      requestClose(tab.id);
                     }}
                     className="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-gray-300 transition-opacity shrink-0"
                     title={`Закрыть «${tab.name}»`}
