@@ -22,6 +22,11 @@ const GEOMETRY_PRESETS: Record<string, SheetGeometry> = {
   // ── 73649-38-16-9.doc: поля 567/275 tw, клетка 2155 tw = 38.01, ряд 958 tw ──
   // этикетка 38×16.9 вплотную (шаг 38.01), отступ 10.00/4.85 (rest 9.96/4.85)
   '38x16.9_85': geometryFromMargins(10.0, 4.85, 38.0, 16.9, 5, 17, 38.01, 16.9),
+  // ── MEGA LABEL 70×67,7 / 12 (СТАНДАРТ, арт. 73624 / 641804-1930108) ──
+  // Источник — «Данные для печати этикеток в ПО Word» из карточки производителя:
+  // верхнее поле 1,31 см, боковые поля 0, шаг 7,0×6,77, сетка 3×4.
+  // Проверка: 3×70 = 210 ровно; 13,1 + 4×67,7 + 13,1 = 297 ровно.
+  '70x67.7_12': geometryFromMargins(0.0, 13.1, 70.0, 67.7, 3, 4, 70.0, 67.7),
   // ── 73581-d-60-12.doc: круг ⌀60 на «шахматной» сетке Word ──
   // широкие ячейки 2410 tw, разделители 1361 tw → шаг 3771 tw = 66.52 мм по X и Y;
   // центры кругов: 2137 tw = 37.70 мм от левого края, 2719 tw = 47.96 мм от верха
@@ -42,6 +47,10 @@ export const LABEL_FORMATS: LabelFormat[] = [
   {
     id: '66.7x46_18', name: '66.7×46 мм / 18 шт', width_mm: 66.7, height_mm: 46,
     count: 18, shape: 'rect', layout: GEOMETRY_PRESETS['66.7x46_18'],
+  },
+  {
+    id: '70x67.7_12', name: '70×67.7 мм / 12 шт', width_mm: 70, height_mm: 67.7,
+    count: 12, shape: 'rect', layout: GEOMETRY_PRESETS['70x67.7_12'],
   },
   {
     id: 'd60_circle_12', name: '⌀60 мм / 12 шт (круг)', width_mm: 60, height_mm: 60,
@@ -70,7 +79,6 @@ export const INACTIVE_LABEL_FORMATS: LabelFormat[] = [
   { id: '105x74_8', name: '105×74 мм / 8 шт', width_mm: 105, height_mm: 74, count: 8, shape: 'rect' },
   { id: '99.1x57_10', name: '99.1×57 мм / 10 шт', width_mm: 99.1, height_mm: 57, count: 10, shape: 'rect' },
   { id: '105x48_12', name: '105×48 мм / 12 шт', width_mm: 105, height_mm: 48, count: 12, shape: 'rect' },
-  { id: '70x67.7_12', name: '70×67.7 мм / 12 шт', width_mm: 70, height_mm: 67.7, count: 12, shape: 'rect' },
   { id: '99.1x42.3_12', name: '99.1×42.3 мм / 12 шт', width_mm: 99.1, height_mm: 42.3, count: 12, shape: 'rect' },
   { id: '105x42.4_14', name: '105×42.4 мм / 14 шт', width_mm: 105, height_mm: 42.4, count: 14, shape: 'rect' },
   { id: '99.1x38.1_14', name: '99.1×38.1 мм / 14 шт', width_mm: 99.1, height_mm: 38.1, count: 14, shape: 'rect' },
