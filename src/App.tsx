@@ -12,6 +12,7 @@ import { TabBar } from './components/TabBar';
 import { mmToPx } from './utils/layoutCalculator';
 import { restoreLocalFonts, getLoadedGoogleFontsFromStorage, loadGoogleFont } from './utils/fontLoader';
 import { injectEmbeddedFontFaces, ensureEmbeddedFontsLoaded } from './utils/embeddedFontLoader';
+import { useCanvasFileDrop } from './hooks/useCanvasFileDrop';
 import { Circle, MoveVertical } from './components/icons';
 import { FONT_CONFIGS } from './config/fonts';
 import './styles/print.css';
@@ -54,6 +55,13 @@ function App() {
 
   const handleZoomIn = () => setEditorZoom(Math.min(10.0, editorZoom + 0.5));
   const handleZoomReset = () => setEditorZoom(DEFAULT_ZOOM);
+
+  // Перетаскивание изображений и PDF с рабочего стола на этикетку.
+  // containerRef — область редактора (вне её бросок не засчитывается),
+  // dropZoneRef — сам лист этикетки: по нему считается попадание и подсветка.
+  const editorAreaRef = useRef<HTMLDivElement>(null);
+  const labelZoneRef = useRef<HTMLDivElement>(null);
+  const { isDragOver, isImporting } = useCanvasFileDrop(editorAreaRef, labelZoneRef);
 
   // Восстановление шрифтов при загрузке страницы
   useEffect(() => {
@@ -192,12 +200,45 @@ function App() {
                 но в печать и PDF не попадает (экспорт кадрируется по формату). */}
             <div
               className="relative shrink-0 m-auto"
+              ref={editorAreaRef}
               style={{
                 width: `${labelPxW + pasteboardPx * 2}px`,
                 height: `${labelPxH + pasteboardPx * 2}px`,
                 flexShrink: 0,
               }}
             >
+              {/* Зона дропа: сам лист этикетки.
+                  Отдельный слой над холстом на время перетаскивания файла.
+                  Нужен потому, что рамку и подпись рисует DOM, а содержимое
+                  этикетки живёт в <canvas> — перекрывать его нечем.
+                  pointer-events-none: слой не должен мешать ни fabric, ни
+                  hit-test при обычной работе; подсветка включается только
+                  когда курсор с файлом действительно над листом. */}
+              <div
+                ref={labelZoneRef}
+                className={`absolute z-30 pointer-events-none transition-all duration-150 ${
+                  selectedFormat.shape === 'circle' ? 'rounded-full' : 'rounded-lg'
+                } ${
+                  isDragOver
+                    ? 'border-2 border-dashed border-blue-500 bg-blue-500/10'
+                    : 'border-2 border-dashed border-transparent'
+                }`}
+                style={{
+                  left: `${pasteboardPx}px`,
+                  top: `${pasteboardPx}px`,
+                  width: `${labelPxW}px`,
+                  height: `${labelPxH}px`,
+                }}
+              >
+                {isDragOver && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 select-none">
+                    <span className="px-3 py-1.5 rounded-md bg-blue-600 text-white text-sm font-medium shadow-lg">
+                      {isImporting ? 'Добавляю…' : 'Отпустите файл'}
+                    </span>
+                    <span className="type-meta">PNG, JPG, SVG, PDF</span>
+                  </div>
+                )}
+              </div>
               {/* Лист этикетки под холстом */}
               <div
                 className={`absolute bg-white shadow-xl ${

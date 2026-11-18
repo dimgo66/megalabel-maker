@@ -1,6 +1,5 @@
 import { useRef } from 'react';
-import { handleFileUpload } from '../utils/imageLoader';
-import { describePdfError, isPdfPasswordError } from '../utils/pdfImageLoader';
+import { ingestFile } from '../utils/imageIngest';
 import * as fabric from 'fabric';
 import { ImageIcon } from './icons';
 
@@ -12,38 +11,6 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isProcessingRef = useRef(false);
 
-  /**
-   * Загрузка одного файла. Защищённый PDF переспрашивает пароль и пробует
-   * снова; остальные ошибки показываются с причиной, а не общим «не удалось».
-   */
-  const loadFile = async (file: File) => {
-    if (!canvas) return;
-
-    try {
-      await handleFileUpload(file, canvas);
-    } catch (error) {
-      if (isPdfPasswordError(error)) {
-        const password = window.prompt(
-          `PDF «${file.name}» защищён паролем.\nВведите пароль:`,
-          ''
-        );
-        if (!password) return;
-
-        try {
-          await handleFileUpload(file, canvas, { password });
-          return;
-        } catch (retryError) {
-          console.error('Ошибка загрузки PDF после ввода пароля:', retryError);
-          alert(`Не удалось загрузить файл «${file.name}»: ${describePdfError(retryError)}`);
-          return;
-        }
-      }
-
-      console.error('Ошибка загрузки файла:', error);
-      alert(`Не удалось загрузить файл «${file.name}»: ${describePdfError(error)}`);
-    }
-  };
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isProcessingRef.current) return;
 
@@ -53,8 +20,11 @@ export function ImagePanel({ canvas }: ImagePanelProps) {
     isProcessingRef.current = true;
 
     try {
+      // Точка сброса не передаётся: файл из кнопки встаёт в центр этикетки.
+      // Обработка ошибок и запрос пароля PDF — в ingestFile, общая с
+      // перетаскиванием с рабочего стола (useCanvasFileDrop).
       for (const file of files) {
-        await loadFile(file);
+        await ingestFile(file, canvas);
       }
     } finally {
       if (fileInputRef.current) {

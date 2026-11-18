@@ -156,11 +156,18 @@ export interface FileUploadOptions {
 
 /**
  * Обработка загруженного файла и добавление на канвас
+ *
+ * @param beforeCommit — вызывается, когда объект уже на холсте, но ещё не
+ *   выделен и не записан в историю. Здесь перетаскивание ставит объект в точку
+ *   сброса. Координаты объекта должны быть финальными уже здесь: `object:added`
+ *   поднимается внутри `canvas.add` и снимает снимок для истории, поэтому
+ *   сдвиг после `add` попал бы в отмену отдельным действием.
  */
 export async function handleFileUpload(
   file: File,
   canvas: fabric.Canvas,
-  options: FileUploadOptions = {}
+  options: FileUploadOptions = {},
+  beforeCommit?: (object: fabric.FabricObject) => void
 ): Promise<void> {
   const fileType = file.type.toLowerCase();
   const fileName = file.name.toLowerCase();
@@ -213,6 +220,11 @@ export async function handleFileUpload(
       mt: false,
       mb: false,
     });
+
+    // Перетаскивание ставит объект в точку сброса ДО добавления: `canvas.add`
+    // поднимает object:added, и снимок для истории сразу содержит нужные
+    // координаты (иначе сдвиг записался бы отдельным действием в отмену).
+    beforeCommit?.(fabricObject);
 
     // Добавляем на канвас
     canvas.add(fabricObject);
