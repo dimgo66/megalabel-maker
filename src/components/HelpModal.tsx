@@ -24,6 +24,7 @@ import {
   X,
 } from './icons';
 import type { IconProps } from './icons';
+import { APP_NAME, APP_VERSION } from '../config/version';
 
 interface HelpSection {
   id: string;
@@ -649,7 +650,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
               <span className="text-2xl"><BookOpen size={24} /></span>
               <div>
                 <div className="text-sm font-bold text-gray-900">Справка</div>
-                <div className="type-meta">Megalabel Pro</div>
+                <div className="type-meta">{APP_NAME}</div>
               </div>
             </div>
           </div>
@@ -674,7 +675,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
           {/* Footer */}
           <div className="px-4 py-3 border-t border-gray-200">
-            <div className="type-meta text-center">Megalabel Pro v2.0</div>
+            <div className="type-meta text-center">{APP_NAME} {APP_VERSION}</div>
           </div>
         </div>
 
