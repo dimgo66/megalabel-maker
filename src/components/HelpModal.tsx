@@ -674,7 +674,7 @@ export function HelpModal({ isOpen, onClose }: HelpModalProps) {
 
           {/* Footer */}
           <div className="px-4 py-3 border-t border-gray-200">
-            <div className="type-meta text-center">Megalabel Pro v1.0</div>
+            <div className="type-meta text-center">Megalabel Pro v2.0</div>
           </div>
         </div>
 
